@@ -1,0 +1,18 @@
+{
+  "name": "invoice-air",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Invoice creation and management system",
+  "scripts": {
+    "dev": "pnpm --filter \"./backend\" dev & pnpm --filter \"./frontend\" dev",
+    "dev:backend": "pnpm --filter \"./backend\" start:dev",
+    "dev:frontend": "pnpm --filter \"./frontend\" dev",
+    "build": "pnpm --filter \"./backend\" build && pnpm --filter \"./frontend\" build",
+    "clean": "pnpm -r --parallel exec rimraf dist .next node_modules"
+  },
+  "devDependencies": {
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.3"
+  },
+  "packageManager": "pnpm@11.9.0"
+}
