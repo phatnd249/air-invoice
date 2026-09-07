@@ -3,11 +3,13 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FileText, LayoutTemplate, Settings, ShieldCheck } from 'lucide-react';
+import { FileText, LayoutTemplate, Settings, ShieldCheck, Layers, History } from 'lucide-react';
 
 const navigation = [
   { name: 'Hóa đơn', href: '/invoices', icon: FileText },
+  { name: 'Dịch vụ', href: '/services', icon: Layers },
   { name: 'Mẫu hóa đơn', href: '/templates', icon: LayoutTemplate },
+  { name: 'Lịch sử', href: '/history', icon: History },
   { name: 'Cài đặt', href: '/settings', icon: Settings },
 ];
 
