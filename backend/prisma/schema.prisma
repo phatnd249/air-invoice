@@ -13,7 +13,6 @@ enum Role {
 }
 
 enum InvoiceStatus {
-  DRAFT
   ISSUED
   SENT
   PAID
@@ -59,7 +58,7 @@ model Invoice {
   id              String        @id @default(uuid())
   invoiceNumber   String        @unique
   paymentCode     String?       // Mã 6 ký tự đối soát (VD: A8X9K2)
-  status          InvoiceStatus @default(DRAFT)
+  status          InvoiceStatus @default(ISSUED)
   issueDate       DateTime      @default(now())
   dueDate         DateTime?
   currency        String        @default("VND")
@@ -123,4 +122,15 @@ model InvoiceHistory {
   note      String?
   actor     String?
   createdAt DateTime @default(now())
+}
+
+model ServiceCatalog {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  metaInfo    String?  // VD: 1 Năm, 25/06/2026 - 25/06/2027
+  unit        String   @default("gói")
+  unitPrice   Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
