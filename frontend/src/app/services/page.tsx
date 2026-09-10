@@ -131,7 +131,7 @@ export default function ServicesPage() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
         <div className="flex items-center space-x-3">
-          <div className="p-2.5 bg-gradient-to-br from-violet-500 to-indigo-600 rounded-xl shadow-lg shadow-violet-500/25">
+          <div className="p-2.5 bg-blue-600 rounded-xl shadow-xs">
             <Layers className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -144,7 +144,7 @@ export default function ServicesPage() {
 
         <button
           onClick={openCreateModal}
-          className="inline-flex items-center px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl shadow-sm space-x-2 transition-all"
+          className="inline-flex items-center px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold rounded-xl shadow-xs space-x-2 transition-all"
         >
           <Plus className="w-4 h-4" />
           <span>Thêm Dịch Vụ</span>
@@ -159,7 +159,7 @@ export default function ServicesPage() {
           placeholder="Tìm kiếm theo tên hoặc mô tả dịch vụ..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500 focus:outline-none bg-white shadow-sm transition-all"
+          className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none bg-white shadow-xs transition-all"
         />
         {search && (
           <button
@@ -174,7 +174,7 @@ export default function ServicesPage() {
       {/* Services Table */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
       ) : services.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center">
@@ -190,7 +190,7 @@ export default function ServicesPage() {
           {!search && (
             <button
               onClick={openCreateModal}
-              className="mt-4 inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl space-x-1.5 transition-all"
+              className="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-sm shadow-blue-500/20 space-x-1.5 transition-all"
             >
               <Plus className="w-4 h-4" />
               <span>Thêm Dịch Vụ Đầu Tiên</span>
@@ -239,11 +239,11 @@ export default function ServicesPage() {
                       {svc.metaInfo || '—'}
                     </td>
                     <td className="px-5 py-3.5 text-center">
-                      <span className="bg-violet-50 text-violet-700 text-xs font-semibold px-2 py-0.5 rounded-md border border-violet-200">
+                      <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-md border border-blue-200">
                         {svc.unit}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 text-right font-bold text-emerald-600 whitespace-nowrap">
+                    <td className="px-5 py-3.5 text-right font-mono tabular-nums font-bold text-slate-900 whitespace-nowrap">
                       {formatCurrency(svc.unitPrice)}
                     </td>
                     <td className="px-5 py-3.5 text-center">
@@ -305,7 +305,7 @@ export default function ServicesPage() {
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <div className="flex items-center space-x-2.5">
-                <div className="p-2 bg-violet-100 text-violet-600 rounded-xl">
+                <div className="p-2 bg-blue-100 text-blue-600 rounded-xl">
                   {editingId ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
                 </div>
                 <div>
@@ -410,7 +410,7 @@ export default function ServicesPage() {
                 <button
                   type="submit"
                   disabled={isSaving || !formData.name.trim()}
-                  className="inline-flex items-center px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl shadow-sm space-x-1.5 transition-all"
+                  className="inline-flex items-center px-5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white text-sm font-semibold rounded-xl shadow-sm shadow-blue-500/20 space-x-1.5 transition-all"
                 >
                   <Save className="w-4 h-4" />
                   <span>{isSaving ? 'Đang lưu...' : editingId ? 'Cập Nhật' : 'Tạo Mới'}</span>
