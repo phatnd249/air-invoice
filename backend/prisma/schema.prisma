@@ -19,106 +19,142 @@ enum InvoiceStatus {
   CANCELLED
 }
 
+// Loại hoá đơn theo quy định Việt Nam (Nghị định 123/2020/NĐ-CP)
+enum InvoiceType {
+  GTGT // Hoá đơn giá trị gia tăng
+  BAN_HANG // Hoá đơn bán hàng
+  TAI_SAN_CONG // Hoá đơn điện tử bán tài sản công
+  DU_TRU_QG // Hoá đơn điện tử bán hàng dự trữ quốc gia
+}
+
+// Hình thức hoá đơn điện tử
+enum InvoiceForm {
+  WITH_TAX_CODE // Có mã của cơ quan thuế
+  WITHOUT_TAX_CODE // Không có mã của cơ quan thuế
+  POS_CONNECTED // Từ máy tính tiền có kết nối dữ liệu với cơ quan thuế
+}
+
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String?
-  role      Role     @default(ADMIN)
+  id                   String    @id @default(uuid())
+  email                String    @unique
+  password             String
+  name                 String?
+  role                 Role      @default(ADMIN)
+  hashedRefreshToken   String?
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+model Setting {
+  id          String  @id @default("default")
+  companyName String  @default("CÔNG TY TNHH GIÁO DỤC AI ROBOTIC")
+  taxCode     String? @default("3603893101")
+  address     String? @default("Số 10 Huỳnh Văn Nghệ, P. Trấn Biên, Đồng Nai")
+  phone       String? @default("0900000000")
+  email       String? @default("contact@airobotics.edu.vn")
+  logoUrl     String?
+  companies   String? // JSON string: CompanyProfile[] danh sách nhiều đơn vị cung cấp
+
+  // Thông tin ngân hàng & QR
+  bankCode        String? @default("Vietcombank")
+  bankAccount     String? @default("SHYNNERI")
+  bankAccountName String? @default("AI ROBOTIC")
+  bankAccounts    String? // JSON string: BankAccount[] danh sách nhiều tài khoản ngân hàng
+  qrTemplate      String? @default("compact") // compact, qr_only, etc.
+
+  // Quy tắc hóa đơn
+  invoicePrefix       String @default("HD")
+  invoiceNumberLength Int    @default(6)
+  nextInvoiceNumber   Int    @default(1)
+  defaultCurrency     String @default("VND")
+  defaultVatRate      Float  @default(10)
+
+  // Mẫu nội dung email thông báo & hóa đơn
+  emailAlertSubject   String?
+  emailAlertBody      String?
+  invoiceEmailSubject String?
+  invoiceEmailBody    String?
+
+  updatedAt DateTime @updatedAt
+}
+
+model Invoice {
+  id            String        @id @default(uuid())
+  invoiceNumber String        @unique
+  invoiceType   InvoiceType   @default(GTGT)
+  invoiceForm   InvoiceForm   @default(WITH_TAX_CODE)
+  paymentCode   String? // Mã 6 ký tự đối soát (VD: A8X9K2)
+  status        InvoiceStatus @default(ISSUED)
+  issueDate     DateTime      @default(now())
+  dueDate       DateTime?
+  currency      String        @default("VND")
+  templateId    String        @default("standard-classic")
+  notes         String?
+  terms         String?
+
+  // Thông tin đơn vị cung cấp (Người bán - Snapshot tại thời điểm lập HĐ)
+  sellerName    String?
+  sellerTaxCode String?
+  sellerAddress String?
+  sellerPhone   String?
+  sellerEmail   String?
+  sellerLogoUrl String?
+
+  // Thông tin người mua
+  buyerName    String
+  buyerCompany String?
+  buyerTaxCode String?
+  buyerAddress String?
+  buyerEmail   String?
+  buyerPhone   String?
+
+  // Tài chính
+  hasVat     Boolean @default(true)
+  vatRate    Float   @default(10)
+  subTotal   Float   @default(0)
+  vatAmount  Float   @default(0)
+  otherFee   Float   @default(0)
+  grandTotal Float   @default(0)
+
+  // QR Code & Storage Link
+  qrDataUrl  String? // Base64 QR hoặc VietQR link
+  pdfUrl     String? // Link lưu trữ trên Cloudflare R2
+  shareToken String? @unique // Token chia sẻ trực tuyến
+
+  items     InvoiceItem[]
+  histories InvoiceHistory[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model Setting {
-  id                  String   @id @default("default")
-  companyName         String   @default("CÔNG TY TNHH GIÁO DỤC AI ROBOTIC")
-  taxCode             String?  @default("3603893101")
-  address             String?  @default("Số 10 Huỳnh Văn Nghệ, P. Trấn Biên, Đồng Nai")
-  phone               String?  @default("0900000000")
-  email               String?  @default("contact@airobotics.edu.vn")
-  logoUrl             String?
-  
-  // Thông tin ngân hàng & QR
-  bankCode            String?  @default("Vietcombank")
-  bankAccount         String?  @default("SHYNNERI")
-  bankAccountName     String?  @default("AI ROBOTIC")
-  qrTemplate          String?  @default("compact") // compact, qr_only, etc.
-
-  // Quy tắc hóa đơn
-  invoicePrefix       String   @default("HD")
-  invoiceNumberLength Int      @default(6)
-  nextInvoiceNumber   Int      @default(1)
-  defaultCurrency     String   @default("VND")
-  defaultVatRate      Float    @default(10)
-
-  updatedAt           DateTime @updatedAt
-}
-
-model Invoice {
-  id              String        @id @default(uuid())
-  invoiceNumber   String        @unique
-  paymentCode     String?       // Mã 6 ký tự đối soát (VD: A8X9K2)
-  status          InvoiceStatus @default(ISSUED)
-  issueDate       DateTime      @default(now())
-  dueDate         DateTime?
-  currency        String        @default("VND")
-  templateId      String        @default("standard-classic")
-  notes           String?
-  terms           String?
-
-  // Thông tin người mua
-  buyerName       String
-  buyerCompany    String?
-  buyerTaxCode    String?
-  buyerAddress    String?
-  buyerEmail      String?
-  buyerPhone      String?
-
-  // Tài chính
-  hasVat          Boolean       @default(true)
-  vatRate         Float         @default(10)
-  subTotal        Float         @default(0)
-  vatAmount       Float         @default(0)
-  otherFee        Float         @default(0)
-  grandTotal      Float         @default(0)
-
-  // QR Code & Storage Link
-  qrDataUrl       String?       // Base64 QR hoặc VietQR link
-  pdfUrl          String?       // Link lưu trữ trên Cloudflare R2
-  shareToken      String?       @unique // Token chia sẻ trực tuyến
-
-  items           InvoiceItem[]
-  histories       InvoiceHistory[]
-
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-}
-
 model InvoiceItem {
-  id          String   @id @default(uuid())
+  id          String  @id @default(uuid())
   invoiceId   String
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  sortOrder   Int      @default(0)
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  sortOrder   Int     @default(0)
   name        String
   description String?
-  metaInfo    String?  // VD: (01/01/2026 - 31/01/2026)
-  unit        String   @default("dịch vụ")
-  quantity    Float    @default(1)
-  unitPrice   Float    @default(0)
-  discount    Float    @default(0)
-  taxRate     Float    @default(0)
-  taxAmount   Float    @default(0)
-  amount      Float    @default(0)
+  metaInfo    String? // VD: (01/01/2026 - 31/01/2026)
+  unit        String  @default("dịch vụ")
+  quantity    Float   @default(1)
+  unitPrice   Float   @default(0)
+  discount    Float   @default(0)
+  taxRate     Float   @default(0)
+  taxAmount   Float   @default(0)
+  amount      Float   @default(0)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model InvoiceHistory {
   id        String   @id @default(uuid())
   invoiceId String
   invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  action    String   // CREATED, UPDATED, ISSUED, SENT, CANCELLED
+  action    String // CREATED, UPDATED, ISSUED, SENT, CANCELLED
   note      String?
   actor     String?
   createdAt DateTime @default(now())
@@ -128,9 +164,44 @@ model ServiceCatalog {
   id          String   @id @default(uuid())
   name        String
   description String?
-  metaInfo    String?  // VD: 1 Năm, 25/06/2026 - 25/06/2027
+  metaInfo    String? // VD: 1 Năm, 25/06/2026 - 25/06/2027
   unit        String   @default("gói")
   unitPrice   Float    @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRING_SOON
+  EXPIRED
+  CANCELLED
+}
+
+model CustomerSubscription {
+  id              String  @id @default(uuid())
+  customerName    String
+  customerEmail   String
+  customerPhone   String?
+  customerCompany String?
+
+  serviceId    String?
+  serviceName  String
+  servicePrice Float   @default(0)
+  cycle        String? @default("1 năm")
+
+  startDate DateTime @default(now())
+  endDate   DateTime
+
+  status SubscriptionStatus @default(ACTIVE)
+
+  staffName  String?
+  staffEmail String?
+
+  notes           String?
+  lastAlertSentAt DateTime?
+  alertCount      Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
