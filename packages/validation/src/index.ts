@@ -34,6 +34,8 @@ export const InvoiceItemSchema = z.object({
 
 export const CreateInvoiceSchema = z.object({
   invoiceNumber: z.string().min(1, 'Số hóa đơn là bắt buộc'),
+  invoiceType: z.enum(['GTGT', 'BAN_HANG', 'TAI_SAN_CONG', 'DU_TRU_QG']).default('GTGT'),
+  invoiceForm: z.enum(['WITH_TAX_CODE', 'WITHOUT_TAX_CODE', 'POS_CONNECTED']).default('WITH_TAX_CODE'),
   issueDate: z.string().min(1, 'Ngày lập là bắt buộc'),
   dueDate: z.string().optional(),
   currency: z.string().default('VND'),

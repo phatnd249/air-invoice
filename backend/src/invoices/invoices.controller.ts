@@ -6,8 +6,13 @@ export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
 
   @Get()
-  async getInvoices(@Query('status') status?: string, @Query('search') search?: string) {
-    return this.invoicesService.getInvoices(status, search);
+  async getInvoices(
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+    @Query('invoiceType') invoiceType?: string,
+    @Query('invoiceForm') invoiceForm?: string,
+  ) {
+    return this.invoicesService.getInvoices(status, search, invoiceType, invoiceForm);
   }
 
   @Get('next-number')

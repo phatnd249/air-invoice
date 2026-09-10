@@ -26,10 +26,16 @@ export class InvoicesService {
     return `https://qr.sepay.vn/img?bank=${bankCode}&acc=${account}&template=compact&amount=${sanitizedAmount}&des=${encodedDesc}`;
   }
 
-  async getInvoices(status?: string, search?: string) {
+  async getInvoices(status?: string, search?: string, invoiceType?: string, invoiceForm?: string) {
     const where: any = {};
     if (status && status !== 'ALL') {
       where.status = status;
+    }
+    if (invoiceType && invoiceType !== 'ALL') {
+      where.invoiceType = invoiceType;
+    }
+    if (invoiceForm && invoiceForm !== 'ALL') {
+      where.invoiceForm = invoiceForm;
     }
     if (search) {
       where.OR = [
@@ -104,11 +110,19 @@ export class InvoicesService {
     const created = await this.prisma.invoice.create({
       data: {
         invoiceNumber,
+        invoiceType: dto.invoiceType || 'GTGT',
+        invoiceForm: dto.invoiceForm || 'WITH_TAX_CODE',
         paymentCode,
         status: dto.status || 'ISSUED',
         templateId: dto.templateId || 'standard-classic',
         issueDate: dto.issueDate ? new Date(dto.issueDate) : new Date(),
         dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+        sellerName: dto.sellerName || settings?.companyName,
+        sellerTaxCode: dto.sellerTaxCode !== undefined ? dto.sellerTaxCode : settings?.taxCode,
+        sellerAddress: dto.sellerAddress !== undefined ? dto.sellerAddress : settings?.address,
+        sellerPhone: dto.sellerPhone !== undefined ? dto.sellerPhone : settings?.phone,
+        sellerEmail: dto.sellerEmail !== undefined ? dto.sellerEmail : settings?.email,
+        sellerLogoUrl: dto.sellerLogoUrl !== undefined ? dto.sellerLogoUrl : settings?.logoUrl,
         buyerName: dto.buyerName,
         buyerCompany: dto.buyerCompany,
         buyerTaxCode: dto.buyerTaxCode,
@@ -190,6 +204,8 @@ export class InvoicesService {
 
     // Ghi nhận chi tiết các thay đổi cho lịch sử
     const changes: string[] = [];
+    if (dto.invoiceType && dto.invoiceType !== existing.invoiceType) changes.push(`Đổi loại HĐ: "${existing.invoiceType}" → "${dto.invoiceType}"`);
+    if (dto.invoiceForm && dto.invoiceForm !== existing.invoiceForm) changes.push(`Đổi hình thức: "${existing.invoiceForm}" → "${dto.invoiceForm}"`);
     if (dto.templateId && dto.templateId !== existing.templateId) changes.push(`Đổi mẫu template: "${existing.templateId}" → "${dto.templateId}"`);
     if (dto.buyerName && dto.buyerName !== existing.buyerName) changes.push(`Tên KH: "${existing.buyerName}" → "${dto.buyerName}"`);
     if (dto.buyerEmail && dto.buyerEmail !== existing.buyerEmail) changes.push(`Email: "${existing.buyerEmail || '(trống)'}" → "${dto.buyerEmail}"`);
@@ -201,7 +217,15 @@ export class InvoicesService {
     return this.prisma.invoice.update({
       where: { id },
       data: {
+        invoiceType: dto.invoiceType !== undefined ? dto.invoiceType : existing.invoiceType,
+        invoiceForm: dto.invoiceForm !== undefined ? dto.invoiceForm : existing.invoiceForm,
         templateId: dto.templateId !== undefined ? dto.templateId : existing.templateId,
+        sellerName: dto.sellerName !== undefined ? dto.sellerName : (existing as any).sellerName,
+        sellerTaxCode: dto.sellerTaxCode !== undefined ? dto.sellerTaxCode : (existing as any).sellerTaxCode,
+        sellerAddress: dto.sellerAddress !== undefined ? dto.sellerAddress : (existing as any).sellerAddress,
+        sellerPhone: dto.sellerPhone !== undefined ? dto.sellerPhone : (existing as any).sellerPhone,
+        sellerEmail: dto.sellerEmail !== undefined ? dto.sellerEmail : (existing as any).sellerEmail,
+        sellerLogoUrl: dto.sellerLogoUrl !== undefined ? dto.sellerLogoUrl : (existing as any).sellerLogoUrl,
         buyerName: dto.buyerName !== undefined ? dto.buyerName : existing.buyerName,
         buyerCompany: dto.buyerCompany !== undefined ? dto.buyerCompany : existing.buyerCompany,
         buyerTaxCode: dto.buyerTaxCode !== undefined ? dto.buyerTaxCode : existing.buyerTaxCode,
@@ -250,11 +274,19 @@ export class InvoicesService {
     const cloned = await this.prisma.invoice.create({
       data: {
         invoiceNumber: nextInvoiceNumber,
+        invoiceType: existing.invoiceType || 'GTGT',
+        invoiceForm: existing.invoiceForm || 'WITH_TAX_CODE',
         paymentCode,
         status: 'ISSUED',
         templateId: existing.templateId || 'standard-classic',
         issueDate: new Date(),
         dueDate: existing.dueDate,
+        sellerName: (existing as any).sellerName,
+        sellerTaxCode: (existing as any).sellerTaxCode,
+        sellerAddress: (existing as any).sellerAddress,
+        sellerPhone: (existing as any).sellerPhone,
+        sellerEmail: (existing as any).sellerEmail,
+        sellerLogoUrl: (existing as any).sellerLogoUrl,
         buyerName: existing.buyerName,
         buyerCompany: existing.buyerCompany,
         buyerTaxCode: existing.buyerTaxCode,

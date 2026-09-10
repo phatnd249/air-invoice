@@ -75,19 +75,48 @@ export class PdfService {
     const statusLine = invoice.status && statusLabel(invoice.status) ? `<div style="text-align:right;font-size:10px;color:#888;font-style:italic;margin-bottom:12px;padding-top:2px">Trạng thái: ${statusLabel(invoice.status)}</div>` : '';
 
     const qrHtml = invoice.qrDataUrl
-      ? `<img src="${invoice.qrDataUrl}" style="width:160px;height:auto;border:1px solid #ddd;flex-shrink:0" />`
-      : '<div style="width:160px;height:160px;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:11px;flex-shrink:0">VietQR</div>';
+      ? `<div style="background:#ffffff;padding:8px;border-radius:8px;border:1px solid #e2e8f0;display:inline-block;text-align:center"><img src="${invoice.qrDataUrl}" style="width:200px;height:auto;display:block;margin:0 auto" /><div style="font-size:10px;color:#64748b;margin-top:4px;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px">Quét mã thanh toán</div></div>`
+      : '<div style="width:200px;height:200px;border:2px dashed #cbd5e1;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:12px;background:#fff;flex-shrink:0">VietQR</div>';
 
     const bankCode = invoice.bankCode || settings?.bankCode || 'Vietcombank';
     const bankAccount = invoice.bankAccount || settings?.bankAccount || 'SHYNNERI';
     const bankName = invoice.bankAccountName || settings?.bankAccountName || 'AI ROBOTIC';
-    const companyName = settings?.companyName || 'CÔNG TY TNHH GIÁO DỤC AI ROBOTIC';
-    const address = settings?.address || 'Số 10 Huỳnh Văn Nghệ, P. Trấn Biên, Đồng Nai';
-    const taxCode = settings?.taxCode || '3603893101';
+    const companyName = invoice.sellerName || settings?.companyName || 'CÔNG TY TNHH GIÁO DỤC AI ROBOTIC';
+    const address = invoice.sellerAddress || settings?.address || 'Số 10 Huỳnh Văn Nghệ, P. Trấn Biên, Đồng Nai';
+    const taxCode = invoice.sellerTaxCode || settings?.taxCode || '3603893101';
+    const phone = invoice.sellerPhone || settings?.phone;
+    const email = invoice.sellerEmail || settings?.email;
+    const logoUrl = invoice.sellerLogoUrl || settings?.logoUrl;
 
-    const logoHtml = settings?.logoUrl
-      ? `<img src="${settings.logoUrl}" alt="Logo" style="max-height:40px;max-width:160px;object-fit:contain;margin-bottom:4px" />`
+    const logoHtml = logoUrl
+      ? `<img src="${logoUrl}" alt="Logo" style="max-height:40px;max-width:160px;object-fit:contain;margin-bottom:4px" />`
       : '';
+
+    const typeTitle = (() => {
+      switch (invoice.invoiceType) {
+        case 'BAN_HANG':
+          return 'HÓA ĐƠN BÁN HÀNG';
+        case 'TAI_SAN_CONG':
+          return 'HÓA ĐƠN BÁN TÀI SẢN CÔNG';
+        case 'DU_TRU_QG':
+          return 'HÓA ĐƠN BÁN HÀNG DỰ TRỮ QUỐC GIA';
+        case 'GTGT':
+        default:
+          return 'HÓA ĐƠN GIÁ TRỊ GIA TĂNG';
+      }
+    })();
+
+    const formSubtitle = (() => {
+      switch (invoice.invoiceForm) {
+        case 'WITHOUT_TAX_CODE':
+          return '(Không có mã của cơ quan thuế)';
+        case 'POS_CONNECTED':
+          return '(Khởi tạo từ máy tính tiền)';
+        case 'WITH_TAX_CODE':
+        default:
+          return '(Có mã của cơ quan thuế)';
+      }
+    })();
 
     return `<!DOCTYPE html>
 <html>
@@ -108,17 +137,16 @@ body {
 <div class="c">
 
 <!-- HEADER -->
-<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid ${pc};padding-bottom:12px;margin-bottom:4px">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px;border-bottom:2px solid ${pc};margin-bottom:4px">
   <div style="max-width:55%">
-    ${logoHtml}
-    <div style="font-weight:bold;font-size:14px;text-transform:uppercase;color:${pc};margin-bottom:4px;letter-spacing:0.5px">${companyName}</div>
+    ${logoHtml || `<div style="font-weight:bold;font-size:14px;text-transform:uppercase;color:${pc};margin-bottom:4px;letter-spacing:0.5px">${companyName}</div>`}
     <div style="font-size:11.5px;color:#444">Địa chỉ: ${address}</div>
-    <div style="font-size:11.5px;color:#444">MST: ${taxCode}${settings?.phone ? ` &mdash; ĐT: ${settings.phone}` : ''}</div>
+    <div style="font-size:11.5px;color:#444">MST: ${taxCode}${settings?.phone ? ` &nbsp;—&nbsp; ĐT: ${settings.phone}` : ''}</div>
     ${settings?.email ? `<div style="font-size:11.5px;color:#444">Email: ${settings.email}</div>` : ''}
   </div>
   <div style="text-align:right">
-    <div style="font-size:22px;font-weight:bold;text-transform:uppercase;color:${pc};letter-spacing:1px">HÓA ĐƠN</div>
-    <div style="font-size:11px;color:#888;margin-bottom:6px">(THANH TOÁN DỊCH VỤ)</div>
+    <div style="font-size:20px;font-weight:bold;text-transform:uppercase;color:${pc};letter-spacing:1px">${typeTitle}</div>
+    <div style="font-size:11px;color:#666;margin-bottom:6px;font-style:italic">${formSubtitle}</div>
     <div style="font-size:12px;color:#555">Số: <strong style="font-size:14px;color:#111;font-family:'Courier New',monospace">${invoice.invoiceNumber || 'HD-000001'}</strong></div>
     <div style="font-size:12px;color:#555">Ngày: <strong style="color:#111">${issueDate}</strong></div>
     ${dueLine}
@@ -126,13 +154,13 @@ body {
 </div>
 ${statusLine}
 
-<!-- BUYER -->
+<!-- BUYER INFO -->
 <div style="margin-bottom:16px;font-size:12.5px;line-height:1.7">
   <div style="font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px;color:#666;margin-bottom:4px">Thông tin người mua</div>
-  <table style="width:100%;border-collapse:collapse">
+  <table style="width:100%;border-collapse:collapse;border:none">
     <tr>
-      <td style="width:${invoice.buyerTaxCode ? '50%' : '100%'};padding:1px 0;border:none">Họ tên: <strong style="color:#111">${invoice.buyerName || '...............'}</strong></td>
-      ${invoice.buyerTaxCode ? `<td style="width:50%;padding:1px 0;border:none">MST: <strong>${invoice.buyerTaxCode}</strong></td>` : ''}
+      <td style="padding:1px 0;width:50%;border:none">Họ tên: <strong style="color:#111">${invoice.buyerName || '...............'}</strong></td>
+      ${invoice.buyerTaxCode ? `<td style="padding:1px 0;width:50%;border:none">MST: <strong>${invoice.buyerTaxCode}</strong></td>` : '<td style="border:none"></td>'}
     </tr>
     ${invoice.buyerCompany ? `<tr><td colspan="2" style="padding:1px 0;border:none">Đơn vị: <strong>${invoice.buyerCompany}</strong></td></tr>` : ''}
     ${invoice.buyerAddress ? `<tr><td colspan="2" style="padding:1px 0;border:none">Địa chỉ: ${invoice.buyerAddress}</td></tr>` : ''}
@@ -177,14 +205,17 @@ ${statusLine}
 ${notesHtml}
 
 <!-- QR + BANK -->
-<div style="display:flex;align-items:flex-start;gap:20px;margin-bottom:24px;padding:12px;border:1px solid #ddd;background:#fafafa;page-break-inside:avoid">
-  ${qrHtml}
-  <div style="font-size:12px;line-height:1.8;color:#333">
-    <div style="font-weight:bold;font-size:11px;text-transform:uppercase;color:#555;margin-bottom:4px;letter-spacing:0.3px">Thông tin chuyển khoản</div>
-    <div>Ngân hàng: <strong>${bankCode}</strong></div>
-    <div>Số tài khoản: <strong style="font-family:'Courier New',monospace;font-size:14px;color:${pc}">${bankAccount}</strong></div>
-    <div>Chủ TK: <strong style="text-transform:uppercase">${bankName}</strong></div>
-    <div>Nội dung CK: <strong style="font-family:'Courier New',monospace;background:#fff;padding:1px 6px;border:1px solid #ccc">${invoice.invoiceNumber || 'HD'}</strong></div>
+<div style="display:flex;align-items:center;gap:24px;margin-bottom:24px;padding:16px 20px;border:1px solid #d1d5db;background:#f8fafc;border-radius:8px;page-break-inside:avoid">
+  <div style="flex-shrink:0">
+    ${qrHtml}
+  </div>
+  <div style="font-size:13px;line-height:2.0;color:#334155;flex:1">
+    <div style="font-weight:bold;font-size:12px;text-transform:uppercase;color:${pc};margin-bottom:6px;letter-spacing:0.5px;border-bottom:1px dashed #cbd5e1;padding-bottom:4px">Thông tin thanh toán chuyển khoản</div>
+    <div>Ngân hàng thụ hưởng: <strong style="color:#0f172a">${bankCode}</strong></div>
+    <div>Số tài khoản: <strong style="font-family:'Courier New',monospace;font-size:16px;color:${pc};letter-spacing:0.5px">${bankAccount}</strong></div>
+    <div>Chủ tài khoản: <strong style="text-transform:uppercase;color:#0f172a">${bankName}</strong></div>
+    <div>Số tiền: <strong style="color:#059669;font-size:15px">${fmt(invoice.grandTotal)}</strong></div>
+    <div style="margin-top:2px">Nội dung chuyển khoản: <strong style="font-family:'Courier New',monospace;background:#fff;padding:2px 8px;border:1px solid #94a3b8;border-radius:4px;color:#0f172a;font-size:14px">${invoice.invoiceNumber || 'HD'}</strong></div>
   </div>
 </div>
 
