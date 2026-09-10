@@ -6,6 +6,8 @@ import { InvoicesModule } from './invoices/invoices.module';
 import { AuthModule } from './auth/auth.module';
 import { DeliveryModule } from './delivery/delivery.module';
 import { ServicesCatalogModule } from './services-catalog/services-catalog.module';
+import { UsersModule } from './users/users.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { ServicesCatalogModule } from './services-catalog/services-catalog.modul
     AuthModule,
     DeliveryModule,
     ServicesCatalogModule,
+    UsersModule,
+    SubscriptionsModule,
   ],
 })
-export class AppModule {}
+export class AppModule { }
