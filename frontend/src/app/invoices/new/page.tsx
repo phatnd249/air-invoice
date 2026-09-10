@@ -25,9 +25,14 @@ import {
   X,
   Layers,
   ChevronRight,
+  FileCheck,
+  Building2,
+  FileSpreadsheet,
+  CheckCircle2,
 } from 'lucide-react';
 import Link from 'next/link';
 import InvoiceTemplateRenderer, { TEMPLATES_CONFIG } from '@/components/InvoiceTemplateRenderer';
+import { INVOICE_TYPE_CONFIG, INVOICE_FORM_CONFIG, InvoiceType, InvoiceForm } from '@invoice/types';
 
 interface CatalogService {
   id: string;
@@ -68,6 +73,36 @@ export default function NewInvoicePage() {
     },
   });
 
+  // Lấy danh sách đơn vị cung cấp (người bán)
+  const companies: Array<{
+    id: string;
+    name: string;
+    taxCode?: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+    logoUrl?: string;
+    bankAccountId?: string;
+    isDefault?: boolean;
+  }> = settings?.companies && Array.isArray(settings.companies) && settings.companies.length > 0
+    ? settings.companies
+    : settings?.companyName
+    ? [
+        {
+          id: 'comp-default',
+          name: settings.companyName,
+          taxCode: settings.taxCode,
+          address: settings.address,
+          phone: settings.phone,
+          email: settings.email,
+          logoUrl: settings.logoUrl,
+          isDefault: true,
+        },
+      ]
+    : [];
+
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
+
   // Lấy danh sách tài khoản ngân hàng đã cấu hình
   const bankAccounts: Array<{
     id: string;
@@ -93,13 +128,32 @@ export default function NewInvoicePage() {
     : [];
 
   useEffect(() => {
+    if (companies.length > 0 && !selectedCompanyId) {
+      const defaultComp = companies.find((c) => c.isDefault) || companies[0];
+      setSelectedCompanyId(defaultComp.id);
+      if (defaultComp.bankAccountId) {
+        setSelectedBankId(defaultComp.bankAccountId);
+      }
+    }
+  }, [companies, selectedCompanyId]);
+
+  useEffect(() => {
     if (bankAccounts.length > 0 && !selectedBankId) {
       const defaultAcc = bankAccounts.find((a) => a.isDefault) || bankAccounts[0];
       setSelectedBankId(defaultAcc.id);
     }
   }, [bankAccounts, selectedBankId]);
 
+  const activeCompany = companies.find((c) => c.id === selectedCompanyId) || companies[0];
   const activeBank = bankAccounts.find((a) => a.id === selectedBankId) || bankAccounts[0];
+
+  const handleSelectCompany = (compId: string) => {
+    setSelectedCompanyId(compId);
+    const comp = companies.find((c) => c.id === compId);
+    if (comp?.bankAccountId) {
+      setSelectedBankId(comp.bankAccountId);
+    }
+  };
 
   // Lấy số hóa đơn kế tiếp
   const { data: nextNumberData } = useQuery({
@@ -113,6 +167,8 @@ export default function NewInvoicePage() {
   const { register, control, handleSubmit, watch, setValue } = useForm({
     defaultValues: {
       invoiceNumber: '',
+      invoiceType: 'GTGT' as InvoiceType,
+      invoiceForm: 'WITH_TAX_CODE' as InvoiceForm,
       templateId: 'standard-classic',
       issueDate: new Date().toISOString().split('T')[0],
       dueDate: '',
@@ -191,6 +247,12 @@ export default function NewInvoicePage() {
     createMutation.mutate({
       ...formData,
       status: 'ISSUED',
+      sellerName: activeCompany?.name || settings?.companyName,
+      sellerTaxCode: activeCompany?.taxCode || settings?.taxCode,
+      sellerAddress: activeCompany?.address || settings?.address,
+      sellerPhone: activeCompany?.phone || settings?.phone,
+      sellerEmail: activeCompany?.email || settings?.email,
+      sellerLogoUrl: activeCompany?.logoUrl || settings?.logoUrl,
       bankCode: activeBank?.bankCode,
       bankAccount: activeBank?.bankAccount,
       bankAccountName: activeBank?.bankAccountName,
@@ -245,7 +307,7 @@ export default function NewInvoicePage() {
             type="button"
             onClick={handleSubmit(onSubmit)}
             disabled={createMutation.isPending}
-            className="inline-flex items-center px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold text-sm rounded-xl shadow-sm space-x-2 transition-all"
+            className="inline-flex items-center px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white font-semibold text-sm rounded-xl shadow-sm shadow-blue-500/20 space-x-2 transition-all"
           >
             <ShieldCheck className="w-4 h-4" />
             <span>{createMutation.isPending ? 'Đang lưu...' : 'Lưu & Phát Hành'}</span>
@@ -258,6 +320,143 @@ export default function NewInvoicePage() {
         {/* LEFT COLUMN: Services & Customer Info (xl:col-span-7) */}
         <div className="xl:col-span-7 space-y-6">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {/* 0. Seller / Company Profile Selection Card */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center space-x-2">
+                  <Building2 className="w-4 h-4 text-blue-600" />
+                  <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                    Đơn Vị Cung Cấp (Người Bán / Phát Hành)
+                  </h2>
+                </div>
+                <Link
+                  href="/settings"
+                  className="text-xs text-blue-600 hover:text-blue-700 hover:underline font-medium"
+                >
+                  Quản lý đơn vị
+                </Link>
+              </div>
+
+              {companies.length > 1 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {companies.map((comp) => {
+                    const isSelected = (activeCompany?.id || '') === comp.id;
+                    return (
+                      <button
+                        key={comp.id}
+                        type="button"
+                        onClick={() => handleSelectCompany(comp.id)}
+                        className={`p-3.5 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
+                          isSelected
+                            ? 'border-blue-600 bg-blue-50/50 ring-2 ring-blue-600/20 shadow-xs'
+                            : 'border-slate-200 hover:border-slate-300 bg-slate-50/40'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <span className={`text-xs font-bold line-clamp-1 ${isSelected ? 'text-blue-700' : 'text-slate-900'}`}>
+                            {comp.name}
+                          </span>
+                          {isSelected && <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0 ml-1.5" />}
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-1 space-y-0.5">
+                          <div>MST: <strong className="text-slate-700">{comp.taxCode || '---'}</strong></div>
+                          {comp.address && <div className="line-clamp-1">{comp.address}</div>}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 text-xs text-slate-700 space-y-1">
+                  <div className="font-bold text-slate-900 text-sm flex items-center space-x-1.5">
+                    <span>{activeCompany?.name || settings?.companyName || 'AI ROBOTIC'}</span>
+                  </div>
+                  <div>MST: <strong>{activeCompany?.taxCode || settings?.taxCode || '---'}</strong></div>
+                  <div>Địa chỉ: {activeCompany?.address || settings?.address || '---'}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Invoice Classification & Form Card */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-sm space-y-5">
+              <div className="flex items-center space-x-2 pb-3 border-b border-slate-100">
+                <FileCheck className="w-4 h-4 text-blue-600" />
+                <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                  Phân Loại & Hình Thức Hóa Đơn
+                </h2>
+              </div>
+
+              {/* Invoice Type Selection */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-2">
+                  Loại Hóa Đơn (Theo NĐ 123/2020/NĐ-CP)
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {(Object.keys(INVOICE_TYPE_CONFIG) as InvoiceType[]).map((tKey) => {
+                    const cfg = INVOICE_TYPE_CONFIG[tKey];
+                    const isSelected = (watchedValues.invoiceType || 'GTGT') === tKey;
+                    return (
+                      <button
+                        key={tKey}
+                        type="button"
+                        onClick={() => {
+                          setValue('invoiceType', tKey);
+                          if (tKey === 'BAN_HANG') {
+                            setValue('hasVat', false);
+                          } else if (tKey === 'GTGT') {
+                            setValue('hasVat', true);
+                          }
+                        }}
+                        className={`p-3 rounded-xl border text-left transition-all relative ${
+                          isSelected
+                            ? 'border-blue-600 bg-blue-50/50 ring-2 ring-blue-600/20 shadow-xs'
+                            : 'border-slate-200 hover:border-slate-300 bg-slate-50/40'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <span className={`text-xs font-bold ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}>
+                            {cfg.label}
+                          </span>
+                          {isSelected && <CheckCircle2 className="w-4 h-4 text-blue-600 flex-shrink-0 ml-1.5" />}
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-1 leading-snug line-clamp-2">
+                          {cfg.description}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Invoice Form Selection */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-2">
+                  Hình Thức Hóa Đơn Điện Tử
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  {(Object.keys(INVOICE_FORM_CONFIG) as InvoiceForm[]).map((fKey) => {
+                    const cfg = INVOICE_FORM_CONFIG[fKey];
+                    const isSelected = (watchedValues.invoiceForm || 'WITH_TAX_CODE') === fKey;
+                    return (
+                      <button
+                        key={fKey}
+                        type="button"
+                        onClick={() => setValue('invoiceForm', fKey)}
+                        className={`p-2.5 rounded-xl border text-left transition-all ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/50 ring-2 ring-indigo-600/20 font-semibold text-indigo-900'
+                            : 'border-slate-200 hover:border-slate-300 bg-slate-50/40 text-slate-700'
+                        }`}
+                      >
+                        <div className="text-xs font-bold truncate">{cfg.label}</div>
+                        <p className="text-[10px] text-slate-500 mt-0.5 truncate">{cfg.description}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
             {/* Customer Details Card */}
             <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-sm space-y-4">
               <div className="flex items-center space-x-2 pb-3 border-b border-slate-100">
@@ -368,7 +567,7 @@ export default function NewInvoicePage() {
             <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-sm space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center space-x-2">
-                  <Receipt className="w-4 h-4 text-emerald-600" />
+                  <Receipt className="w-4 h-4 text-blue-600" />
                   <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
                     Danh Sách Dịch Vụ Cung Cấp
                   </h2>
@@ -381,7 +580,7 @@ export default function NewInvoicePage() {
                   <button
                     type="button"
                     onClick={() => { setCatalogSearch(''); setIsCatalogOpen(true); }}
-                    className="inline-flex items-center space-x-1.5 text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-xl border border-violet-200 transition-colors"
+                    className="inline-flex items-center space-x-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-xl border border-blue-200 transition-colors"
                   >
                     <Layers className="w-3.5 h-3.5" />
                     <span>Chọn từ danh mục</span>
@@ -398,7 +597,7 @@ export default function NewInvoicePage() {
                         unitPrice: 0,
                       })
                     }
-                    className="inline-flex items-center space-x-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 transition-colors"
+                    className="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl border border-slate-200 transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Nhập thủ công</span>
@@ -521,7 +720,7 @@ export default function NewInvoicePage() {
 
         {/* RIGHT COLUMN: Settlement & VietQR Payment Box (xl:col-span-5) */}
         <div className="xl:col-span-5 sticky top-8 space-y-6">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-lg space-y-6">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-7 shadow-sm space-y-6">
             {/* Header Settlement Info */}
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div>
@@ -547,7 +746,7 @@ export default function NewInvoicePage() {
                     {items.length}
                   </span>
                 </span>
-                <span className="font-semibold text-slate-900">{formatCurrency(subTotal)}</span>
+                <span className="font-semibold tabular-nums text-slate-900">{formatCurrency(subTotal)}</span>
               </div>
 
               {/* VAT Switcher & Input */}
@@ -563,7 +762,7 @@ export default function NewInvoicePage() {
                     Thuế VAT ({watchedValues.hasVat ? `${watchedValues.vatRate}%` : '0%'})
                   </label>
                 </div>
-                <span className="font-semibold text-slate-900">{formatCurrency(vatAmount)}</span>
+                <span className="font-semibold tabular-nums text-slate-900">{formatCurrency(vatAmount)}</span>
               </div>
 
               {/* Phí Khác (Tùy chọn) */}
@@ -585,7 +784,7 @@ export default function NewInvoicePage() {
                   </span>
                   <span className="text-xs text-slate-400 font-mono">Đã gồm thuế & phí</span>
                 </div>
-                <div className="text-2xl font-black text-emerald-600 tracking-tight">
+                <div className="text-2xl font-black text-blue-600 tracking-tight tabular-nums font-mono">
                   {formatCurrency(grandTotal)}
                 </div>
               </div>
@@ -792,10 +991,10 @@ export default function NewInvoicePage() {
               type="button"
               onClick={handleSubmit(onSubmit)}
               disabled={createMutation.isPending}
-              className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-base rounded-2xl shadow-lg hover:shadow-xl space-x-2 transition-all flex items-center justify-center tracking-wide"
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-sm rounded-xl shadow-sm space-x-2 transition-all flex items-center justify-center tracking-wide"
             >
               <ShieldCheck className="w-5 h-5" />
-              <span>{createMutation.isPending ? 'Đang xử lý...' : 'HOÀN TẤT & PHÁT HÀNH'}</span>
+              <span>{createMutation.isPending ? 'Đang xử lý...' : 'Lưu & Phát Hành'}</span>
             </button>
           </div>
         </div>
@@ -804,7 +1003,7 @@ export default function NewInvoicePage() {
       {/* FULL-SCREEN LIVE PREVIEW A4 MODAL */}
       {isPreviewOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <div className="flex items-center space-x-3">
@@ -831,10 +1030,18 @@ export default function NewInvoicePage() {
                 <InvoiceTemplateRenderer
                   invoice={{
                     invoiceNumber: watchedValues.invoiceNumber || 'HD-SAMPLE',
+                    invoiceType: watchedValues.invoiceType || 'GTGT',
+                    invoiceForm: watchedValues.invoiceForm || 'WITH_TAX_CODE',
                     issueDate: watchedValues.issueDate,
                     dueDate: watchedValues.dueDate,
                     status: 'ISSUED',
                     templateId: selectedTemplateId,
+                    sellerName: activeCompany?.name || settings?.companyName,
+                    sellerTaxCode: activeCompany?.taxCode || settings?.taxCode,
+                    sellerAddress: activeCompany?.address || settings?.address,
+                    sellerPhone: activeCompany?.phone || settings?.phone,
+                    sellerEmail: activeCompany?.email || settings?.email,
+                    sellerLogoUrl: activeCompany?.logoUrl || settings?.logoUrl,
                     buyerName: watchedValues.buyerName,
                     buyerCompany: watchedValues.buyerCompany,
                     buyerAddress: watchedValues.buyerAddress,
@@ -888,7 +1095,7 @@ export default function NewInvoicePage() {
           onClick={() => setIsQrZoomed(false)}
           className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
         >
-          <div className="bg-white p-6 rounded-3xl shadow-2xl text-center max-w-sm w-full space-y-3">
+          <div className="bg-white p-6 rounded-2xl shadow-2xl text-center max-w-sm w-full space-y-3">
             <h4 className="font-bold text-slate-900 text-base">Mã VietQR SePay</h4>
             <img src={qrPreviewUrl} alt="VietQR Zoom" className="w-64 h-auto mx-auto rounded-xl shadow" />
             <p className="text-xs text-slate-500 font-mono">
@@ -907,7 +1114,7 @@ export default function NewInvoicePage() {
             <div className="px-5 py-4 border-b border-slate-200 bg-slate-50">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-2.5">
-                  <div className="p-2 bg-violet-100 text-violet-600 rounded-xl">
+                  <div className="p-2 bg-blue-100 text-blue-600 rounded-xl">
                     <Layers className="w-4 h-4" />
                   </div>
                   <div>
@@ -932,7 +1139,7 @@ export default function NewInvoicePage() {
                   placeholder="Tìm kiếm dịch vụ..."
                   value={catalogSearch}
                   onChange={(e) => setCatalogSearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500 focus:outline-none bg-white transition-all"
+                  className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none bg-white transition-all"
                 />
               </div>
             </div>
@@ -965,10 +1172,10 @@ export default function NewInvoicePage() {
                       });
                       setIsCatalogOpen(false);
                     }}
-                    className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-violet-300 hover:bg-violet-50/50 transition-all text-left group"
+                    className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all text-left group"
                   >
                     <div className="flex-1 min-w-0 mr-3">
-                      <div className="font-semibold text-sm text-slate-900 truncate group-hover:text-violet-800">
+                      <div className="font-semibold text-sm text-slate-900 truncate group-hover:text-blue-800">
                         {svc.name}
                       </div>
                       {svc.description && (
@@ -984,10 +1191,10 @@ export default function NewInvoicePage() {
                       </div>
                     </div>
                     <div className="flex items-center space-x-2 flex-shrink-0">
-                      <span className="font-bold text-sm text-emerald-600 whitespace-nowrap">
+                      <span className="font-bold text-sm text-slate-900 whitespace-nowrap">
                         {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(svc.unitPrice)}
                       </span>
-                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-violet-500 transition-colors" />
+                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition-colors" />
                     </div>
                   </button>
                 ))

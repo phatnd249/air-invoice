@@ -208,15 +208,15 @@ export default function HistoryPage() {
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Action Tabs */}
-          <div className="flex items-center space-x-1 border-b md:border-b-0 pb-2 md:pb-0 overflow-x-auto">
+          <div className="flex items-center flex-wrap bg-slate-100/80 p-1 rounded-xl gap-1">
             {FILTER_TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setSelectedAction(tab.id)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                   selectedAction === tab.id
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 {tab.label}
@@ -334,7 +334,7 @@ export default function HistoryPage() {
                                 {record.invoice.buyerCompany}
                               </div>
                             )}
-                            <div className="text-xs font-semibold text-slate-900 mt-1">
+                            <div className="text-xs font-mono tabular-nums font-semibold text-slate-900 mt-1">
                               {formatCurrency(record.invoice.grandTotal)}
                             </div>
                           </div>

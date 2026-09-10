@@ -9,7 +9,15 @@ export interface InvoiceTemplateProps {
     issueDate?: string | Date;
     dueDate?: string | Date | null;
     status?: string;
+    invoiceType?: string;
+    invoiceForm?: string;
     templateId?: string;
+    sellerName?: string | null;
+    sellerTaxCode?: string | null;
+    sellerAddress?: string | null;
+    sellerPhone?: string | null;
+    sellerEmail?: string | null;
+    sellerLogoUrl?: string | null;
     buyerName?: string;
     buyerCompany?: string | null;
     buyerAddress?: string | null;
@@ -115,6 +123,39 @@ export default function InvoiceTemplateRenderer({
 
   const pc = theme.primaryColor;
 
+  const typeTitle = (() => {
+    switch (invoice.invoiceType) {
+      case 'BAN_HANG':
+        return 'HÓA ĐƠN BÁN HÀNG';
+      case 'TAI_SAN_CONG':
+        return 'HÓA ĐƠN BÁN TÀI SẢN CÔNG';
+      case 'DU_TRU_QG':
+        return 'HÓA ĐƠN BÁN HÀNG DỰ TRỮ QUỐC GIA';
+      case 'GTGT':
+      default:
+        return 'HÓA ĐƠN GIÁ TRỊ GIA TĂNG';
+    }
+  })();
+
+  const formSubtitle = (() => {
+    switch (invoice.invoiceForm) {
+      case 'WITHOUT_TAX_CODE':
+        return '(Không có mã của cơ quan thuế)';
+      case 'POS_CONNECTED':
+        return '(Khởi tạo từ máy tính tiền)';
+      case 'WITH_TAX_CODE':
+      default:
+        return '(Có mã của cơ quan thuế)';
+    }
+  })();
+
+  const companyName = invoice.sellerName || settings?.companyName || 'CÔNG TY TNHH GIÁO DỤC AI ROBOTIC';
+  const address = invoice.sellerAddress || settings?.address || 'Số 10 Huỳnh Văn Nghệ, P. Trấn Biên, Đồng Nai';
+  const taxCode = invoice.sellerTaxCode || settings?.taxCode || '3603893101';
+  const phone = invoice.sellerPhone || settings?.phone;
+  const email = invoice.sellerEmail || settings?.email;
+  const logoUrl = invoice.sellerLogoUrl || settings?.logoUrl;
+
   return (
     <div
       className="bg-white max-w-[850px] mx-auto print:shadow-none print:border-none print:p-0"
@@ -124,36 +165,36 @@ export default function InvoiceTemplateRenderer({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: '12px', borderBottom: `2px solid ${pc}`, marginBottom: '4px' }}>
         {/* Seller Info */}
         <div style={{ maxWidth: '55%' }}>
-          {settings?.logoUrl ? (
+          {logoUrl ? (
             <img
-              src={settings.logoUrl}
+              src={logoUrl}
               alt="Logo"
               style={{ maxHeight: '40px', maxWidth: '160px', objectFit: 'contain', marginBottom: '4px' }}
             />
           ) : (
             <div style={{ fontWeight: 'bold', fontSize: '14px', textTransform: 'uppercase', color: pc, marginBottom: '4px', letterSpacing: '0.5px' }}>
-              {settings?.companyName || 'CÔNG TY TNHH GIÁO DỤC AI ROBOTIC'}
+              {companyName}
             </div>
           )}
           <div style={{ fontSize: '11.5px', color: '#444' }}>
-            Địa chỉ: {settings?.address || 'Số 10 Huỳnh Văn Nghệ, P. Trấn Biên, Đồng Nai'}
+            Địa chỉ: {address}
           </div>
           <div style={{ fontSize: '11.5px', color: '#444' }}>
-            MST: {settings?.taxCode || '3603893101'}
-            {settings?.phone && <> &nbsp;—&nbsp; ĐT: {settings.phone}</>}
+            MST: {taxCode}
+            {phone && <> &nbsp;—&nbsp; ĐT: {phone}</>}
           </div>
-          {settings?.email && (
-            <div style={{ fontSize: '11.5px', color: '#444' }}>Email: {settings.email}</div>
+          {email && (
+            <div style={{ fontSize: '11.5px', color: '#444' }}>Email: {email}</div>
           )}
         </div>
 
         {/* Invoice Title */}
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '22px', fontWeight: 'bold', textTransform: 'uppercase', color: pc, letterSpacing: '1px' }}>
-            HÓA ĐƠN
+          <div style={{ fontSize: '20px', fontWeight: 'bold', textTransform: 'uppercase', color: pc, letterSpacing: '1px' }}>
+            {typeTitle}
           </div>
-          <div style={{ fontSize: '11px', color: '#888', marginBottom: '6px' }}>
-            (THANH TOÁN DỊCH VỤ)
+          <div style={{ fontSize: '11px', color: '#666', marginBottom: '6px', fontStyle: 'italic' }}>
+            {formSubtitle}
           </div>
           <div style={{ fontSize: '12px', color: '#555' }}>
             Số: <strong style={{ fontSize: '14px', color: '#111', fontFamily: "'Courier New', monospace" }}>
@@ -343,42 +384,53 @@ export default function InvoiceTemplateRenderer({
       )}
 
       {/* === QR + BANK INFO === */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px', marginBottom: '24px', padding: '12px', border: '1px solid #ddd', background: '#fafafa' }}>
-        {/* QR Code - BIGGER */}
-        <div style={{ flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '24px', padding: '16px 20px', border: '1px solid #d1d5db', background: '#f8fafc', borderRadius: '8px' }}>
+        {/* QR Code - PHÓNG TO RÕ NÉT */}
+        <div style={{ flexShrink: 0, textAlign: 'center' }}>
           {invoice.qrDataUrl ? (
-            <img
-              src={invoice.qrDataUrl}
-              alt="VietQR"
-              style={{ width: '160px', height: 'auto', border: '1px solid #ddd' }}
-            />
+            <div style={{ background: '#ffffff', padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 2px 6px rgba(0,0,0,0.06)', display: 'inline-block' }}>
+              <img
+                src={invoice.qrDataUrl}
+                alt="VietQR"
+                style={{ width: '220px', height: 'auto', display: 'block', margin: '0 auto' }}
+              />
+              <div style={{ fontSize: '10px', color: '#64748b', marginTop: '4px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Quét mã để thanh toán tức thì
+              </div>
+            </div>
           ) : (
-            <div style={{ width: '160px', height: '160px', border: '1px dashed #ccc', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: '11px' }}>
-              VietQR
+            <div style={{ width: '220px', height: '220px', border: '2px dashed #cbd5e1', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '12px', background: '#fff' }}>
+              <span style={{ fontWeight: 'bold', fontSize: '14px' }}>VietQR</span>
+              <span style={{ fontSize: '10px', marginTop: '4px' }}>Chưa tạo mã QR</span>
             </div>
           )}
         </div>
 
         {/* Bank Details */}
-        <div style={{ fontSize: '12px', lineHeight: '1.8', color: '#333' }}>
-          <div style={{ fontWeight: 'bold', fontSize: '11px', textTransform: 'uppercase', color: '#555', marginBottom: '4px', letterSpacing: '0.3px' }}>
-            Thông tin chuyển khoản
+        <div style={{ fontSize: '13px', lineHeight: '2.0', color: '#334155', flex: 1 }}>
+          <div style={{ fontWeight: 'bold', fontSize: '12px', textTransform: 'uppercase', color: pc, marginBottom: '6px', letterSpacing: '0.5px', borderBottom: '1px dashed #cbd5e1', paddingBottom: '4px' }}>
+            Thông tin thanh toán chuyển khoản
           </div>
           <div>
-            Ngân hàng: <strong>{invoice.bankCode || settings?.bankCode || 'Vietcombank'}</strong>
+            Ngân hàng thụ hưởng: <strong style={{ color: '#0f172a' }}>{invoice.bankCode || settings?.bankCode || 'Vietcombank'}</strong>
           </div>
           <div>
-            Số tài khoản: <strong style={{ fontFamily: "'Courier New', monospace", fontSize: '14px', color: pc }}>
+            Số tài khoản: <strong style={{ fontFamily: "'Courier New', monospace", fontSize: '16px', color: pc, letterSpacing: '0.5px' }}>
               {invoice.bankAccount || settings?.bankAccount || 'SHYNNERI'}
             </strong>
           </div>
           <div>
-            Chủ TK: <strong style={{ textTransform: 'uppercase' }}>
+            Chủ tài khoản: <strong style={{ textTransform: 'uppercase', color: '#0f172a' }}>
               {invoice.bankAccountName || settings?.bankAccountName || 'AI ROBOTIC'}
             </strong>
           </div>
           <div>
-            Nội dung CK: <strong style={{ fontFamily: "'Courier New', monospace", background: '#fff', padding: '1px 6px', border: '1px solid #ccc' }}>
+            Số tiền: <strong style={{ color: '#059669', fontSize: '15px' }}>
+              {formatCurrency(invoice.grandTotal)}
+            </strong>
+          </div>
+          <div style={{ marginTop: '2px' }}>
+            Nội dung chuyển khoản: <strong style={{ fontFamily: "'Courier New', monospace", background: '#fff', padding: '2px 8px', border: '1px solid #94a3b8', borderRadius: '4px', color: '#0f172a', fontSize: '14px' }}>
               {invoice.invoiceNumber || 'HD'}
             </strong>
           </div>

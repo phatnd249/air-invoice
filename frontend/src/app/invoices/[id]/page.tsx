@@ -21,9 +21,11 @@ import {
   User,
   LayoutTemplate,
   Trash2,
+  Copy,
 } from 'lucide-react';
 import Link from 'next/link';
 import InvoiceTemplateRenderer, { TEMPLATES_CONFIG } from '@/components/InvoiceTemplateRenderer';
+import { INVOICE_TYPE_CONFIG, INVOICE_FORM_CONFIG, InvoiceType, InvoiceForm } from '@invoice/types';
 
 interface HistoryItem {
   id: string;
@@ -186,6 +188,22 @@ export default function InvoiceDetailPage() {
     },
   });
 
+  const cloneMutation = useMutation({
+    mutationFn: async () => {
+      return api.post(`/invoices/${id}/clone`);
+    },
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      const newId = res?.data?.id;
+      if (newId) {
+        router.push(`/invoices/${newId}`);
+      }
+    },
+    onError: (err: any) => {
+      alert('Lỗi nhân bản hóa đơn: ' + (err.response?.data?.message || err.message));
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-[50vh] flex flex-col items-center justify-center space-y-3">
@@ -231,9 +249,19 @@ export default function InvoiceDetailPage() {
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 flex-wrap gap-y-2">
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{invoice.invoiceNumber}</h1>
               {getStatusBadge(invoice.status)}
+              {invoice.invoiceType && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                  {INVOICE_TYPE_CONFIG[invoice.invoiceType as InvoiceType]?.label || invoice.invoiceType}
+                </span>
+              )}
+              {invoice.invoiceForm && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                  {INVOICE_FORM_CONFIG[invoice.invoiceForm as InvoiceForm]?.shortLabel || invoice.invoiceForm}
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-500 mt-1 flex items-center space-x-2">
               <span>Mã thanh toán:</span>
@@ -260,6 +288,15 @@ export default function InvoiceDetailPage() {
           >
             <Download className="w-4 h-4" />
             <span>Tải PDF</span>
+          </button>
+
+          <button
+            onClick={() => cloneMutation.mutate()}
+            disabled={cloneMutation.isPending}
+            className="inline-flex items-center px-3.5 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-lg shadow-sm space-x-1.5 transition-all"
+          >
+            <Copy className="w-4 h-4" />
+            <span>{cloneMutation.isPending ? 'Đang nhân bản...' : 'Nhân bản'}</span>
           </button>
 
           <button
@@ -390,7 +427,7 @@ export default function InvoiceDetailPage() {
             {/* Header */}
             <div className="flex items-center justify-between pb-4 mb-6 border-b border-slate-100">
               <div className="flex items-center space-x-2.5">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-sm">
+                <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
                   <History className="w-5 h-5" />
                 </div>
                 <div>
@@ -447,7 +484,7 @@ export default function InvoiceDetailPage() {
                       <div
                         className={`absolute -left-6 top-0.5 w-5 h-5 rounded-full flex items-center justify-center ${
                           conf.color
-                        } ring-4 ${isLatest ? 'ring-indigo-100 ring-offset-0 animate-pulse' : 'ring-white'}`}
+                        } ring-4 ${isLatest ? 'ring-indigo-100' : 'ring-white'}`}
                       >
                         <IconComp className="w-3 h-3" />
                       </div>
