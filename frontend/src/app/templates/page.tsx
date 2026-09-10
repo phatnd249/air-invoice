@@ -1,17 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import { useToast } from '@/context/ToastContext';
 import {
   LayoutTemplate,
   Check,
   Eye,
   Plus,
-  Sparkles,
-  FileCheck,
-  CheckCircle2,
-  Sliders,
-  Palette,
+  Mail,
+  Info,
 } from 'lucide-react';
 import InvoiceTemplateRenderer, { TEMPLATES_CONFIG } from '@/components/InvoiceTemplateRenderer';
 
@@ -61,23 +61,67 @@ const SAMPLE_SETTINGS = {
   email: 'contact@airobotics.edu.vn',
 };
 
+type FormatTab = 'invoice' | 'email';
+
 export default function TemplatesPage() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const [activeTab, setActiveTab] = useState<FormatTab>('invoice');
+
   const [selectedPreviewTemplate, setSelectedPreviewTemplate] = useState<string>('standard-classic');
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState<boolean>(false);
 
+  // Email template state
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const res = await api.get('/settings');
+      return res.data;
+    },
+  });
+
+  useEffect(() => {
+    if (settings) {
+      if (settings.emailAlertSubject != null) setEmailSubject(settings.emailAlertSubject);
+      if (settings.emailAlertBody != null) setEmailBody(settings.emailAlertBody);
+    }
+  }, [settings]);
+
+  const saveSettings = useMutation({
+    mutationFn: (payload: any) => api.put('/settings', payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+    },
+  });
+
+  const saveEmailTemplate = async (subject: string, body: string) => {
+    setEmailSubject(subject);
+    setEmailBody(body);
+    try {
+      await saveSettings.mutateAsync({ emailAlertSubject: subject, emailAlertBody: body });
+      toast('success', 'Đã lưu mẫu email hệ thống');
+    } catch (err: any) {
+      toast('error', 'Lưu mẫu email thất bại', err.response?.data?.message || err.message);
+    }
+  };
+
+  const tabs: { id: FormatTab; label: string; icon: React.ElementType }[] = [
+    { id: 'invoice', label: 'Mẫu Hóa Đơn A4', icon: LayoutTemplate },
+    { id: 'email', label: 'Mẫu Email Hệ Thống', icon: Mail },
+  ];
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
         <div>
-          <div className="flex items-center space-x-2.5 mb-1">
-            <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
-              <Palette className="w-5 h-5" />
-            </div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Thư Viện Mẫu Hóa Đơn</h1>
-          </div>
-          <p className="text-sm text-slate-500">
-            Các mẫu thiết kế hóa đơn đạt chuẩn in ấn A4, tích hợp mã VietQR SePay và xuất PDF Playwright
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Cấu Hình Định Dạng</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Chọn mẫu in hóa đơn A4 và cấu hình mẫu tin nhắn email gửi đến khách hàng
           </p>
         </div>
 
@@ -90,114 +134,202 @@ export default function TemplatesPage() {
         </Link>
       </div>
 
-      {/* Grid 4 Templates */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {TEMPLATES_CONFIG.map((tpl, index) => {
-          const isDefault = tpl.id === 'standard-classic';
-          return (
-            <div
-              key={tpl.id}
-              className={`bg-white rounded-2xl border-2 transition-all duration-300 shadow-sm hover:shadow-md p-6 flex flex-col justify-between relative overflow-hidden ${
-                isDefault ? 'border-blue-600 ring-1 ring-blue-600/20' : 'border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              {/* Top Card Badge */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm"
-                    style={{ backgroundColor: tpl.primaryColor }}
-                  >
-                    <LayoutTemplate className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-slate-900 text-base flex items-center space-x-2">
-                      <span>{tpl.name}</span>
-                    </h3>
-                    <span className="text-xs text-slate-500 font-medium">{tpl.subName}</span>
-                  </div>
-                </div>
-
-                {isDefault && (
-                  <span className="bg-blue-600 text-white text-xs px-2.5 py-1 rounded-full font-semibold flex items-center space-x-1 shadow-sm">
-                    <Check className="w-3 h-3" />
-                    <span>Mặc định</span>
-                  </span>
-                )}
-              </div>
-
-              {/* Description */}
-              <p className="text-xs text-slate-600 mb-6 leading-relaxed">
-                {tpl.description}
-              </p>
-
-              {/* Mini Preview Box */}
-              <div
-                onClick={() => {
-                  setSelectedPreviewTemplate(tpl.id);
-                  setIsPreviewModalOpen(true);
-                }}
-                className="cursor-pointer mb-6 rounded-xl border border-slate-200 bg-slate-50/70 p-4 hover:bg-slate-100/80 transition-all group relative overflow-hidden"
+      {/* Tab Navigation */}
+      <div className="sticky top-16 z-20 bg-slate-50/90 -mx-2 px-2 pb-2 backdrop-blur">
+        <nav className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-xs w-fit">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
               >
-                <div className="flex items-center justify-between text-xs text-slate-600 mb-2">
-                  <span className="font-semibold text-slate-800">Bản xem nhanh</span>
-                  <span className="text-blue-600 group-hover:underline flex items-center space-x-1 text-[11px] font-medium">
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>Xem toàn màn hình</span>
-                  </span>
-                </div>
-
-                {/* Color scheme pill bar */}
-                <div className="flex items-center space-x-2 pt-2 border-t border-slate-200/60">
-                  <div className="flex items-center space-x-1.5 text-[11px] text-slate-500">
-                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: tpl.primaryColor }}></span>
-                    <span>Chính: {tpl.primaryColor}</span>
-                  </div>
-                  <span className="text-slate-300">•</span>
-                  <div className="flex items-center space-x-1.5 text-[11px] text-slate-500">
-                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: tpl.accentColor }}></span>
-                    <span>Phụ: {tpl.accentColor}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Specs & Actions */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
-                <div className="flex items-center space-x-3 text-[11px] text-slate-500">
-                  <span className="bg-slate-100 px-2 py-0.5 rounded font-mono">Khổ A4</span>
-                  <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-medium">VietQR Ready</span>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => {
-                      setSelectedPreviewTemplate(tpl.id);
-                      setIsPreviewModalOpen(true);
-                    }}
-                    className="p-2 text-slate-600 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 rounded-lg text-xs font-medium transition-all"
-                    title="Xem mẫu đầy đủ"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-
-                  <Link
-                    href="/invoices/new"
-                    className="inline-flex items-center space-x-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
-                  >
-                    <span>Dùng mẫu</span>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+                <Icon className="w-3.5 h-3.5" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </nav>
       </div>
+
+      {/* === TAB: MẪU HÓA ĐƠN A4 === */}
+      {activeTab === 'invoice' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {TEMPLATES_CONFIG.map((tpl) => {
+            const isDefault = tpl.id === 'standard-classic';
+            return (
+              <div
+                key={tpl.id}
+                className={`bg-white rounded-2xl border-2 transition-all duration-300 shadow-sm hover:shadow-md p-6 flex flex-col justify-between relative overflow-hidden ${
+                  isDefault ? 'border-blue-600 ring-1 ring-blue-600/20' : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm"
+                      style={{ backgroundColor: tpl.primaryColor }}
+                    >
+                      <LayoutTemplate className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-base">
+                        <span>{tpl.name}</span>
+                      </h3>
+                      <span className="text-xs text-slate-500 font-medium">{tpl.subName}</span>
+                    </div>
+                  </div>
+
+                  {isDefault && (
+                    <span className="bg-blue-600 text-white text-xs px-2.5 py-1 rounded-full font-semibold flex items-center space-x-1 shadow-sm">
+                      <Check className="w-3 h-3" />
+                      <span>Mặc định</span>
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-xs text-slate-600 mb-6 leading-relaxed">
+                  {tpl.description}
+                </p>
+
+                <div
+                  onClick={() => {
+                    setSelectedPreviewTemplate(tpl.id);
+                    setIsPreviewModalOpen(true);
+                  }}
+                  className="cursor-pointer mb-6 rounded-xl border border-slate-200 bg-slate-50/70 p-4 hover:bg-slate-100/80 transition-all group relative overflow-hidden"
+                >
+                  <div className="flex items-center justify-between text-xs text-slate-600 mb-2">
+                    <span className="font-semibold text-slate-800">Bản xem nhanh</span>
+                    <span className="text-blue-600 group-hover:underline flex items-center space-x-1 text-[11px] font-medium">
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Xem toàn màn hình</span>
+                    </span>
+                  </div>
+
+                  <div className="flex items-center space-x-2 pt-2 border-t border-slate-200/60">
+                    <div className="flex items-center space-x-1.5 text-[11px] text-slate-500">
+                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: tpl.primaryColor }}></span>
+                      <span>Chính: {tpl.primaryColor}</span>
+                    </div>
+                    <span className="text-slate-300">•</span>
+                    <div className="flex items-center space-x-1.5 text-[11px] text-slate-500">
+                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: tpl.accentColor }}></span>
+                      <span>Phụ: {tpl.accentColor}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
+                  <div className="flex items-center space-x-3 text-[11px] text-slate-500">
+                    <span className="bg-slate-100 px-2 py-0.5 rounded font-mono">Khổ A4</span>
+                    <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-medium">VietQR Ready</span>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => {
+                        setSelectedPreviewTemplate(tpl.id);
+                        setIsPreviewModalOpen(true);
+                      }}
+                      className="p-2 text-slate-600 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 rounded-lg text-xs font-medium transition-all"
+                      title="Xem mẫu đầy đủ"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+
+                    <Link
+                      href="/invoices/new"
+                      className="inline-flex items-center space-x-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
+                    >
+                      <span>Dùng mẫu</span>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* === TAB: MẪU EMAIL HỆ THỐNG === */}
+      {activeTab === 'email' && (
+        <section className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-6 max-w-4xl">
+          <div className="flex items-center space-x-2.5 text-slate-900 font-bold text-base pb-3 border-b border-slate-100">
+            <Mail className="w-5 h-5 text-blue-600" />
+            <span>Mẫu Tin Nhắn Email Cảnh Báo & Nhắc Hạn Dịch Vụ</span>
+          </div>
+
+          <p className="text-xs text-slate-500">
+            Thiết lập tiêu đề và lời nhắn gửi đến khách hàng khi gói dịch vụ sắp hết hạn. Thay đổi được lưu tự động khi bạn rời khỏi ô nhập.
+          </p>
+
+          <div className="bg-blue-50/70 border border-blue-100 rounded-xl p-4 text-xs text-slate-600 space-y-2">
+            <div className="font-bold text-blue-900 flex items-center gap-1.5">
+              <Info className="w-4 h-4 text-blue-600" />
+              <span>Các biến tự động chèn dữ liệu (Placeholders) có thể dùng trong tiêu đề & nội dung:</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 font-mono text-[11px]">
+              <div className="bg-white px-2 py-1 rounded border border-blue-200/60"><strong className="text-blue-700">{'{customerName}'}</strong>: Tên KH</div>
+              <div className="bg-white px-2 py-1 rounded border border-blue-200/60"><strong className="text-blue-700">{'{serviceName}'}</strong>: Tên gói</div>
+              <div className="bg-white px-2 py-1 rounded border border-blue-200/60"><strong className="text-blue-700">{'{daysRemaining}'}</strong>: Số ngày còn</div>
+              <div className="bg-white px-2 py-1 rounded border border-blue-200/60"><strong className="text-blue-700">{'{endDate}'}</strong>: Ngày hết hạn</div>
+              <div className="bg-white px-2 py-1 rounded border border-blue-200/60"><strong className="text-blue-700">{'{servicePrice}'}</strong>: Giá gói</div>
+              <div className="bg-white px-2 py-1 rounded border border-blue-200/60"><strong className="text-blue-700">{'{staffName}'}</strong>: Người phụ trách</div>
+              <div className="bg-white px-2 py-1 rounded border border-blue-200/60"><strong className="text-blue-700">{'{companyName}'}</strong>: Tên công ty</div>
+              <div className="bg-white px-2 py-1 rounded border border-blue-200/60"><strong className="text-blue-700">{'{hotline}'}</strong>: Hotline</div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">
+                Tiêu Đề Email Mặc Định
+              </label>
+              <input
+                type="text"
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+                onBlur={() => saveEmailTemplate(emailSubject, emailBody)}
+                placeholder='VD: [THÔNG BÁO GIA HẠN DỊCH VỤ] Gói "{serviceName}" của {customerName} {daysRemaining}'
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Nếu để trống, hệ thống sẽ tự động dùng tiêu đề tiêu chuẩn.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">
+                Nội Dung / Lời Nhắn Mở Đầu Email
+              </label>
+              <textarea
+                rows={6}
+                value={emailBody}
+                onChange={(e) => setEmailBody(e.target.value)}
+                onBlur={() => saveEmailTemplate(emailSubject, emailBody)}
+                placeholder="VD: Kính gửi Quý khách hàng, hệ thống xin thông báo gói dịch vụ của Quý khách sắp đến thời hạn gia hạn. Quý khách vui lòng kiểm tra và liên hệ hỗ trợ để dịch vụ không bị gián đoạn..."
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none leading-relaxed"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Nội dung này sẽ hiển thị trang trọng ở phần đầu email gửi đến khách hàng kèm bảng chi tiết gói dịch vụ và thông tin người phụ trách.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Live Preview Modal */}
       {isPreviewModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            {/* Modal Header */}
             <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
@@ -212,7 +344,6 @@ export default function TemplatesPage() {
                 </div>
               </div>
 
-              {/* Template Switch Tabs */}
               <div className="flex items-center space-x-1.5 bg-white p-1 rounded-xl border border-slate-200">
                 {TEMPLATES_CONFIG.map((t) => (
                   <button
@@ -237,7 +368,6 @@ export default function TemplatesPage() {
               </button>
             </div>
 
-            {/* Modal Body: Render Sheet */}
             <div className="p-6 overflow-y-auto bg-slate-100 flex-1">
               <div className="max-w-3xl mx-auto">
                 <InvoiceTemplateRenderer
@@ -248,7 +378,6 @@ export default function TemplatesPage() {
               </div>
             </div>
 
-            {/* Modal Footer */}
             <div className="p-4 border-t border-slate-200 bg-white flex justify-between items-center">
               <span className="text-xs text-slate-500">Chuẩn in ấn A4 & xuất Playwright PDF</span>
               <div className="flex items-center space-x-3">

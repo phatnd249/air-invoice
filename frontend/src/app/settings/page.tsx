@@ -1,25 +1,24 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { useToast } from '@/context/ToastContext';
 import {
   Building2,
   CreditCard,
   Save,
   Plus,
   Trash2,
-  Check,
   Star,
   QrCode,
   Sliders,
-  Sparkles,
-  ExternalLink,
-  ShieldCheck,
-  Info,
   Edit2,
+  Phone,
+  MapPin,
 } from 'lucide-react';
+import { CompanyProfile, BankAccountItem } from '@invoice/types';
 
 const POPULAR_BANKS = [
   { code: 'Vietcombank', name: 'Vietcombank (VCB - Ngoại thương)' },
@@ -39,33 +38,65 @@ const POPULAR_BANKS = [
   { code: 'OCB', name: 'OCB (Phương Đông)' },
 ];
 
-interface BankAccount {
-  id: string;
-  bankCode: string;
-  bankAccount: string;
-  bankAccountName: string;
-  label?: string;
-  qrTemplate?: string;
-  isDefault?: boolean;
-}
+type SettingsTabId = 'companies' | 'banks' | 'rules';
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
-  const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { toast, confirm } = useToast();
 
-  // Form chính cho thông tin chung
-  const { register, handleSubmit, reset, watch } = useForm();
+  const [activeTab, setActiveTab] = useState<SettingsTabId>('companies');
+  const [companies, setCompanies] = useState<CompanyProfile[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<BankAccountItem[]>([]);
 
-  // Form riêng cho popup thêm/sửa tài khoản ngân hàng
+  // State modal công ty
+  const [editingCompany, setEditingCompany] = useState<CompanyProfile | null>(null);
+  const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
+
+  // State modal ngân hàng
+  const [editingAccount, setEditingAccount] = useState<BankAccountItem | null>(null);
+  const [isBankModalOpen, setIsBankModalOpen] = useState(false);
+
+  const settingsTabs: { id: SettingsTabId; label: string; icon: React.ElementType }[] = [
+    { id: 'companies', label: 'Đơn vị cung cấp', icon: Building2 },
+    { id: 'banks', label: 'Tài khoản & VietQR', icon: QrCode },
+    { id: 'rules', label: 'Đánh số & VAT', icon: Sliders },
+  ];
+
+  // Form quy tắc (prefix, số tiếp theo, VAT)
+  const rulesForm = useForm({
+    defaultValues: {
+      invoicePrefix: '',
+      nextInvoiceNumber: 0,
+      defaultVatRate: 10,
+    },
+  });
+
+  // Form modal đơn vị cung cấp
+  const {
+    register: registerCompany,
+    handleSubmit: handleCompanySubmit,
+    reset: resetCompany,
+  } = useForm<CompanyProfile>({
+    defaultValues: {
+      id: '',
+      name: '',
+      taxCode: '',
+      address: '',
+      phone: '',
+      email: '',
+      logoUrl: '',
+      bankAccountId: '',
+      isDefault: false,
+    },
+  });
+
+  // Form modal ngân hàng
   const {
     register: registerBank,
     handleSubmit: handleBankSubmit,
     reset: resetBank,
-    setValue: setBankValue,
     watch: watchBank,
-  } = useForm<BankAccount>({
+  } = useForm<BankAccountItem>({
     defaultValues: {
       id: '',
       bankCode: 'Vietcombank',
@@ -87,8 +118,32 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (settings) {
-      reset(settings);
-      if (settings.bankAccounts && Array.isArray(settings.bankAccounts)) {
+      rulesForm.reset({
+        invoicePrefix: settings.invoicePrefix || 'HD',
+        nextInvoiceNumber: settings.nextInvoiceNumber || 1,
+        defaultVatRate: settings.defaultVatRate ?? 10,
+      });
+
+      // Danh sách công ty
+      if (settings.companies && Array.isArray(settings.companies) && settings.companies.length > 0) {
+        setCompanies(settings.companies);
+      } else {
+        setCompanies([
+          {
+            id: 'comp-' + Date.now(),
+            name: settings.companyName || 'CÔNG TY TNHH GIÁO DỤC AI ROBOTIC',
+            taxCode: settings.taxCode || '3603893101',
+            address: settings.address || 'Số 10 Huỳnh Văn Nghệ, P. Trấn Biên, TP. Biên Hòa, Đồng Nai',
+            phone: settings.phone || '0900000000',
+            email: settings.email || 'contact@airobotics.edu.vn',
+            logoUrl: settings.logoUrl || '',
+            isDefault: true,
+          },
+        ]);
+      }
+
+      // Danh sách ngân hàng
+      if (settings.bankAccounts && Array.isArray(settings.bankAccounts) && settings.bankAccounts.length > 0) {
         setBankAccounts(settings.bankAccounts);
       } else if (settings.bankCode && settings.bankAccount) {
         setBankAccounts([
@@ -104,28 +159,105 @@ export default function SettingsPage() {
         ]);
       }
     }
-  }, [settings, reset]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings]);
 
-  const mutation = useMutation({
-    mutationFn: async (payload: any) => {
-      return api.put('/settings', payload);
-    },
+  const saveSettings = useMutation({
+    mutationFn: (payload: any) => api.put('/settings', payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['settings'] });
-      alert('Đã lưu toàn bộ cài đặt thành công!');
-    },
-    onError: (err: any) => {
-      alert('Lỗi lưu cài đặt: ' + (err.response?.data?.message || err.message));
     },
   });
 
-  const onSubmit = (formData: any) => {
-    mutation.mutate({
-      ...formData,
-      bankAccounts,
-      defaultVatRate: Number(formData.defaultVatRate) || 10,
-      nextInvoiceNumber: Number(formData.nextInvoiceNumber) || 1,
+  const persist = async (payload: any, successMsg: string) => {
+    try {
+      await saveSettings.mutateAsync(payload);
+      toast('success', successMsg);
+    } catch (err: any) {
+      toast('error', 'Lưu thất bại', err.response?.data?.message || err.message);
+    }
+  };
+
+  // --- XỬ LÝ CÔNG TY / ĐƠN VỊ CUNG CẤP (tự lưu) ---
+  const autoSaveCompanies = (updated: CompanyProfile[]) => {
+    setCompanies(updated);
+    persist({ companies: updated }, 'Đã lưu danh sách đơn vị cung cấp');
+  };
+
+  const handleOpenAddCompany = () => {
+    resetCompany({
+      id: 'comp-' + Date.now(),
+      name: '',
+      taxCode: '',
+      address: '',
+      phone: '',
+      email: '',
+      logoUrl: '',
+      bankAccountId: bankAccounts[0]?.id || '',
+      isDefault: companies.length === 0,
     });
+    setEditingCompany(null);
+    setIsCompanyModalOpen(true);
+  };
+
+  const handleOpenEditCompany = (comp: CompanyProfile) => {
+    resetCompany(comp);
+    setEditingCompany(comp);
+    setIsCompanyModalOpen(true);
+  };
+
+  const handleSaveCompany = (data: CompanyProfile) => {
+    let updated: CompanyProfile[] = [];
+    if (editingCompany) {
+      updated = companies.map((c) => (c.id === data.id ? { ...data } : c));
+    } else {
+      updated = [...companies, { ...data, id: data.id || 'comp-' + Date.now() }];
+    }
+
+    if (data.isDefault) {
+      updated = updated.map((c) => ({
+        ...c,
+        isDefault: c.id === data.id,
+      }));
+    } else if (!updated.some((c) => c.isDefault) && updated.length > 0) {
+      updated[0].isDefault = true;
+    }
+
+    setIsCompanyModalOpen(false);
+    autoSaveCompanies(updated);
+  };
+
+  const handleSetDefaultCompany = (id: string) => {
+    const updated = companies.map((c) => ({
+      ...c,
+      isDefault: c.id === id,
+    }));
+    autoSaveCompanies(updated);
+  };
+
+  const handleDeleteCompany = async (id: string) => {
+    if (companies.length <= 1) {
+      toast('warning', 'Không thể xóa', 'Bạn cần giữ lại ít nhất 1 đơn vị cung cấp.');
+      return;
+    }
+    const ok = await confirm({
+      title: 'Xóa đơn vị cung cấp?',
+      message: 'Thông tin đơn vị sẽ bị xóa khỏi danh sách và lưu lại ngay lập tức.',
+      confirmLabel: 'Xóa',
+      danger: true,
+    });
+    if (!ok) return;
+    let updated = companies.filter((c) => c.id !== id);
+    if (!updated.some((c) => c.isDefault) && updated.length > 0) {
+      updated[0].isDefault = true;
+    }
+    autoSaveCompanies(updated);
+  };
+
+  // --- XỬ LÝ TÀI KHOẢN NGÂN HÀNG (tự lưu) ---
+  const autoSaveBanks = (updated: BankAccountItem[]) => {
+    setBankAccounts(updated);
+    persist({ bankAccounts: updated }, 'Đã lưu danh sách tài khoản ngân hàng');
   };
 
   const handleOpenAddBank = () => {
@@ -133,30 +265,29 @@ export default function SettingsPage() {
       id: 'acc-' + Date.now(),
       bankCode: 'Vietcombank',
       bankAccount: '',
-      bankAccountName: settings?.companyName || 'AI ROBOTIC',
+      bankAccountName: companies[0]?.name || 'AI ROBOTIC',
       label: 'Tài khoản mới',
       qrTemplate: 'compact',
       isDefault: bankAccounts.length === 0,
     });
     setEditingAccount(null);
-    setIsModalOpen(true);
+    setIsBankModalOpen(true);
   };
 
-  const handleOpenEditBank = (acc: BankAccount) => {
+  const handleOpenEditBank = (acc: BankAccountItem) => {
     resetBank(acc);
     setEditingAccount(acc);
-    setIsModalOpen(true);
+    setIsBankModalOpen(true);
   };
 
-  const handleSaveBankAccount = (data: BankAccount) => {
-    let updated: BankAccount[] = [];
+  const handleSaveBankAccount = (data: BankAccountItem) => {
+    let updated: BankAccountItem[] = [];
     if (editingAccount) {
       updated = bankAccounts.map((a) => (a.id === data.id ? { ...data } : a));
     } else {
       updated = [...bankAccounts, { ...data, id: data.id || 'acc-' + Date.now() }];
     }
 
-    // Nếu đánh dấu là mặc định, bỏ mặc định ở các tài khoản khác
     if (data.isDefault) {
       updated = updated.map((a) => ({
         ...a,
@@ -166,8 +297,8 @@ export default function SettingsPage() {
       updated[0].isDefault = true;
     }
 
-    setBankAccounts(updated);
-    setIsModalOpen(false);
+    setIsBankModalOpen(false);
+    autoSaveBanks(updated);
   };
 
   const handleSetDefaultBank = (id: string) => {
@@ -175,21 +306,38 @@ export default function SettingsPage() {
       ...a,
       isDefault: a.id === id,
     }));
-    setBankAccounts(updated);
+    autoSaveBanks(updated);
   };
 
-  const handleDeleteBank = (id: string) => {
+  const handleDeleteBank = async (id: string) => {
     if (bankAccounts.length === 1) {
-      alert('Bạn cần giữ lại ít nhất 1 tài khoản ngân hàng để sinh mã VietQR!');
+      toast('warning', 'Không thể xóa', 'Bạn cần giữ lại ít nhất 1 tài khoản ngân hàng để sinh mã VietQR.');
       return;
     }
-    if (confirm('Bạn có chắc muốn xóa tài khoản ngân hàng này?')) {
-      let updated = bankAccounts.filter((a) => a.id !== id);
-      if (!updated.some((a) => a.isDefault) && updated.length > 0) {
-        updated[0].isDefault = true;
-      }
-      setBankAccounts(updated);
+    const ok = await confirm({
+      title: 'Xóa tài khoản ngân hàng?',
+      message: 'Tài khoản sẽ bị xóa khỏi danh sách và lưu lại ngay lập tức.',
+      confirmLabel: 'Xóa',
+      danger: true,
+    });
+    if (!ok) return;
+    let updated = bankAccounts.filter((a) => a.id !== id);
+    if (!updated.some((a) => a.isDefault) && updated.length > 0) {
+      updated[0].isDefault = true;
     }
+    autoSaveBanks(updated);
+  };
+
+  // --- XỬ LÝ QUY TẮC (cần nút xác nhận) ---
+  const onSaveRules = async (data: any) => {
+    await persist(
+      {
+        invoicePrefix: data.invoicePrefix,
+        nextInvoiceNumber: Number(data.nextInvoiceNumber) || 1,
+        defaultVatRate: Number(data.defaultVatRate) || 10,
+      },
+      'Đã lưu quy tắc đánh số hóa đơn & thuế'
+    );
   };
 
   const watchedBankModal = watchBank();
@@ -199,109 +347,176 @@ export default function SettingsPage() {
       : '';
 
   if (isLoading) {
-    return <div className="p-8 text-center text-slate-500">Đang tải cấu hình cài đặt...</div>;
+    return (
+      <div className="min-h-[40vh] p-8 flex flex-col items-center justify-center space-y-3">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-slate-500 text-sm font-medium">Đang tải cấu hình cài đặt...</p>
+      </div>
+    );
   }
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-8">
+    <div className="p-8 max-w-5xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-200 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Cài Đặt Hệ Thống</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Quản lý thông tin doanh nghiệp, danh sách tài khoản chuyển khoản VietQR và quy tắc hóa đơn
-          </p>
-        </div>
-
-        <button
-          onClick={handleSubmit(onSubmit)}
-          disabled={mutation.isPending}
-          className="inline-flex items-center justify-center px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold text-sm rounded-xl shadow-sm space-x-2 transition-all"
-        >
-          <Save className="w-4 h-4" />
-          <span>{mutation.isPending ? 'Đang lưu...' : 'Lưu Thay Đổi'}</span>
-        </button>
+      <div className="pb-6 border-b border-slate-200">
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Cài Đặt Hệ Thống</h1>
+        <p className="text-sm text-slate-500 mt-1">
+          Quản lý đơn vị cung cấp, tài khoản VietQR và quy tắc đánh số hóa đơn
+        </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-        {/* 1. THÔNG TIN DOANH NGHIỆP */}
-        <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-5">
-          <div className="flex items-center space-x-2.5 text-slate-900 font-bold text-base pb-3 border-b border-slate-100">
-            <Building2 className="w-5 h-5 text-blue-600" />
-            <span>Thông Tin Đơn Vị Cung Cấp (Người Bán)</span>
+      {/* Sticky Tab Navigation */}
+      <div className="sticky top-16 z-20 bg-slate-50/90 -mx-2 px-2 pb-2 backdrop-blur">
+        <nav className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-xs w-fit">
+          {settingsTabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* === TAB: ĐƠN VỊ CUNG CẤP === */}
+      {activeTab === 'companies' && (
+        <section className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-3">
+            <div className="flex items-center space-x-2.5 text-slate-900 font-bold text-base">
+              <Building2 className="w-5 h-5 text-blue-600" />
+              <span>Danh Sách Đơn Vị Cung Cấp (Người Bán)</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleOpenAddCompany}
+              className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-xl border border-blue-200 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Thêm Đơn Vị Mới</span>
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
-                Tên Doanh Nghiệp / Đơn Vị
-              </label>
-              <input
-                {...register('companyName')}
-                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-semibold text-slate-900"
-                placeholder="VD: CÔNG TY TNHH GIÁO DỤC AI ROBOTIC"
-              />
-            </div>
+          <p className="text-xs text-slate-500">
+            Cấu hình một hoặc nhiều pháp nhân/chi nhánh xuất hóa đơn. Thay đổi được lưu tự động ngay khi thêm, sửa, xóa hoặc đổi đơn vị mặc định.
+          </p>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
-                Mã Số Thuế (MST)
-              </label>
-              <input
-                {...register('taxCode')}
-                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                placeholder="3603893101"
-              />
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {companies.map((comp, idx) => {
+              const linkedBank = bankAccounts.find((b) => b.id === comp.bankAccountId);
+              return (
+                <div
+                  key={comp.id || idx}
+                  className={`p-5 rounded-2xl border transition-all relative flex flex-col justify-between ${comp.isDefault
+                      ? 'border-blue-600 bg-blue-50/20 ring-2 ring-blue-600/20 shadow-sm'
+                      : 'border-slate-200 bg-slate-50/50 hover:border-slate-300'
+                    }`}
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center space-x-2.5">
+                        {comp.logoUrl ? (
+                          <img
+                            src={comp.logoUrl}
+                            alt="Logo"
+                            className="w-9 h-9 object-contain rounded-lg border border-slate-200 bg-white p-0.5"
+                          />
+                        ) : (
+                          <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">
+                            {comp.name ? comp.name.charAt(0).toUpperCase() : 'C'}
+                          </div>
+                        )}
+                        <div>
+                          <h4 className="font-bold text-slate-900 text-sm line-clamp-1">{comp.name}</h4>
+                          <span className="text-[11px] font-mono text-slate-500">
+                            MST: <strong className="text-slate-700">{comp.taxCode || 'Chưa cập nhật'}</strong>
+                          </span>
+                        </div>
+                      </div>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
-                Hotline / Số Điện Thoại
-              </label>
-              <input
-                {...register('phone')}
-                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                placeholder="0900000000"
-              />
-            </div>
+                      {comp.isDefault ? (
+                        <span className="inline-flex items-center space-x-1 bg-blue-600 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full shadow-xs shrink-0">
+                          <Star className="w-3 h-3 fill-white" />
+                          <span>Mặc định</span>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleSetDefaultCompany(comp.id)}
+                          className="text-[11px] text-slate-500 hover:text-blue-600 hover:underline shrink-0"
+                        >
+                          Đặt làm mặc định
+                        </button>
+                      )}
+                    </div>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
-                Email Liên Hệ
-              </label>
-              <input
-                {...register('email')}
-                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                placeholder="contact@airobotics.edu.vn"
-              />
-            </div>
+                    <div className="space-y-1 text-xs text-slate-600 pt-1 border-t border-slate-100">
+                      {comp.address && (
+                        <div className="flex items-start space-x-1.5">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
+                          <span className="line-clamp-2">{comp.address}</span>
+                        </div>
+                      )}
+                      {comp.phone && (
+                        <div className="flex items-center space-x-1.5">
+                          <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span>{comp.phone}</span>
+                          {comp.email && <span className="text-slate-300">|</span>}
+                          {comp.email && <span>{comp.email}</span>}
+                        </div>
+                      )}
+                      {linkedBank && (
+                        <div className="flex items-center space-x-1.5 text-blue-700 bg-blue-50/60 px-2 py-1 rounded-lg border border-blue-100/60 mt-1">
+                          <CreditCard className="w-3.5 h-3.5 shrink-0" />
+                          <span className="font-medium text-[11px]">
+                            TK liên kết: {linkedBank.bankCode} - {linkedBank.bankAccount}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
-                Logo URL (Tùy chọn)
-              </label>
-              <input
-                {...register('logoUrl')}
-                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                placeholder="https://domain.com/logo.png"
-              />
-            </div>
+                  <div className="flex items-center justify-end space-x-2 pt-3 mt-3 border-t border-slate-200/70">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditCompany(comp)}
+                      className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                      title="Chỉnh sửa đơn vị"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
 
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
-                Địa Chỉ Doanh Nghiệp
-              </label>
-              <input
-                {...register('address')}
-                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                placeholder="Số 10 Huỳnh Văn Nghệ, P. Trấn Biên, Đồng Nai"
-              />
-            </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCompany(comp.id)}
+                      className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                      title="Xóa đơn vị"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </div>
+        </section>
+      )}
 
-        {/* 2. QUẢN LÝ NHIỀU TÀI KHOẢN CHUYỂN KHOẢN VIETQR */}
-        <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+      {/* === TAB: TÀI KHOẢN & VIETQR === */}
+      {activeTab === 'banks' && (
+        <section className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-3">
             <div className="flex items-center space-x-2.5 text-slate-900 font-bold text-base">
               <CreditCard className="w-5 h-5 text-blue-600" />
@@ -319,19 +534,17 @@ export default function SettingsPage() {
           </div>
 
           <p className="text-xs text-slate-500">
-            Bạn có thể thêm nhiều tài khoản để lựa chọn linh hoạt khi lập hóa đơn cho từng dịch vụ hoặc khách hàng khác nhau.
+            Thêm nhiều tài khoản để lựa chọn linh hoạt khi lập hóa đơn. Thay đổi được lưu tự động ngay khi thêm, sửa, xóa hoặc đổi tài khoản mặc định.
           </p>
 
-          {/* Bank Accounts Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {bankAccounts.map((acc, idx) => (
               <div
                 key={acc.id || idx}
-                className={`p-5 rounded-2xl border transition-all relative flex flex-col justify-between ${
-                  acc.isDefault
+                className={`p-5 rounded-2xl border transition-all relative flex flex-col justify-between ${acc.isDefault
                     ? 'border-blue-600 bg-blue-50/30 ring-2 ring-blue-600/20 shadow-sm'
                     : 'border-slate-200 bg-slate-50/50 hover:border-slate-300'
-                }`}
+                  }`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -400,71 +613,230 @@ export default function SettingsPage() {
               </div>
             ))}
           </div>
-        </div>
+        </section>
+      )}
 
-        {/* 3. CẤU HÌNH HÓA ĐƠN & THUẾ */}
-        <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+      {/* === TAB: ĐÁNH SỐ & VAT === */}
+      {activeTab === 'rules' && (
+        <section className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-5">
           <div className="flex items-center space-x-2.5 text-slate-900 font-bold text-base pb-3 border-b border-slate-100">
             <Sliders className="w-5 h-5 text-blue-600" />
             <span>Quy Tắc Đánh Số Hóa Đơn & Thuế Mặc Định</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
-                Tiền Tố Số HĐ (Prefix)
-              </label>
-              <input
-                {...register('invoicePrefix')}
-                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
-                placeholder="HD"
-              />
+          <p className="text-xs text-slate-500">
+            Các quy tắc này cần xác nhận lại trước khi lưu để tránh thay đổi số hóa đơn ngoài ý muốn.
+          </p>
+
+          <form onSubmit={rulesForm.handleSubmit(onSaveRules)} className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
+                  Tiền Tố Số HĐ (Prefix)
+                </label>
+                <input
+                  {...rulesForm.register('invoicePrefix')}
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                  placeholder="HD"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
+                  Số Hóa Đơn Tiếp Theo
+                </label>
+                <input
+                  type="number"
+                  {...rulesForm.register('nextInvoiceNumber')}
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                  placeholder="1"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
+                  Thuế Suất VAT Mặc Định (%)
+                </label>
+                <input
+                  type="number"
+                  {...rulesForm.register('defaultVatRate')}
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  placeholder="10"
+                />
+              </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
-                Số Hóa Đơn Tiếp Theo
-              </label>
-              <input
-                type="number"
-                {...register('nextInvoiceNumber')}
-                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
-                placeholder="1"
-              />
+            <div className="flex justify-end pt-1">
+              <button
+                type="submit"
+                disabled={saveSettings.isPending}
+                className="inline-flex items-center px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl shadow-sm space-x-2 transition-all cursor-pointer"
+              >
+                <Save className="w-4 h-4" />
+                <span>{saveSettings.isPending ? 'Đang lưu...' : 'Lưu Quy Tắc'}</span>
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
+
+      {/* POPUP THÊM / SỬA ĐƠN VỊ CUNG CẤP */}
+      {isCompanyModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">
+                    {editingCompany ? 'Chỉnh Sửa Đơn Vị Cung Cấp' : 'Thêm Đơn Vị Cung Cấp Mới'}
+                  </h3>
+                  <p className="text-xs text-slate-500">Thông tin sẽ được lưu tự động khi hoàn tất</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsCompanyModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-200 transition-all font-bold text-sm"
+              >
+                ✕
+              </button>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
-                Thuế Suất VAT Mặc Định (%)
-              </label>
-              <input
-                type="number"
-                {...register('defaultVatRate')}
-                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                placeholder="10"
-              />
+            <div className="p-6 space-y-4 overflow-y-auto max-h-[75vh]">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Tên Doanh Nghiệp / Đơn Vị Phát Hành *
+                </label>
+                <input
+                  type="text"
+                  placeholder="VD: CÔNG TY TNHH GIÁO DỤC AI ROBOTIC"
+                  {...registerCompany('name', { required: true })}
+                  className="w-full px-3.5 py-2 text-sm font-semibold border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Mã Số Thuế (MST)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="VD: 3603893101"
+                    {...registerCompany('taxCode')}
+                    className="w-full px-3.5 py-2 text-sm font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Hotline / Số Điện Thoại
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="VD: 0900000000"
+                    {...registerCompany('phone')}
+                    className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Email Liên Hệ
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="VD: contact@airobotics.edu.vn"
+                    {...registerCompany('email')}
+                    className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Logo URL (Tùy chọn)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="VD: https://domain.com/logo.png"
+                    {...registerCompany('logoUrl')}
+                    className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Địa Chỉ Doanh Nghiệp / Xuất Hóa Đơn
+                </label>
+                <input
+                  type="text"
+                  placeholder="VD: Số 10 Huỳnh Văn Nghệ, P. Trấn Biên, TP. Biên Hòa, Đồng Nai"
+                  {...registerCompany('address')}
+                  className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Tài Khoản Ngân Hàng Mặc Định Cho Đơn Vị Này
+                </label>
+                <select
+                  {...registerCompany('bankAccountId')}
+                  className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+                >
+                  <option value="">-- Chọn tài khoản ngân hàng liên kết --</option>
+                  {bankAccounts.map((acc) => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.label ? `${acc.label} (${acc.bankCode} - ${acc.bankAccount})` : `${acc.bankCode} - ${acc.bankAccount}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center space-x-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="isDefaultComp"
+                  {...registerCompany('isDefault')}
+                  className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                />
+                <label htmlFor="isDefaultComp" className="text-xs font-medium text-slate-700 cursor-pointer">
+                  Đặt làm đơn vị cung cấp mặc định cho các hóa đơn mới
+                </label>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-200 bg-white flex justify-end items-center space-x-3">
+              <button
+                type="button"
+                onClick={() => setIsCompanyModalOpen(false)}
+                className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleCompanySubmit(handleSaveCompany)}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
+              >
+                {editingCompany ? 'Lưu Thay Đổi' : 'Thêm Đơn Vị'}
+              </button>
             </div>
           </div>
         </div>
-
-        {/* Bottom Save Button */}
-        <div className="flex justify-end pt-2">
-          <button
-            type="submit"
-            disabled={mutation.isPending}
-            className="inline-flex items-center px-8 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-sm rounded-xl shadow-md space-x-2 transition-all"
-          >
-            <Save className="w-4 h-4" />
-            <span>{mutation.isPending ? 'Đang lưu...' : 'Lưu Toàn Bộ Cài Đặt'}</span>
-          </button>
-        </div>
-      </form>
+      )}
 
       {/* POPUP THÊM / SỬA TÀI KHOẢN NGÂN HÀNG */}
-      {isModalOpen && (
+      {isBankModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            {/* Modal Header */}
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
@@ -474,19 +846,19 @@ export default function SettingsPage() {
                   <h3 className="font-bold text-slate-900 text-base">
                     {editingAccount ? 'Chỉnh Sửa Tài Khoản Ngân Hàng' : 'Thêm Tài Khoản Ngân Hàng Mới'}
                   </h3>
-                  <p className="text-xs text-slate-500">Cấu hình thông tin sinh mã VietQR SePay</p>
+                  <p className="text-xs text-slate-500">Thông tin sẽ được lưu tự động khi hoàn tất</p>
                 </div>
               </div>
 
               <button
-                onClick={() => setIsModalOpen(false)}
+                type="button"
+                onClick={() => setIsBankModalOpen(false)}
                 className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-200 transition-all font-bold text-sm"
               >
                 ✕
               </button>
             </div>
 
-            {/* Modal Body */}
             <div className="p-6 space-y-5 overflow-y-auto max-h-[75vh]">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -554,7 +926,6 @@ export default function SettingsPage() {
                 </label>
               </div>
 
-              {/* Live VietQR Preview Tester */}
               {testQrUrl && (
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center space-x-4">
                   <img src={testQrUrl} alt="VietQR Test" className="w-24 h-24 rounded-lg border bg-white p-1" />
@@ -571,11 +942,10 @@ export default function SettingsPage() {
               )}
             </div>
 
-            {/* Modal Footer */}
             <div className="p-4 border-t border-slate-200 bg-white flex justify-end items-center space-x-3">
               <button
                 type="button"
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => setIsBankModalOpen(false)}
                 className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
               >
                 Hủy
@@ -585,7 +955,7 @@ export default function SettingsPage() {
                 onClick={handleBankSubmit(handleSaveBankAccount)}
                 className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
               >
-                Lưu Tài Khoản
+                {editingAccount ? 'Lưu Thay Đổi' : 'Thêm Tài Khoản'}
               </button>
             </div>
           </div>
