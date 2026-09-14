@@ -5,8 +5,15 @@ import { ValidationPipe } from '@nestjs/common';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // CORS origins cấu hình qua env (CORS_ORIGINS, phân tách bằng dấu phẩy)
+  // để khi Deploy lên môi trường khác không phải chỉnh sửa code.
+  const corsOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000,http://127.0.0.1:3000')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin: corsOrigins,
     credentials: true,
   });
 

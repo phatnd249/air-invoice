@@ -139,6 +139,97 @@ export class DeliveryService {
     }
   }
 
+  /**
+   * Gửi email đặt lại mật khẩu với đường link khôi phục
+   * Đường link được tạo từ phía AuthService (dựa theo origin/APP_URL)
+   * để khi Deploy lên môi trường khác không phải chỉnh sửa.
+   */
+  async sendPasswordResetEmail(
+    to: string,
+    name: string | null | undefined,
+    resetLink: string,
+    expiresInMinutes: number,
+  ): Promise<{ success: boolean; message: string }> {
+    const displayName = name || to;
+    const userFirstName = displayName.trim().split(/\s+/).slice(-1)[0] || 'bạn';
+
+    // Mẫu email đặt lại mật khẩu (thiết kế riêng, tự động theo link truyền vào)
+    const htmlBody = `
+      <div style="font-family: Arial, 'Helvetica Neue', sans-serif; font-size: 14px; line-height: 1.6; color: #334155; max-width: 620px; margin: 0 auto; padding: 20px; background: #f8fafc;">
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+          <!-- Header -->
+          <div style="background: #0f172a; padding: 20px 28px; text-align: center; border-bottom: 3px solid #2563eb;">
+            <div style="font-size: 20px; font-weight: 800; color: #ffffff; letter-spacing: 1px;">INVOICE<span style="color: #3b82f6;">-AIR</span></div>
+            <div style="font-size: 11px; color: #94a3b8; margin-top: 2px; letter-spacing: 0.5px;">HỆ THỐNG TẠO &amp; QUẢN LÝ HÓA ĐƠN TỰ ĐỘNG</div>
+          </div>
+
+          <!-- Body -->
+          <div style="padding: 28px 30px;">
+            <p style="color: #0f172a; font-size: 15px; margin: 0 0 14px;">Xin chào <strong style="color: #1d4ed8;">${displayName}</strong>,</p>
+
+            <p style="margin: 0 0 14px;">
+              Chúng tôi vừa nhận được yêu cầu <strong>đặt lại mật khẩu</strong> cho tài khoản
+              <strong style="color: #0f172a;">${to}</strong> trên hệ thống <strong>Invoice-AIR</strong>.
+            </p>
+
+            <p style="margin: 0 0 18px;">
+              Vui lòng nhấn vào nút bên dưới để tạo mật khẩu đăng nhập mới:
+            </p>
+
+            <!-- CTA Button -->
+            <div style="text-align: center; margin: 24px 0;">
+              <a href="${resetLink}" target="_blank"
+                 style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 13px 34px; border-radius: 8px; font-weight: 700; font-size: 14px; letter-spacing: 0.3px;">
+                🔑 Đặt Lại Mật Khẩu
+              </a>
+            </div>
+
+            <p style="margin: 0 0 10px; font-size: 13px; color: #64748b;">
+              <strong style="color: #0f172a;">Lưu ý:</strong> Liên kết này chỉ có hiệu lực trong
+              <strong style="color: #dc2626;">${expiresInMinutes} phút</strong> và chỉ sử dụng được <strong>một lần</strong>.
+              Nếu liên kết đã hết hạn, bạn có thể thực hiện lại yêu cầu tại trang quên mật khẩu.
+            </p>
+
+            <!-- Fallback raw link -->
+            <div style="background: #f1f5f9; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 12px 16px; margin: 16px 0; font-size: 12px; color: #475569; word-break: break-all;">
+              Nếu nút bên trên không hoạt động, sao chép &amp; dán đường dẫn sau vào trình duyệt:<br />
+              <a href="${resetLink}" style="color: #2563eb; word-break: break-all;">${resetLink}</a>
+            </div>
+
+            <!-- Security note -->
+            <div style="border-left: 4px solid #f59e0b; background: #fffbeb; padding: 12px 16px; border-radius: 6px; margin: 18px 0 0; font-size: 13px; color: #92400e;">
+              <strong>⚠️ Bảo mật:</strong> Nếu bạn <em>không</em> yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.
+              Tài khoản của bạn vẫn được bảo mật và không cần thực hiện thêm thao tác nào.
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div style="background: #f1f5f9; padding: 16px 28px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0;">
+            <p style="margin: 0 0 4px;">© 2026 Invoice-AIR — Hệ thống Tạo &amp; Quản lý Hóa Đơn Tự Động.</p>
+            <p style="margin: 0;">Email này được gửi tự động từ hệ thống. Vui lòng không phản hồi email này.</p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    try {
+      if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+        await this.transporter.sendMail({
+          from: process.env.SMTP_FROM || '"Invoice-AIR" <no-reply@invoice-air.com>',
+          to,
+          subject: '[Invoice-AIR] Yêu cầu đặt lại mật khẩu',
+          html: htmlBody,
+        });
+      }
+
+      console.log(`Đã gửi email đặt lại mật khẩu cho ${to}`);
+      return { success: true, message: `Đã gửi email đặt lại mật khẩu tới ${to}` };
+    } catch (error: any) {
+      console.error('Lỗi gửi email đặt lại mật khẩu:', error);
+      throw new Error(`Lỗi gửi mail: ${error.message}`);
+    }
+  }
+
   async getPublicInvoiceByToken(shareToken: string) {
     const invoice = await this.prisma.invoice.findUnique({
       where: { shareToken },

@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { api } from '@/lib/api';
 import {
   FileText,
   Lock,
@@ -13,9 +14,11 @@ import {
   EyeOff,
   CheckCircle2,
   AlertCircle,
-  Sparkles,
   Shield,
   Zap,
+  BadgeCheck,
+  TriangleAlert,
+  Loader2,
 } from 'lucide-react';
 
 export default function LoginPage() {
@@ -29,6 +32,42 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+  const emailRequestRef = useRef(0);
+
+  // Tự động xác minh email khi tạo tài khoản (đã đăng ký hay chưa)
+  useEffect(() => {
+    if (mode !== 'register') {
+      setEmailStatus('idle');
+      return;
+    }
+
+    const value = email.trim();
+    const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+    if (!isValid) {
+      setEmailStatus('idle');
+      return;
+    }
+
+    const requestId = ++emailRequestRef.current;
+    setEmailStatus('checking');
+
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await api.post('/auth/check-email', { email: value });
+        if (emailRequestRef.current === requestId) {
+          setEmailStatus(data.exists ? 'taken' : 'available');
+        }
+      } catch {
+        if (emailRequestRef.current === requestId) {
+          setEmailStatus('idle');
+        }
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [email, mode]);
 
   // Nếu đã đăng nhập thì tự động chuyển hướng vào trang quản lý hóa đơn
   useEffect(() => {
@@ -43,6 +82,11 @@ export default function LoginPage() {
 
     if (!email || !password) {
       setErrorMessage('Vui lòng nhập đầy đủ Email và Mật khẩu');
+      return;
+    }
+
+    if (mode === 'register' && emailStatus === 'taken') {
+      setErrorMessage('Email này đã được đăng ký trong hệ thống.');
       return;
     }
 
@@ -176,6 +220,32 @@ export default function LoginPage() {
                   className="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 />
               </div>
+
+              {/* Tự động xác minh email khi tạo tài khoản */}
+              {mode === 'register' && emailStatus !== 'idle' && (
+                <div className="mt-2 flex items-center gap-2 text-xs">
+                  {emailStatus === 'checking' && (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin" />
+                      <span className="text-slate-400">Đang kiểm tra email...</span>
+                    </>
+                  )}
+                  {emailStatus === 'available' && (
+                    <>
+                      <BadgeCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span className="text-emerald-400">Email có thể sử dụng</span>
+                    </>
+                  )}
+                  {emailStatus === 'taken' && (
+                    <>
+                      <TriangleAlert className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span className="text-amber-400">
+                        Email này đã được đăng ký. Vui lòng dùng email khác.
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>

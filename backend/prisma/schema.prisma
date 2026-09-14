@@ -41,7 +41,7 @@ model User {
   name                 String?
   role                 Role      @default(ADMIN)
   hashedRefreshToken   String?
-  resetPasswordToken   String?
+  resetPasswordToken   String? // SHA-256 hash của token đặt lại mật khẩu (gửi qua email)
   resetPasswordExpires DateTime?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt

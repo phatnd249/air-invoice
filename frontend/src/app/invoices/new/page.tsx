@@ -11,7 +11,6 @@ import {
   ArrowLeft,
   Eye,
   QrCode,
-  LayoutTemplate,
   CreditCard,
   Banknote,
   Smartphone,
@@ -31,7 +30,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import Link from 'next/link';
-import InvoiceTemplateRenderer, { TEMPLATES_CONFIG } from '@/components/InvoiceTemplateRenderer';
+import InvoiceTemplateRenderer from '@/components/InvoiceTemplateRenderer';
 import { INVOICE_TYPE_CONFIG, INVOICE_FORM_CONFIG, InvoiceType, InvoiceForm } from '@invoice/types';
 
 interface CatalogService {
@@ -526,40 +525,6 @@ export default function NewInvoicePage() {
                   {...register('buyerAddress')}
                   className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
                 />
-              </div>
-            </div>
-
-            {/* Template Selector Bar */}
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2 text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  <LayoutTemplate className="w-4 h-4 text-blue-600" />
-                  <span>Mẫu Thiết Kế Hóa Đơn (Template)</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                {TEMPLATES_CONFIG.map((tpl) => {
-                  const isSelected = selectedTemplateId === tpl.id;
-                  return (
-                    <button
-                      key={tpl.id}
-                      type="button"
-                      onClick={() => setValue('templateId', tpl.id)}
-                      className={`flex items-center space-x-2 p-2.5 rounded-xl border text-left transition-all ${
-                        isSelected
-                          ? 'border-blue-600 bg-blue-50/50 ring-2 ring-blue-600/20 font-semibold'
-                          : 'border-slate-200 hover:border-slate-300 bg-slate-50/40 text-slate-700'
-                      }`}
-                    >
-                      <span
-                        className="w-3.5 h-3.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: tpl.primaryColor }}
-                      />
-                      <span className="text-xs truncate">{tpl.name}</span>
-                    </button>
-                  );
-                })}
               </div>
             </div>
 
