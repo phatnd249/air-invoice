@@ -10,7 +10,9 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { DeliveryService } from '../delivery/delivery.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
 import { JwtPayload } from './strategies/jwt.strategy';
 
@@ -22,6 +24,7 @@ export class AuthService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly deliveryService: DeliveryService,
   ) {}
 
   async onModuleInit() {
@@ -211,9 +214,29 @@ export class AuthService implements OnModuleInit {
   }
 
   /**
-   * Yêu cầu khôi phục mật khẩu (Quên mật khẩu)
+   * Xác minh email có tồn tại trong hệ thống hay không
+   * (không tiết lộ thông tin tài khoản, chỉ trả về exists)
    */
-  async forgotPassword(email: string) {
+  async checkEmail(email: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true },
+    });
+
+    return {
+      email: normalizedEmail,
+      exists: !!user,
+    };
+  }
+
+  /**
+   * Yêu cầu khôi phục mật khẩu (Quên mật khẩu)
+   * Sinh token an toàn (64 ký tự hex) → lưu SHA-256 hash vào DB → gửi email kèm link đặt lại mật khẩu.
+   * Link được xây dựng từ baseUrl truyền vào (Origin header từ trình duyệt / APP_URL) để khi Deploy
+   * lên môi trường khác không cần chỉnh sửa đường link.
+   */
+  async forgotPassword(email: string, baseUrl?: string) {
     const user = await this.prisma.user.findUnique({
       where: { email: email.trim().toLowerCase() },
     });
@@ -222,35 +245,72 @@ export class AuthService implements OnModuleInit {
       throw new NotFoundException('Không tìm thấy tài khoản với email này trong hệ thống');
     }
 
-    // Sinh mã OTP 6 chữ số ngẫu nhiên
-    const resetOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    const resetExpires = new Date(Date.now() + 15 * 60 * 1000); // Hết hạn sau 15 phút
+    // Token ngẫu nhiên an toàn, chỉ hiện 1 lần trong email / response
+    const resetToken = crypto.randomBytes(32).toString('hex');
+
+    // Chỉ lưu SHA-256 hash trong DB — nếu DB bị lộ, token vẫn không thể sử dụng lại
+    const resetTokenHash = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
+
+    const expiresInMinutes =
+      Number(process.env.PASSWORD_RESET_TTL_MINUTES) || 60;
+    const resetExpires = new Date(
+      Date.now() + expiresInMinutes * 60 * 1000,
+    );
 
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
-        resetPasswordToken: resetOtp,
+        resetPasswordToken: resetTokenHash,
         resetPasswordExpires: resetExpires,
       },
     });
 
-    this.logger.log(`Yêu cầu đổi mật khẩu cho ${user.email}. Mã OTP: ${resetOtp}`);
+    // Xây link đặt lại mật khẩu — ưu tiên origin của trình duyệt (khớp mọi môi trường khi Deploy),
+    // fallback APP_URL (env), cuối cùng là localhost cho dev
+    const appUrl = baseUrl || process.env.APP_URL || 'http://localhost:3000';
+    const resetLink = `${appUrl.replace(/\/$/, '')}/reset-password?token=${resetToken}`;
+
+    // Gửi email kèm link (không throw nếu SMTP chưa cấu hình — vẫn trả link để dev demo)
+    try {
+      await this.deliveryService.sendPasswordResetEmail(
+        user.email,
+        user.name,
+        resetLink,
+        expiresInMinutes,
+      );
+    } catch (error: any) {
+      this.logger.warn(
+        `Không thể gửi email đặt lại mật khẩu tới ${user.email}: ${error.message}`,
+      );
+    }
+
+    this.logger.log(
+      `Yêu cầu đổi mật khẩu cho ${user.email}. Link: ${resetLink}`,
+    );
 
     return {
-      message: 'Mã xác thực khôi phục mật khẩu đã được tạo thành công (hiệu lực 15 phút)',
+      message: `Liên kết đặt lại mật khẩu đã được gửi tới ${user.email} (hiệu lực ${expiresInMinutes} phút)`,
       email: user.email,
-      resetToken: resetOtp,
+      resetLink,
       expiresAt: resetExpires.toISOString(),
     };
   }
 
   /**
-   * Đặt lại mật khẩu bằng mã OTP / Token
+   * Đặt lại mật khẩu bằng link (token) nhận được qua email
    */
   async resetPassword(token: string, newPassword: string) {
+    const resetTokenHash = crypto
+      .createHash('sha256')
+      .update(token.trim())
+      .digest('hex');
+
     const user = await this.prisma.user.findFirst({
       where: {
-        resetPasswordToken: token.trim(),
+        resetPasswordToken: resetTokenHash,
         resetPasswordExpires: {
           gt: new Date(),
         },
@@ -258,7 +318,9 @@ export class AuthService implements OnModuleInit {
     });
 
     if (!user) {
-      throw new BadRequestException('Mã xác thực không hợp lệ hoặc đã hết hạn. Vui lòng yêu cầu mã mới.');
+      throw new BadRequestException(
+        'Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn. Vui lòng yêu cầu liên kết mới.',
+      );
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -273,10 +335,13 @@ export class AuthService implements OnModuleInit {
       },
     });
 
-    this.logger.log(`Tài khoản ${user.email} đã đặt lại mật khẩu thành công`);
+    this.logger.log(
+      `Tài khoản ${user.email} đã đặt lại mật khẩu thành công`,
+    );
 
     return {
-      message: 'Đặt lại mật khẩu thành công! Bạn có thể đăng nhập bằng mật khẩu mới.',
+      message:
+        'Đặt lại mật khẩu thành công! Bạn có thể đăng nhập bằng mật khẩu mới.',
     };
   }
 

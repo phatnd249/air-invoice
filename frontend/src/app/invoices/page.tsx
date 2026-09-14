@@ -26,6 +26,7 @@ export default function InvoicesPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [selectedType, setSelectedType] = useState<string>('ALL');
   const [openMenuRow, setOpenMenuRow] = useState<string | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -482,13 +483,23 @@ export default function InvoicesPage() {
                     </td>
 
                     {/* Thao Tác: Menu 3 chấm */}
-                    <td className="py-4 px-5 text-right relative">
+                    <td className="py-4 px-5 text-right">
                       <div ref={openMenuRow === inv.id ? menuRef : undefined}>
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setOpenMenuRow(openMenuRow === inv.id ? null : inv.id);
+                            if (openMenuRow === inv.id) {
+                              setOpenMenuRow(null);
+                              setMenuPos(null);
+                            } else {
+                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                              setMenuPos({
+                                top: rect.bottom + 6,
+                                right: window.innerWidth - rect.right,
+                              });
+                              setOpenMenuRow(inv.id);
+                            }
                           }}
                           className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                             openMenuRow === inv.id
@@ -500,71 +511,82 @@ export default function InvoicesPage() {
                         >
                           <MoreVertical className="w-4 h-4" />
                         </button>
-
-                        {openMenuRow === inv.id && (
-                          <div className="absolute right-5 top-10 z-20 w-52 bg-white rounded-xl border border-slate-200 shadow-lg py-1.5 text-left animate-in fade-in zoom-in-95 duration-100">
-                            <Link
-                              href={`/invoices/${inv.id}`}
-                              onClick={() => setOpenMenuRow(null)}
-                              className="flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-                            >
-                              <Eye className="w-3.5 h-3.5 text-slate-400" />
-                              <span>Xem chi tiết</span>
-                            </Link>
-                            <a
-                              href={getExportPdfUrl(inv.id)}
-                              target="_blank"
-                              rel="noreferrer"
-                              onClick={() => setOpenMenuRow(null)}
-                              className="flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-                            >
-                              <Download className="w-3.5 h-3.5 text-slate-400" />
-                              <span>In / Tải PDF</span>
-                            </a>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                cloneMutation.mutate(inv.id);
-                                setOpenMenuRow(null);
-                              }}
-                              disabled={cloneMutation.isPending}
-                              className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors text-left cursor-pointer"
-                            >
-                              <Copy className="w-3.5 h-3.5 text-slate-400" />
-                              <span>Nhân bản hóa đơn</span>
-                            </button>
-                            {inv.status !== 'PAID' && inv.status !== 'CANCELLED' && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  payMutation.mutate({ id: inv.id });
-                                  setOpenMenuRow(null);
-                                }}
-                                disabled={payMutation.isPending}
-                                className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors text-left cursor-pointer"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" />
-                                <span>Xác nhận đã thanh toán</span>
-                              </button>
-                            )}
-                            <div className="my-1 border-t border-slate-100" />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (confirm(`Bạn có chắc muốn xóa hóa đơn ${inv.invoiceNumber}?`)) {
-                                  deleteMutation.mutate(inv.id);
-                                }
-                                setOpenMenuRow(null);
-                              }}
-                              disabled={deleteMutation.isPending}
-                              className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors text-left cursor-pointer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              <span>Xóa hóa đơn</span>
-                            </button>
-                          </div>
-                        )}
                       </div>
+
+                      {openMenuRow === inv.id && menuPos && (
+                        <div
+                          ref={menuRef}
+                          style={{
+                            position: 'fixed',
+                            top: menuPos.top,
+                            right: menuPos.right,
+                          }}
+                          className="z-[9999] w-52 bg-white rounded-xl border border-slate-200 shadow-xl py-1.5 text-left animate-in fade-in zoom-in-95 duration-100"
+                        >
+                          <Link
+                            href={`/invoices/${inv.id}`}
+                            onClick={() => { setOpenMenuRow(null); setMenuPos(null); }}
+                            className="flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-slate-400" />
+                            <span>Xem chi tiết</span>
+                          </Link>
+                          <a
+                            href={getExportPdfUrl(inv.id)}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={() => { setOpenMenuRow(null); setMenuPos(null); }}
+                            className="flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                          >
+                            <Download className="w-3.5 h-3.5 text-slate-400" />
+                            <span>In / Tải PDF</span>
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              cloneMutation.mutate(inv.id);
+                              setOpenMenuRow(null);
+                              setMenuPos(null);
+                            }}
+                            disabled={cloneMutation.isPending}
+                            className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors text-left cursor-pointer"
+                          >
+                            <Copy className="w-3.5 h-3.5 text-slate-400" />
+                            <span>Nhân bản hóa đơn</span>
+                          </button>
+                          {inv.status !== 'PAID' && inv.status !== 'CANCELLED' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                payMutation.mutate({ id: inv.id });
+                                setOpenMenuRow(null);
+                                setMenuPos(null);
+                              }}
+                              disabled={payMutation.isPending}
+                              className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors text-left cursor-pointer"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" />
+                              <span>Xác nhận đã thanh toán</span>
+                            </button>
+                          )}
+                          <div className="my-1 border-t border-slate-100" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`Bạn có chắc muốn xóa hóa đơn ${inv.invoiceNumber}?`)) {
+                                deleteMutation.mutate(inv.id);
+                              }
+                              setOpenMenuRow(null);
+                              setMenuPos(null);
+                            }}
+                            disabled={deleteMutation.isPending}
+                            className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors text-left cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Xóa hóa đơn</span>
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}

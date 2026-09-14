@@ -8,9 +8,6 @@ interface TemplateTheme {
 
 const TEMPLATE_THEMES: Record<string, TemplateTheme> = {
   'standard-classic': { primaryColor: '#2c3e50' },
-  'modern-minimal': { primaryColor: '#111827' },
-  'tech-emerald': { primaryColor: '#047857' },
-  'elegant-ruby': { primaryColor: '#991b1b' },
 };
 
 @Injectable()
@@ -75,7 +72,7 @@ export class PdfService {
     const statusLine = invoice.status && statusLabel(invoice.status) ? `<div style="text-align:right;font-size:10px;color:#888;font-style:italic;margin-bottom:12px;padding-top:2px">Trạng thái: ${statusLabel(invoice.status)}</div>` : '';
 
     const qrHtml = invoice.qrDataUrl
-      ? `<div style="background:#ffffff;padding:8px;border-radius:8px;border:1px solid #e2e8f0;display:inline-block;text-align:center"><img src="${invoice.qrDataUrl}" style="width:200px;height:auto;display:block;margin:0 auto" /><div style="font-size:10px;color:#64748b;margin-top:4px;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px">Quét mã thanh toán</div></div>`
+      ? `<div style="background:#ffffff;padding:8px;border-radius:8px;border:1px solid #e2e8f0;display:inline-block;text-align:center"><img src="${invoice.qrDataUrl}" style="width:200px;height:auto;display:block;margin:0 auto" /><div style="font-size:10px;color:#64748b;margin-top:4px;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px">QUÉT MÃ THANH TOÁN</div></div>`
       : '<div style="width:200px;height:200px;border:2px dashed #cbd5e1;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:12px;background:#fff;flex-shrink:0">VietQR</div>';
 
     const bankCode = invoice.bankCode || settings?.bankCode || 'Vietcombank';
@@ -86,11 +83,6 @@ export class PdfService {
     const taxCode = invoice.sellerTaxCode || settings?.taxCode || '3603893101';
     const phone = invoice.sellerPhone || settings?.phone;
     const email = invoice.sellerEmail || settings?.email;
-    const logoUrl = invoice.sellerLogoUrl || settings?.logoUrl;
-
-    const logoHtml = logoUrl
-      ? `<img src="${logoUrl}" alt="Logo" style="max-height:40px;max-width:160px;object-fit:contain;margin-bottom:4px" />`
-      : '';
 
     const typeTitle = (() => {
       switch (invoice.invoiceType) {
@@ -123,7 +115,7 @@ export class PdfService {
 <head>
 <meta charset="utf-8" />
 <style>
-@page { size: A4; margin: 12mm 14mm; }
+@page { size: A4; margin: 10mm 12mm; }
 * { box-sizing: border-box; }
 body {
   font-family: "Times New Roman", "Noto Serif", Georgia, serif;
@@ -139,10 +131,10 @@ body {
 <!-- HEADER -->
 <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px;border-bottom:2px solid ${pc};margin-bottom:4px">
   <div style="max-width:55%">
-    ${logoHtml || `<div style="font-weight:bold;font-size:14px;text-transform:uppercase;color:${pc};margin-bottom:4px;letter-spacing:0.5px">${companyName}</div>`}
+    <div style="font-weight:bold;font-size:14px;text-transform:uppercase;color:${pc};margin-bottom:4px;letter-spacing:0.5px">${companyName}</div>
     <div style="font-size:11.5px;color:#444">Địa chỉ: ${address}</div>
-    <div style="font-size:11.5px;color:#444">MST: ${taxCode}${settings?.phone ? ` &nbsp;—&nbsp; ĐT: ${settings.phone}` : ''}</div>
-    ${settings?.email ? `<div style="font-size:11.5px;color:#444">Email: ${settings.email}</div>` : ''}
+    <div style="font-size:11.5px;color:#444">MST: ${taxCode}${phone ? ` &nbsp;—&nbsp; ĐT: ${phone}` : ''}</div>
+    ${email ? `<div style="font-size:11.5px;color:#444">Email: ${email}</div>` : ''}
   </div>
   <div style="text-align:right">
     <div style="font-size:20px;font-weight:bold;text-transform:uppercase;color:${pc};letter-spacing:1px">${typeTitle}</div>

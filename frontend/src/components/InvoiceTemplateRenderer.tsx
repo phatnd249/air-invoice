@@ -64,34 +64,8 @@ export const TEMPLATES_CONFIG = [
   {
     id: 'standard-classic',
     name: 'Mẫu Chuẩn Doanh Nghiệp',
-    subName: 'Midnight Navy (#2c3e50)',
-    description: 'Mẫu hóa đơn thanh toán chuẩn doanh nghiệp trang trọng',
+    description: 'Mẫu hóa đơn GTGT chuẩn doanh nghiệp theo quy định Việt Nam',
     primaryColor: '#2c3e50',
-    accentColor: '#34495e',
-  },
-  {
-    id: 'modern-minimal',
-    name: 'Mẫu Tối Giản Hành Chính',
-    subName: 'Monochrome Clean (#111827)',
-    description: 'Mẫu đen trắng tối giản chuẩn in laser văn phòng',
-    primaryColor: '#111827',
-    accentColor: '#374151',
-  },
-  {
-    id: 'tech-emerald',
-    name: 'Mẫu Dịch Vụ Công Nghệ',
-    subName: 'Enterprise Green (#047857)',
-    description: 'Phù hợp các đơn vị cung cấp Hosting, Phần mềm & IT',
-    primaryColor: '#047857',
-    accentColor: '#065f46',
-  },
-  {
-    id: 'elegant-ruby',
-    name: 'Mẫu Biên Lai Thu Tiền',
-    subName: 'Official Burgundy (#991b1b)',
-    description: 'Phong cách biên lai xác nhận thanh toán truyền thống',
-    primaryColor: '#991b1b',
-    accentColor: '#7f1d1d',
   },
 ];
 
@@ -154,28 +128,21 @@ export default function InvoiceTemplateRenderer({
   const taxCode = invoice.sellerTaxCode || settings?.taxCode || '3603893101';
   const phone = invoice.sellerPhone || settings?.phone;
   const email = invoice.sellerEmail || settings?.email;
-  const logoUrl = invoice.sellerLogoUrl || settings?.logoUrl;
 
   return (
-    <div
-      className="bg-white max-w-[850px] mx-auto print:shadow-none print:border-none print:p-0"
-      style={{ fontFamily: "'Times New Roman', 'Noto Serif', serif", color: '#1a1a1a', fontSize: '13px', lineHeight: '1.5', padding: '40px 48px', border: '1px solid #ccc' }}
-    >
+    <>
+      <style>{`@media print { @page { size: A4; margin: 12mm 14mm; } }`}</style>
+      <div
+        className="bg-white max-w-[850px] mx-auto print:shadow-none print:border-none print:p-0"
+        style={{ fontFamily: "'Times New Roman', 'Noto Serif', serif", color: '#1a1a1a', fontSize: '13px', lineHeight: '1.5', padding: '40px 48px', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
+      >
       {/* === HEADER === */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: '12px', borderBottom: `2px solid ${pc}`, marginBottom: '4px' }}>
         {/* Seller Info */}
         <div style={{ maxWidth: '55%' }}>
-          {logoUrl ? (
-            <img
-              src={logoUrl}
-              alt="Logo"
-              style={{ maxHeight: '40px', maxWidth: '160px', objectFit: 'contain', marginBottom: '4px' }}
-            />
-          ) : (
-            <div style={{ fontWeight: 'bold', fontSize: '14px', textTransform: 'uppercase', color: pc, marginBottom: '4px', letterSpacing: '0.5px' }}>
-              {companyName}
-            </div>
-          )}
+          <div style={{ fontWeight: 'bold', fontSize: '14px', textTransform: 'uppercase', color: pc, marginBottom: '4px', letterSpacing: '0.5px' }}>
+            {companyName}
+          </div>
           <div style={{ fontSize: '11.5px', color: '#444' }}>
             Địa chỉ: {address}
           </div>
@@ -384,7 +351,7 @@ export default function InvoiceTemplateRenderer({
       )}
 
       {/* === QR + BANK INFO === */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '24px', padding: '16px 20px', border: '1px solid #d1d5db', background: '#f8fafc', borderRadius: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '24px', padding: '16px 20px', border: '1px solid #d1d5db', background: '#f8fafc', borderRadius: '8px', pageBreakInside: 'avoid' }}>
         {/* QR Code - PHÓNG TO RÕ NÉT */}
         <div style={{ flexShrink: 0, textAlign: 'center' }}>
           {invoice.qrDataUrl ? (
@@ -392,14 +359,14 @@ export default function InvoiceTemplateRenderer({
               <img
                 src={invoice.qrDataUrl}
                 alt="VietQR"
-                style={{ width: '220px', height: 'auto', display: 'block', margin: '0 auto' }}
+                style={{ width: '200px', height: 'auto', display: 'block', margin: '0 auto' }}
               />
               <div style={{ fontSize: '10px', color: '#64748b', marginTop: '4px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Quét mã để thanh toán tức thì
+                QUÉT MÃ THANH TOÁN
               </div>
             </div>
           ) : (
-            <div style={{ width: '220px', height: '220px', border: '2px dashed #cbd5e1', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '12px', background: '#fff' }}>
+            <div style={{ width: '200px', height: '200px', border: '2px dashed #cbd5e1', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '12px', background: '#fff' }}>
               <span style={{ fontWeight: 'bold', fontSize: '14px' }}>VietQR</span>
               <span style={{ fontSize: '10px', marginTop: '4px' }}>Chưa tạo mã QR</span>
             </div>
@@ -438,7 +405,7 @@ export default function InvoiceTemplateRenderer({
       </div>
 
       {/* === SIGNATURES === */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', textAlign: 'center', fontSize: '12px', color: '#444', borderTop: '1px solid #ddd', paddingTop: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', textAlign: 'center', fontSize: '12px', color: '#444', borderTop: '1px solid #ddd', paddingTop: '16px', pageBreakInside: 'avoid' }}>
         <div style={{ width: '45%' }}>
           <div style={{ fontWeight: 'bold', textTransform: 'uppercase', fontSize: '12px', color: '#111', marginBottom: '2px' }}>
             Đại diện khách hàng
@@ -459,6 +426,7 @@ export default function InvoiceTemplateRenderer({
           <div style={{ fontWeight: 'bold', color: '#333' }}>{settings?.companyName || 'AI ROBOTIC'}</div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

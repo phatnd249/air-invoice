@@ -19,12 +19,11 @@ import {
   CheckCircle2,
   AlertCircle,
   User,
-  LayoutTemplate,
   Trash2,
   Copy,
 } from 'lucide-react';
 import Link from 'next/link';
-import InvoiceTemplateRenderer, { TEMPLATES_CONFIG } from '@/components/InvoiceTemplateRenderer';
+import InvoiceTemplateRenderer from '@/components/InvoiceTemplateRenderer';
 import { INVOICE_TYPE_CONFIG, INVOICE_FORM_CONFIG, InvoiceType, InvoiceForm } from '@invoice/types';
 
 interface HistoryItem {
@@ -117,7 +116,6 @@ export default function InvoiceDetailPage() {
   const queryClient = useQueryClient();
   const id = params?.id as string;
   const [isSendingMail, setIsSendingMail] = useState(false);
-  const [overrideTemplateId, setOverrideTemplateId] = useState<string | null>(null);
 
   const { data: invoice, isLoading } = useQuery({
     queryKey: ['invoice', id],
@@ -175,19 +173,6 @@ export default function InvoiceDetailPage() {
     },
   });
 
-  const updateTemplateMutation = useMutation({
-    mutationFn: async (tplId: string) => {
-      return api.put(`/invoices/${id}`, { templateId: tplId });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invoice', id] });
-      alert('Đã đổi mẫu hóa đơn thành công!');
-    },
-    onError: (err: any) => {
-      alert('Lỗi khi đổi mẫu: ' + (err.response?.data?.message || err.message));
-    },
-  });
-
   const cloneMutation = useMutation({
     mutationFn: async () => {
       return api.post(`/invoices/${id}/clone`);
@@ -235,7 +220,7 @@ export default function InvoiceDetailPage() {
   const histories: HistoryItem[] = invoice.histories || [];
   const editCount = histories.filter((h) => h.action === 'UPDATED').length;
   const sendCount = histories.filter((h) => h.action === 'SENT').length;
-  const activeTemplate = overrideTemplateId || invoice.templateId || 'standard-classic';
+  const activeTemplate = invoice.templateId || 'standard-classic';
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -372,41 +357,6 @@ export default function InvoiceDetailPage() {
             <Trash2 className="w-4 h-4" />
             <span>Xóa HĐ</span>
           </button>
-        </div>
-      </div>
-
-      {/* Template Quick Switch Bar */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center space-x-2 text-xs font-semibold text-slate-700">
-          <LayoutTemplate className="w-4 h-4 text-blue-600" />
-          <span>Mẫu hiển thị:</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {TEMPLATES_CONFIG.map((tpl) => {
-            const isCurrent = activeTemplate === tpl.id;
-            return (
-              <button
-                key={tpl.id}
-                onClick={() => {
-                  setOverrideTemplateId(tpl.id);
-                  if (tpl.id !== invoice.templateId) {
-                    updateTemplateMutation.mutate(tpl.id);
-                  }
-                }}
-                className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                  isCurrent
-                    ? 'border-blue-600 bg-blue-50 text-blue-800 ring-1 ring-blue-600 font-semibold'
-                    : 'border-slate-200 hover:border-slate-300 text-slate-600 bg-white'
-                }`}
-              >
-                <span
-                  className="w-2.5 h-2.5 rounded-full"
-                  style={{ backgroundColor: tpl.primaryColor }}
-                />
-                <span>{tpl.name}</span>
-              </button>
-            );
-          })}
         </div>
       </div>
 

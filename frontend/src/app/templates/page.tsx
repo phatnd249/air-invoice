@@ -183,7 +183,6 @@ export default function TemplatesPage() {
                       <h3 className="font-bold text-slate-900 text-base">
                         <span>{tpl.name}</span>
                       </h3>
-                      <span className="text-xs text-slate-500 font-medium">{tpl.subName}</span>
                     </div>
                   </div>
 
@@ -206,24 +205,18 @@ export default function TemplatesPage() {
                   }}
                   className="cursor-pointer mb-6 rounded-xl border border-slate-200 bg-slate-50/70 p-4 hover:bg-slate-100/80 transition-all group relative overflow-hidden"
                 >
-                  <div className="flex items-center justify-between text-xs text-slate-600 mb-2">
+                  <div className="text-xs text-slate-600 mb-2">
                     <span className="font-semibold text-slate-800">Bản xem nhanh</span>
-                    <span className="text-blue-600 group-hover:underline flex items-center space-x-1 text-[11px] font-medium">
-                      <Eye className="w-3.5 h-3.5" />
-                      <span>Xem toàn màn hình</span>
-                    </span>
-                  </div>
-
-                  <div className="flex items-center space-x-2 pt-2 border-t border-slate-200/60">
-                    <div className="flex items-center space-x-1.5 text-[11px] text-slate-500">
-                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: tpl.primaryColor }}></span>
-                      <span>Chính: {tpl.primaryColor}</span>
-                    </div>
-                    <span className="text-slate-300">•</span>
-                    <div className="flex items-center space-x-1.5 text-[11px] text-slate-500">
-                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: tpl.accentColor }}></span>
-                      <span>Phụ: {tpl.accentColor}</span>
-                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedPreviewTemplate(tpl.id);
+                        setIsPreviewModalOpen(true);
+                      }}
+                      className="ml-2 text-blue-600 hover:underline text-[11px] font-medium"
+                    >
+                      <Eye className="w-3.5 h-3.5 inline-block mr-0.5" />
+                      Xem toàn màn hình
+                    </button>
                   </div>
                 </div>
 
@@ -345,19 +338,14 @@ export default function TemplatesPage() {
               </div>
 
               <div className="flex items-center space-x-1.5 bg-white p-1 rounded-xl border border-slate-200">
-                {TEMPLATES_CONFIG.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => setSelectedPreviewTemplate(t.id)}
-                    className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all ${
-                      selectedPreviewTemplate === t.id
-                        ? 'bg-blue-600 text-white font-semibold shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    {t.name.split(' ')[0]}
-                  </button>
-                ))}
+                <button
+                  onClick={() => setSelectedPreviewTemplate('standard-classic')}
+                  className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all ${
+                    true ? 'bg-blue-600 text-white font-semibold shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {TEMPLATES_CONFIG[0].name.split(' ')[0]}
+                </button>
               </div>
 
               <button
