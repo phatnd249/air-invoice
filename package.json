@@ -10,6 +10,8 @@
     "build": "pnpm --filter \"./backend\" build && pnpm --filter \"./frontend\" build",
     "build:backend": "pnpm --filter \"./backend\" exec playwright install chromium && pnpm --filter \"./backend\" build",
     "start:backend": "pnpm --filter \"./backend\" start:prod",
+    "build:frontend": "pnpm --filter \"./frontend\" build",
+    "start:frontend": "pnpm --filter \"./frontend\" start",
     "clean": "pnpm -r --parallel exec rimraf dist .next node_modules"
   },
   "devDependencies": {
