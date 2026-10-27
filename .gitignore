@@ -18,8 +18,10 @@ build
 .env.production.local
 backend/.env
 frontend/.env
+frontend/.env.local
 *.env
 !.env.example
+!.env.local.example
 
 # SQLite & Databases
 *.db

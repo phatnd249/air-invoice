@@ -85,21 +85,14 @@ node scripts/generate-secrets.js
 
 ## 🚢 Deployment
 
-Xem hướng dẫn deploy chi tiết trong [SECURITY.md](./SECURITY.md#setup-môi-trường-production).
+**Xem hướng dẫn chi tiết:** [DEPLOYMENT.md](./DEPLOYMENT.md)
 
-**Railway (Recommended):**
-```bash
-# Deploy backend
-railway up
+**Quick Links:**
+- Backend → [Railway](https://railway.app) - $5/tháng
+- Frontend → [Vercel](https://vercel.com) - Free
+- Database → Supabase PostgreSQL (đã có)
 
-# Set environment variables via Railway dashboard
-# Generate NEW secrets for production (khác với dev)
-```
-
-**Frontend → Vercel:**
-```bash
-vercel --prod
-```
+**Tổng chi phí:** $5/tháng
 
 ## 📝 Scripts
 

@@ -1,8 +1,56 @@
+# Node modules
 node_modules
+**/node_modules
+
+# Build outputs
 dist
 .next
+out
+backend/dist
+frontend/.next
+
+# Git
 .git
-*.log
+.gitignore
+
+# Environment files
 .env
-dev.db
-dev.db-journal
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+
+# Test & Coverage
+coverage
+.nyc_output
+
+# Temp
+*.tmp
+*.temp
+
+# SQLite (local dev only)
+*.db
+*.db-journal
+
+# Documentation (not needed in container)
+docs
+*.md
+!README.md
+
+# Config files (not needed in runtime)
+.prettierrc
+.eslintrc*
+tsconfig*.json
