@@ -29,24 +29,29 @@ RUN pnpm install --frozen-lockfile
 COPY backend ./backend
 COPY packages ./packages
 
+# Copy startup script
+COPY backend/start.sh ./backend/start.sh
+RUN chmod +x ./backend/start.sh
+
 # Generate Prisma Client
 RUN cd backend && pnpm exec prisma generate
 
 # Build backend
 RUN pnpm --filter "./backend" build
 
-# Railway automatically sets PORT environment variable
+# Platform (Railway/Render/Fly.io) will set PORT via environment
+# Default to 4000 if not set
 ENV PORT=4000
-EXPOSE 4000
+EXPOSE 4000 10000
 
 # Giới hạn V8 heap để Node không phình quá mức trong container 512MB.
 # (Đặt sau bước build để không giới hạn RAM của tsc/nest build)
 ENV NODE_OPTIONS="--max-old-space-size=256"
 
-# Health check
-# /api không có route gốc (404) nên dùng /api/auth/me: 401 = server sống, chỉ fail khi >= 500.
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
-  CMD node -e "require('http').get('http://localhost:4000/api/auth/me',(r)=>{process.exit(r.statusCode<500?0:1)}).on('error',()=>process.exit(1))"
+# Health check - use PORT from env
+# /api trả về text nên check status < 500
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:'+process.env.PORT+'/api',(r)=>{process.exit(r.statusCode<500?0:1)}).on('error',()=>process.exit(1))"
 
 # Run migrations then start production server
-CMD ["sh", "-c", "cd backend && pnpm exec prisma migrate deploy && cd .. && pnpm --filter ./backend start:prod"]
+CMD ["./backend/start.sh"]

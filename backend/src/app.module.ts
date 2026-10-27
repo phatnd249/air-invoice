@@ -10,12 +10,14 @@ import { DeliveryModule } from './delivery/delivery.module';
 import { ServicesCatalogModule } from './services-catalog/services-catalog.module';
 import { UsersModule } from './users/users.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     AuthModule, // Must be imported before using JwtAuthGuard
+    HealthModule, // Health check endpoints (public)
     SettingsModule,
     InvoicesModule,
     DeliveryModule,
