@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "pnpm run build:frontend",
-  "devCommand": "pnpm run dev:frontend",
+  "buildCommand": "pnpm --filter invoice-frontend build",
+  "devCommand": "pnpm --filter invoice-frontend dev",
   "installCommand": "pnpm install --filter=invoice-frontend...",
   "framework": "nextjs",
   "outputDirectory": "frontend/.next"
