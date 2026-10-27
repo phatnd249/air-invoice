@@ -1,12 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "cd frontend && pnpm build",
+  "buildCommand": "pnpm install && cd frontend && pnpm build",
   "devCommand": "cd frontend && pnpm dev",
   "installCommand": "pnpm install",
   "framework": null,
   "outputDirectory": "frontend/.next",
-  "regions": ["sin1"],
-  "env": {
-    "NEXT_PUBLIC_API_URL": "@next_public_api_url"
-  }
+  "regions": ["sin1"]
 }
