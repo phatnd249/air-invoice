@@ -1,56 +1,86 @@
+# ===================================================================
+# 🎨 RENDER BLUEPRINT — Backend (Docker)
+# ===================================================================
+# Hướng dẫn chi tiết: docs/RENDER_DEPLOYMENT.md
+# Environment variables: docs/RENDER_ENV_VARIABLES.txt
+#
+# Cách deploy:
+#   1. Push file này lên branch `main`
+#   2. Render Dashboard → New → Blueprint → chọn repo → Apply
+#   3. Render sẽ hỏi các biến có `sync: false`
+#
+# ⚠️ LƯU Ý:
+#   - KHÔNG dùng Free plan - Chromium sẽ crash
+#   - Phải dùng Starter plan ($7/mo) để chạy ổn định
+# ===================================================================
+
 services:
   - type: web
     name: invoice-air-backend
     runtime: docker
+
+    # Repository configuration
+    branch: main
+    region: singapore
+    
+    # ⚠️ QUAN TRỌNG: Phải dùng Starter plan
+    # Free plan: 512MB RAM + Sleep = Chromium crash
+    # Starter plan: 512MB RAM + No sleep = Chạy ổn định
+    plan: starter
+
     dockerfilePath: ./Dockerfile
-    # plan: free   # uncomment nếu muốn dùng free tier (có ngủ đông)
-    # plan: starter  # $7/tháng, không ngủ đông
+    dockerContext: .
+
+    # Auto deploy khi push code
+    autoDeploy: true
+
+    # Health check endpoint
+    healthCheckPath: /api
+
     envVars:
+      # Server Configuration
       - key: PORT
-        value: 4000
+        value: "10000"
       - key: NODE_ENV
         value: production
 
-      # --- Database (Supabase) ---
+      # Database - Supabase PostgreSQL
       - key: DATABASE_URL
-        sync: false   # nhập tay trên Render dashboard (bảo mật)
-
-      # --- JWT ---
-      - key: JWT_SECRET
         sync: false
+
+      # JWT Authentication
+      # Render tự generate random secrets
+      - key: JWT_SECRET
+        generateValue: true
       - key: JWT_EXPIRES_IN
         value: 15m
       - key: REFRESH_TOKEN_SECRET
-        sync: false
+        generateValue: true
       - key: REFRESH_TOKEN_EXPIRES_IN
         value: 7d
       - key: PASSWORD_RESET_TTL_MINUTES
-        value: 60
+        value: "60"
 
-      # --- CORS: thay YOUR_FRONTEND_URL bằng domain Vercel/Render của frontend ---
+      # Frontend URLs - Update sau khi deploy Vercel
+      - key: APP_URL
+        sync: false
       - key: CORS_ORIGINS
-        value: https://YOUR_FRONTEND_URL.vercel.app,https://YOUR_FRONTEND_URL.onrender.com
+        sync: false
 
-      # --- Email SMTP ---
+      # PDF/Chromium Optimization
+      - key: PDF_BROWSER_IDLE_TIMEOUT_MS
+        value: "60000"
+      - key: PDF_RENDER_TIMEOUT_MS
+        value: "30000"
+
+      # SMTP Email (Optional) - Chỉ hoạt động với Starter plan
       - key: SMTP_HOST
         value: smtp.gmail.com
       - key: SMTP_PORT
-        value: 587
+        value: "587"
       - key: SMTP_USER
         sync: false
       - key: SMTP_PASS
         sync: false
       - key: SMTP_FROM
-        sync: false
-
-      # --- Cloudflare R2 (nếu dùng) ---
-      - key: R2_ACCOUNT_ID
-        sync: false
-      - key: R2_ACCESS_KEY_ID
-        sync: false
-      - key: R2_SECRET_ACCESS_KEY
-        sync: false
-      - key: R2_BUCKET_NAME
-        value: invoice-air-storage
-      - key: R2_PUBLIC_URL
         sync: false
