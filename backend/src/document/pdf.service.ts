@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { chromium, Browser } from 'playwright';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { chromium, Browser, Page } from 'playwright';
 import { numberToVietnameseWords } from './numberToWords';
 
 interface TemplateTheme {
@@ -10,18 +10,92 @@ const TEMPLATE_THEMES: Record<string, TemplateTheme> = {
   'standard-classic': { primaryColor: '#2c3e50' },
 };
 
-@Injectable()
-export class PdfService {
-  private browser: Browser | null = null;
+/**
+ * Cờ Chromium tối ưu RAM cho container nhỏ (512MB):
+ * - tắt GPU / software rasterizer: -12MB đo được
+ * - giới hạn V8 heap của renderer: tránh renderer phình to
+ * - --disable-dev-shm-usage: bắt buộc trong container ( /dev/shm mặc định 64MB )
+ */
+const CHROMIUM_ARGS = [
+  '--no-sandbox',
+  '--disable-setuid-sandbox',
+  '--disable-gpu',
+  '--disable-software-rasterizer',
+  '--disable-gpu-compositing',
+  '--disable-dev-shm-usage',
+  '--disable-extensions',
+  '--disable-background-networking',
+  '--disable-sync',
+  '--disable-translate',
+  '--metrics-recording-only',
+  '--mute-audio',
+  '--no-first-run',
+  '--js-flags=--max-old-space-size=96',
+];
 
-  private async getBrowser(): Promise<Browser> {
-    if (!this.browser) {
-      this.browser = await chromium.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+/** Đóng Chromium sau khi rảnh để trả lại ~180-200MB RAM cho OS. */
+const BROWSER_IDLE_TIMEOUT_MS = Number(process.env.PDF_BROWSER_IDLE_TIMEOUT_MS) || 60_000;
+/** Timeout render 1 hóa đơn. */
+const PDF_RENDER_TIMEOUT_MS = Number(process.env.PDF_RENDER_TIMEOUT_MS) || 30_000;
+
+@Injectable()
+export class PdfService implements OnModuleDestroy {
+  private readonly logger = new Logger(PdfService.name);
+  private browser: Browser | null = null;
+  private page: Page | null = null;
+  private idleTimer: NodeJS.Timeout | null = null;
+  /** Hàng đợi: chỉ render 1 PDF tại một thời điểm để tránh nhân đôi RAM. */
+  private queue: Promise<unknown> = Promise.resolve();
+
+  async onModuleDestroy(): Promise<void> {
+    await this.closeBrowser('module destroy');
+  }
+
+  private async getPage(): Promise<Page> {
+    if (!this.browser || !this.browser.isConnected()) {
+      this.browser = await chromium.launch({ headless: true, args: CHROMIUM_ARGS });
+      this.browser.on('disconnected', () => {
+        this.browser = null;
+        this.page = null;
       });
+      // 1 tab dùng lại cho mọi lần render: tiết kiệm ~10-30MB so với newPage mỗi request
+      this.page = await this.browser.newPage();
+    } else if (!this.page || this.page.isClosed()) {
+      this.page = await this.browser.newPage();
     }
-    return this.browser;
+
+    this.clearIdleTimer();
+    return this.page;
+  }
+
+  private clearIdleTimer(): void {
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
+    }
+  }
+
+  private scheduleIdleClose(): void {
+    this.clearIdleTimer();
+    this.idleTimer = setTimeout(() => {
+      void this.closeBrowser('idle');
+    }, BROWSER_IDLE_TIMEOUT_MS);
+    // Không giữ event loop sống chỉ vì timer này
+    this.idleTimer.unref?.();
+  }
+
+  private async closeBrowser(reason: string): Promise<void> {
+    this.clearIdleTimer();
+    const browser = this.browser;
+    this.browser = null;
+    this.page = null;
+    if (!browser) return;
+    try {
+      await browser.close();
+      this.logger.debug(`Chromium đã đóng (${reason})`);
+    } catch (err) {
+      this.logger.warn(`Không đóng được Chromium (${reason}): ${(err as Error).message}`);
+    }
   }
 
   generateInvoiceHtml(invoice: any, settings: any): string {
@@ -230,25 +304,41 @@ ${notesHtml}
 </html>`;
   }
 
-  async generatePdfBuffer(invoice: any, settings: any, format: 'A4' | 'A5' = 'A4'): Promise<Buffer> {
-    const browser = await this.getBrowser();
-    const page = await browser.newPage();
+  generatePdfBuffer(invoice: any, settings: any, format: 'A4' | 'A5' = 'A4'): Promise<Buffer> {
+    // Xếp hàng tuần tự: 2 request đồng thời sẽ làm Chromium render 2 trang cùng lúc
+    // và có thể vượt 512MB RAM của container.
+    const task = this.queue.then(() => this.renderPdf(invoice, settings, format));
+    this.queue = task.catch(() => undefined);
+    return task;
+  }
 
-    const html = this.generateInvoiceHtml(invoice, settings);
-    await page.setContent(html, { waitUntil: 'networkidle' });
+  private async renderPdf(invoice: any, settings: any, format: 'A4' | 'A5'): Promise<Buffer> {
+    const page = await this.getPage();
 
-    const pdfBuffer = await page.pdf({
-      format: format,
-      printBackground: true,
-      margin: {
-        top: '10mm',
-        bottom: '10mm',
-        left: '12mm',
-        right: '12mm',
-      },
-    });
+    try {
+      const html = this.generateInvoiceHtml(invoice, settings);
+      // waitUntil 'load' thay vì 'networkidle': nội dung là HTML + data URL nên không cần
+      // chờ network idle (giảm ~500ms và tránh giữ tài nguyên mạng).
+      await page.setContent(html, { waitUntil: 'load', timeout: PDF_RENDER_TIMEOUT_MS });
 
-    await page.close();
-    return Buffer.from(pdfBuffer);
+      const pdfBuffer = await page.pdf({
+        format: format,
+        printBackground: true,
+        margin: {
+          top: '10mm',
+          bottom: '10mm',
+          left: '12mm',
+          right: '12mm',
+        },
+      });
+
+      return Buffer.from(pdfBuffer);
+    } catch (err) {
+      // Chromium có thể đã crash/OOM -> đóng hẳn để lần sau khởi tạo sạch
+      await this.closeBrowser('render error');
+      throw err;
+    } finally {
+      this.scheduleIdleClose();
+    }
   }
 }

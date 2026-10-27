@@ -6,7 +6,9 @@
 # ===================================================================
 
 # Sử dụng image chính thức từ Microsoft Playwright (chứa sẵn Node.js, Chromium và đầy đủ thư viện Linux)
-FROM mcr.microsoft.com/playwright:v1.50.0-noble
+# ⚠️ Version PHẢI khớp với dependency "playwright" trong backend/package.json (1.63.0).
+#    Lệch version => Chromium báo "Executable doesn't exist" khi xuất PDF.
+FROM mcr.microsoft.com/playwright:v1.63.0-noble
 
 WORKDIR /app
 
@@ -37,9 +39,14 @@ RUN pnpm --filter "./backend" build
 ENV PORT=4000
 EXPOSE 4000
 
+# Giới hạn V8 heap để Node không phình quá mức trong container 512MB.
+# (Đặt sau bước build để không giới hạn RAM của tsc/nest build)
+ENV NODE_OPTIONS="--max-old-space-size=256"
+
 # Health check
+# /api không có route gốc (404) nên dùng /api/auth/me: 401 = server sống, chỉ fail khi >= 500.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
-  CMD node -e "require('http').get('http://localhost:4000/api', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  CMD node -e "require('http').get('http://localhost:4000/api/auth/me',(r)=>{process.exit(r.statusCode<500?0:1)}).on('error',()=>process.exit(1))"
 
 # Run migrations then start production server
 CMD ["sh", "-c", "cd backend && pnpm exec prisma migrate deploy && cd .. && pnpm --filter ./backend start:prod"]
