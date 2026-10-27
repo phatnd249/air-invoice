@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
 import { ServicesCatalogService } from './services-catalog.service';
 
+// 🔒 Protected by global JwtAuthGuard in app.module.ts
 @Controller('services')
 export class ServicesCatalogController {
   constructor(private readonly servicesCatalogService: ServicesCatalogService) {}

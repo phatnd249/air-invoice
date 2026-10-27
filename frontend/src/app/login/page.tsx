@@ -15,7 +15,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Shield,
-  Zap,
   BadgeCheck,
   TriangleAlert,
   Loader2,
@@ -109,20 +108,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleQuickLoginAdmin = async () => {
-    setEmail('admin@airobotics.edu.vn');
-    setPassword('admin123');
-    setErrorMessage(null);
-    setIsSubmitting(true);
-    try {
-      await login('admin@airobotics.edu.vn', 'admin123');
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Không thể đăng nhập bằng tài khoản mẫu.';
-      setErrorMessage(msg);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+
 
   return (
     <div className="min-h-screen w-full bg-slate-950 flex flex-col justify-center items-center p-4 sm:p-6 relative overflow-hidden">
@@ -299,22 +285,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Quick Demo Login Preset */}
-          {mode === 'login' && (
-            <div className="mt-6 pt-5 border-t border-slate-800">
-              <p className="text-xs text-slate-400 text-center mb-3">Dùng thử nhanh phiên bản Demo:</p>
-              <button
-                type="button"
-                onClick={handleQuickLoginAdmin}
-                disabled={isSubmitting}
-                className="w-full py-2.5 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-medium flex items-center justify-center gap-2 transition-all group"
-              >
-                <Zap className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
-                <span>Đăng nhập 1-chạm (Admin: <code className="text-blue-400">admin123</code>)</span>
-              </button>
-            </div>
-          )}
 
           {/* Features highlight */}
           <div className="mt-6 pt-4 border-t border-slate-800/60 grid grid-cols-2 gap-2 text-[11px] text-slate-400">

@@ -3,7 +3,9 @@ import { Response } from 'express';
 import { DeliveryService } from './delivery.service';
 import { PdfService } from '../document/pdf.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { Public } from '../auth/decorators/public.decorator';
 
+// 🔒 Protected by global JwtAuthGuard in app.module.ts
 @Controller('delivery')
 export class DeliveryController {
   constructor(
@@ -17,6 +19,7 @@ export class DeliveryController {
     return this.deliveryService.sendInvoiceEmail(id);
   }
 
+  @Public()  // 🌐 Link chia sẻ công khai cho khách xem hoá đơn — không cần đăng nhập
   @Get('public/:token')
   async getPublicInvoice(@Param('token') token: string) {
     return this.deliveryService.getPublicInvoiceByToken(token);
