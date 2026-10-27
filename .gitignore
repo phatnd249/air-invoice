@@ -47,6 +47,3 @@ Thumbs.db
 *.sln
 *.sw?
 *.lnk
-
-# Project custom
-docs
