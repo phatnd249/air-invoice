@@ -1,0 +1,8 @@
+[build]
+# Railway tự detect Dockerfile ở root
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Số lần restart nếu crash
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

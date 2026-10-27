@@ -19,5 +19,5 @@ RUN pnpm --filter "./backend" build
 ENV PORT=4000
 EXPOSE 4000
 
-# Khởi chạy backend production server
-CMD ["pnpm", "--filter", "./backend", "start:prod"]
+# Chạy migration database rồi mới khởi động server
+CMD ["sh", "-c", "pnpm --filter ./backend exec prisma migrate deploy && pnpm --filter ./backend start:prod"]

@@ -104,7 +104,7 @@ export class AuthService implements OnModuleInit {
         email: dto.email.trim().toLowerCase(),
         password: hashedPassword,
         name: dto.name || 'Người dùng mới',
-        role: dto.role || 'USER',
+        role: 'USER', // 🔒 Force USER role - ADMIN can only be created by existing ADMIN via /api/users
       },
       select: {
         id: true,
@@ -291,12 +291,21 @@ export class AuthService implements OnModuleInit {
       `Yêu cầu đổi mật khẩu cho ${user.email}. Link: ${resetLink}`,
     );
 
-    return {
+    // 🔒 Security: Do NOT expose resetLink in production API response
+    // Link should only be sent via email, not returned to client
+    const response: any = {
       message: `Liên kết đặt lại mật khẩu đã được gửi tới ${user.email} (hiệu lực ${expiresInMinutes} phút)`,
       email: user.email,
-      resetLink,
       expiresAt: resetExpires.toISOString(),
     };
+
+    // Development only: Include link for testing when SMTP not configured
+    if (process.env.NODE_ENV === 'development') {
+      response.resetLink = resetLink;
+      response._devNote = 'resetLink chỉ hiển thị trong development mode';
+    }
+
+    return response;
   }
 
   /**

@@ -1,0 +1,56 @@
+services:
+  - type: web
+    name: invoice-air-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    # plan: free   # uncomment nếu muốn dùng free tier (có ngủ đông)
+    # plan: starter  # $7/tháng, không ngủ đông
+    envVars:
+      - key: PORT
+        value: 4000
+      - key: NODE_ENV
+        value: production
+
+      # --- Database (Supabase) ---
+      - key: DATABASE_URL
+        sync: false   # nhập tay trên Render dashboard (bảo mật)
+
+      # --- JWT ---
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 15m
+      - key: REFRESH_TOKEN_SECRET
+        sync: false
+      - key: REFRESH_TOKEN_EXPIRES_IN
+        value: 7d
+      - key: PASSWORD_RESET_TTL_MINUTES
+        value: 60
+
+      # --- CORS: thay YOUR_FRONTEND_URL bằng domain Vercel/Render của frontend ---
+      - key: CORS_ORIGINS
+        value: https://YOUR_FRONTEND_URL.vercel.app,https://YOUR_FRONTEND_URL.onrender.com
+
+      # --- Email SMTP ---
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+
+      # --- Cloudflare R2 (nếu dùng) ---
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        value: invoice-air-storage
+      - key: R2_PUBLIC_URL
+        sync: false
