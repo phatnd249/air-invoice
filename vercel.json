@@ -4,5 +4,5 @@
   "devCommand": "pnpm --filter invoice-frontend dev",
   "installCommand": "pnpm install --filter=invoice-frontend...",
   "framework": "nextjs",
-  "outputDirectory": "frontend/.next"
+  "outputDirectory": ".next"
 }
