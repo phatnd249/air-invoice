@@ -1,0 +1,34 @@
+# ===================================================================
+# ☁️ KOYEB DEPLOYMENT CONFIG
+# ===================================================================
+# Alternative to Railway - Easy setup with no sleep
+# ===================================================================
+
+app:
+  name: invoice-air-backend
+  region: sin # Singapore
+
+services:
+  - name: backend
+    instance_type: nano # 512MB RAM (free tier)
+    docker:
+      dockerfile: Dockerfile
+    env:
+      - name: PORT
+        value: "4000"
+      - name: NODE_ENV
+        value: "production"
+    ports:
+      - port: 4000
+        protocol: http
+    health_checks:
+      - http:
+          path: /api
+          port: 4000
+    routes:
+      - path: /
+        port: 4000
+    # Không tự động sleep
+    autoscaling:
+      min: 1
+      max: 1
