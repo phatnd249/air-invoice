@@ -66,9 +66,11 @@ export class InvoicesController {
       (created.items && created.items[0]?.name) ||
       'Gói Dịch Vụ AI WRITER';
 
-    // 3. Tự động gửi email hóa đơn nếu có email và không tắt cờ sendEmail
+    // 3. Tự động gửi email hóa đơn:
+    // Bất cứ khi nào khách hàng nhập Email (created.buyerEmail), hệ thống LUÔN LUÔN tự động gửi email hóa đơn kèm PDF!
+    // (Khắc phục trường hợp Landing Page cũ gửi sendEmail: false do backend trước đây từng bị timeout)
     let emailResult = { sent: false, error: null as any };
-    if (body.sendEmail !== false && created.buyerEmail) {
+    if (created.buyerEmail && body.disableEmail !== true) {
       try {
         await this.deliveryService.sendInvoiceEmail(created.id, {
           source: brandName,
@@ -85,7 +87,7 @@ export class InvoicesController {
 
     // 4. Tự động gửi tin nhắn Zalo kèm link PDF nếu có số điện thoại
     let zaloResult = { sent: false, error: null as any };
-    if (body.sendZalo !== false && created.buyerPhone) {
+    if (created.buyerPhone && body.disableZalo !== true) {
       try {
         const formatCurrency = (n?: number) =>
           new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
