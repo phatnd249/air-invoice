@@ -38,6 +38,7 @@ export function TopBar() {
       const res = await api.get('/settings');
       return res.data;
     },
+    enabled: !!user,
   });
 
   const getBreadcrumb = () => {

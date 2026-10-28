@@ -76,6 +76,16 @@ api.interceptors.response.use(
       !originalRequest.url?.includes('/auth/refresh') &&
       !originalRequest.url?.includes('/auth/register')
     ) {
+      const currentRefreshToken = getRefreshToken();
+      if (!currentRefreshToken) {
+        clearTokens();
+        processQueue(error, null);
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/view')) {
+          window.location.replace('/login');
+        }
+        return Promise.reject(error);
+      }
+
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -89,16 +99,6 @@ api.interceptors.response.use(
 
       originalRequest._retry = true;
       isRefreshing = true;
-
-      const currentRefreshToken = getRefreshToken();
-      if (!currentRefreshToken) {
-        clearTokens();
-        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/view')) {
-          window.location.href = '/login';
-        }
-        isRefreshing = false;
-        return Promise.reject(error);
-      }
 
       try {
         const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {

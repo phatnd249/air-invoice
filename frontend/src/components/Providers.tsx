@@ -11,6 +11,13 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
+            retry: (failureCount, error: any) => {
+              // Không retry khi gặp 401 Unauthorized hoặc 403 Forbidden
+              if (error?.response?.status === 401 || error?.response?.status === 403) {
+                return false;
+              }
+              return failureCount < 2;
+            },
             refetchOnWindowFocus: false,
             staleTime: 1000 * 60 * 5, // 5 minutes
           },

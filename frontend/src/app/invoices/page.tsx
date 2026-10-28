@@ -19,8 +19,10 @@ import {
   MoreVertical,
 } from 'lucide-react';
 import { INVOICE_TYPE_CONFIG, INVOICE_FORM_CONFIG, InvoiceType } from '@invoice/types';
+import { useAuth } from '@/context/AuthContext';
 
 export default function InvoicesPage() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
@@ -72,6 +74,7 @@ export default function InvoicesPage() {
       const res = await api.get('/invoices');
       return res.data;
     },
+    enabled: !!user,
   });
 
   // Clone hóa đơn
