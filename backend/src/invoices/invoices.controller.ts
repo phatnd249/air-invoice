@@ -67,6 +67,7 @@ export class InvoicesController {
       'Gói Dịch Vụ AI WRITER';
 
     // 3. Tự động gửi email hóa đơn nếu có email và không tắt cờ sendEmail
+    let emailResult = { sent: false, error: null as any };
     if (body.sendEmail !== false && created.buyerEmail) {
       try {
         await this.deliveryService.sendInvoiceEmail(created.id, {
@@ -75,12 +76,15 @@ export class InvoicesController {
           subject: body.emailSubject,
           isRegistration: true,
         });
+        emailResult.sent = true;
       } catch (err: any) {
-        console.warn('[Quick-Create] Không thể gửi email tự động:', err?.message);
+        emailResult.error = err?.message || String(err);
+        console.error('[Quick-Create] Không thể gửi email tự động:', err?.message);
       }
     }
 
     // 4. Tự động gửi tin nhắn Zalo kèm link PDF nếu có số điện thoại
+    let zaloResult = { sent: false, error: null as any };
     if (body.sendZalo !== false && created.buyerPhone) {
       try {
         const formatCurrency = (n?: number) =>
@@ -100,7 +104,7 @@ export class InvoicesController {
             `Gói dịch vụ sẽ được kích hoạt ngay khi hoàn tất thanh toán. Cảm ơn Quý khách!`;
         }
 
-        await this.zaloService.sendInvoiceZalo({
+        const zRes = await this.zaloService.sendInvoiceZalo({
           phone: created.buyerPhone,
           customerName: created.buyerName,
           invoiceNumber: created.invoiceNumber,
@@ -109,8 +113,14 @@ export class InvoicesController {
           pdfUrl,
           customMessage: customZaloMessage,
         });
+        if (zRes.success) {
+          zaloResult.sent = true;
+        } else {
+          zaloResult.error = zRes.error;
+        }
       } catch (err: any) {
-        console.warn('[Quick-Create] Không thể gửi tin nhắn Zalo tự động:', err?.message);
+        zaloResult.error = err?.message || String(err);
+        console.error('[Quick-Create] Không thể gửi tin nhắn Zalo tự động:', err?.message);
       }
     }
 
@@ -125,7 +135,18 @@ export class InvoicesController {
       viewUrl,
       pdfUrl,
       downloadPdfUrl: `${backendUrl}/api/delivery/export-pdf/${created.id}`,
+      emailResult,
+      zaloResult,
     };
+  }
+
+  @Public() // 🌐 Endpoint kiểm tra trực tiếp việc gửi email cho một hóa đơn
+  @Post('test-send-email/:id')
+  async testSendEmail(@Param('id') id: string) {
+    return this.deliveryService.sendInvoiceEmail(id, {
+      source: 'AI WRITER',
+      isRegistration: true,
+    });
   }
 
   @Get()

@@ -18,6 +18,14 @@ export class HealthController {
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       environment: process.env.NODE_ENV || 'development',
+      email: {
+        hasResendKey: Boolean(process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.trim() !== ''),
+        resendPrefix: process.env.RESEND_API_KEY ? process.env.RESEND_API_KEY.slice(0, 5) + '...' : null,
+        hasSmtpUser: Boolean(process.env.SMTP_USER && process.env.SMTP_USER.trim() !== ''),
+        smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',
+        smtpPort: process.env.SMTP_PORT || 587,
+        smtpFrom: process.env.SMTP_FROM || null,
+      },
     };
   }
 }
