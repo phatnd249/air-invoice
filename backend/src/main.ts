@@ -5,15 +5,28 @@ import { ValidationPipe } from '@nestjs/common';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // CORS origins cấu hình qua env (CORS_ORIGINS, phân tách bằng dấu phẩy)
-  // để khi Deploy lên môi trường khác không phải chỉnh sửa code.
-  const corsOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000,http://127.0.0.1:3000')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
+  // CORS origins: kết hợp CORS_ORIGINS từ env và các domain mặc định
+  const envCors = (process.env.CORS_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const defaultOrigins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://invoice.share4happy.com',
+  ];
+  const allowedOrigins = new Set([...defaultOrigins, ...envCors]);
 
   app.enableCors({
-    origin: corsOrigins,
+    origin: (origin, callback) => {
+      if (
+        !origin ||
+        allowedOrigins.has('*') ||
+        allowedOrigins.has(origin) ||
+        origin.endsWith('.share4happy.com') ||
+        origin.endsWith('.vercel.app')
+      ) {
+        return callback(null, true);
+      }
+      return callback(new Error(`Origin ${origin} not allowed by CORS`));
+    },
     credentials: true,
   });
 
