@@ -31,6 +31,9 @@ import {
   Copy,
   Check,
   Info,
+  Code2,
+  Globe,
+  ExternalLink,
 } from 'lucide-react';
 import { CompanyProfile, BankAccountItem } from '@invoice/types';
 
@@ -52,7 +55,7 @@ const POPULAR_BANKS = [
   { code: 'OCB', name: 'OCB (Phương Đông)' },
 ];
 
-type SettingsTabId = 'companies' | 'banks' | 'rules' | 'notifications';
+type SettingsTabId = 'companies' | 'banks' | 'rules' | 'notifications' | 'api';
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
@@ -95,13 +98,21 @@ export default function SettingsPage() {
   const [testPhone, setTestPhone] = useState('');
   const [isTestingZalo, setIsTestingZalo] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string; raw?: any } | null>(null);
-  const [copiedWebhook, setCopiedWebhook] = useState(false);
+  const [copiedApiItem, setCopiedApiItem] = useState<string | null>(null);
+
+  const copyToClipboard = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedApiItem(key);
+    toast('success', 'Đã sao chép vào bộ nhớ tạm');
+    setTimeout(() => setCopiedApiItem(null), 2000);
+  };
 
   const settingsTabs: { id: SettingsTabId; label: string; icon: React.ElementType }[] = [
     { id: 'companies', label: 'Đơn vị cung cấp', icon: Building2 },
     { id: 'banks', label: 'Tài khoản & VietQR', icon: QrCode },
     { id: 'rules', label: 'Đánh số & VAT', icon: Sliders },
     { id: 'notifications', label: 'Cấu hình Thông báo', icon: Bell },
+    { id: 'api', label: 'Tổng hợp API', icon: Code2 },
   ];
 
   // Form quy tắc (prefix, số tiếp theo, VAT)
@@ -511,15 +522,15 @@ export default function SettingsPage() {
     <div className="p-8 max-w-5xl mx-auto space-y-6">
       {/* Header */}
       <div className="pb-6 border-b border-slate-200">
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Cài Đặt Hệ Thống</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Quản lý đơn vị cung cấp, tài khoản VietQR và quy tắc đánh số hóa đơn
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Cài Đặt Hệ Thống</h1>
+        <p className="text-sm sm:text-base text-slate-500 mt-1.5">
+          Quản lý đơn vị cung cấp, tài khoản VietQR, quy tắc hóa đơn, thông báo và tổng hợp API
         </p>
       </div>
 
       {/* Sticky Tab Navigation */}
       <div className="sticky top-16 z-20 bg-slate-50/90 -mx-2 px-2 pb-2 backdrop-blur">
-        <nav className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-xs w-fit">
+        <nav className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-2xl p-1.5 shadow-xs flex-wrap">
           {settingsTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -528,13 +539,13 @@ export default function SettingsPage() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                className={`inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className="w-4 h-4" />
                 <span>{tab.label}</span>
               </button>
             );
@@ -1138,48 +1149,305 @@ Trân trọng!`}
               </div>
             </div>
           </section>
+        </div>
+      )}
 
-          {/* Webhook Landing Page Card */}
+      {/* === TAB: TỔNG HỢP API & WEBHOOK === */}
+      {activeTab === 'api' && (
+        <div className="space-y-6">
+          {/* Header Overview Card */}
           <section className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-            <div className="flex items-center space-x-2.5 text-slate-900 font-bold text-base pb-3 border-b border-slate-100">
-              <Bot className="w-5 h-5 text-blue-600" />
-              <span>Tích Hợp Landing Page Webhook (Tạo Hóa Đơn & Gửi Tự Động)</span>
-            </div>
-
-            <p className="text-xs text-slate-600">
-              Khi khách hàng điền form trên Landing Page, hệ thống của bạn chỉ cần gửi thông tin qua Webhook API dưới đây. Backend sẽ tự động lập hóa đơn, tạo mã VietQR, đồng thời kích hoạt gửi <strong>Email</strong> và <strong>Zalo</strong> theo cấu hình ở trên.
-            </p>
-
-            <div className="bg-slate-900 text-slate-100 rounded-xl p-4 font-mono text-xs space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                <span className="text-emerald-400 font-bold">POST /api/invoices/quick-create</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText('https://invoice-backend-5tbi.onrender.com/api/invoices/quick-create');
-                    setCopiedWebhook(true);
-                    setTimeout(() => setCopiedWebhook(false), 2000);
-                  }}
-                  className="text-slate-400 hover:text-white flex items-center space-x-1 text-[11px]"
-                >
-                  {copiedWebhook ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedWebhook ? 'Đã sao chép' : 'Sao chép URL'}</span>
-                </button>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+                  <Code2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-lg">
+                    Tổng Hợp API & Webhook Hệ Thống
+                  </h3>
+                  <p className="text-sm text-slate-500">
+                    Tài liệu dành cho lập trình viên để tích hợp Landing Page, Web App hoặc hệ thống CRM bên ngoài.
+                  </p>
+                </div>
               </div>
 
-              <div className="text-slate-300">
-                <span className="text-slate-500">// Ví dụ Payload JSON gửi từ Landing Page:</span>
-                <pre className="text-amber-300 mt-1 whitespace-pre-wrap">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center space-x-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold px-3 py-1 rounded-full">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>API Sẵn Sàng</span>
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs sm:text-sm">
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-1.5">
+                <div className="font-semibold text-slate-700 flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-blue-600" />
+                  <span>Backend API Base URL</span>
+                </div>
+                <div className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-slate-200 font-mono text-xs text-slate-800">
+                  <span className="truncate">https://invoice-backend-5tbi.onrender.com/api</span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('https://invoice-backend-5tbi.onrender.com/api', 'base_url')}
+                    className="text-blue-600 hover:text-blue-800 font-sans text-xs ml-2 shrink-0 font-medium cursor-pointer"
+                  >
+                    {copiedApiItem === 'base_url' ? 'Đã chép' : 'Sao chép'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-1.5">
+                <div className="font-semibold text-slate-700 flex items-center gap-2">
+                  <ExternalLink className="w-4 h-4 text-blue-600" />
+                  <span>Frontend Public Web URL</span>
+                </div>
+                <div className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-slate-200 font-mono text-xs text-slate-800">
+                  <span className="truncate">https://invoice.share4happy.com</span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('https://invoice.share4happy.com', 'web_url')}
+                    className="text-blue-600 hover:text-blue-800 font-sans text-xs ml-2 shrink-0 font-medium cursor-pointer"
+                  >
+                    {copiedApiItem === 'web_url' ? 'Đã chép' : 'Sao chép'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-3.5 text-xs text-blue-800 flex items-start gap-2">
+              <Info className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+              <span>
+                <strong>CORS Policy:</strong> Máy chủ cho phép gọi API trực tiếp từ Landing Page client-side JavaScript thuộc các domain <code>*.share4happy.com</code>, <code>*.vercel.app</code> và <code>localhost</code> mà không bị chặn trình duyệt.
+              </span>
+            </div>
+          </section>
+
+          {/* Endpoint 1: Quick Create Invoice (Landing Page Webhook) */}
+          <section className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2.5">
+                  <span className="px-2.5 py-1 bg-emerald-600 text-white font-mono font-bold text-xs rounded-lg">POST</span>
+                  <span className="font-mono font-bold text-sm sm:text-base text-slate-900">/api/invoices/quick-create</span>
+                  <span className="bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-semibold px-2 py-0.5 rounded-full">
+                    Public Webhook
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-600">
+                  <strong>Tạo hóa đơn nhanh từ Landing Page:</strong> Tự động lập số HĐ, tạo mã VietQR thanh toán, và tự động gửi Email / Zalo Bot theo cấu hình thông báo.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => copyToClipboard('https://invoice-backend-5tbi.onrender.com/api/invoices/quick-create', 'ep_quick_create')}
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer shrink-0"
+              >
+                {copiedApiItem === 'ep_quick_create' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedApiItem === 'ep_quick_create' ? 'Đã chép URL' : 'Sao chép URL'}</span>
+              </button>
+            </div>
+
+            {/* Request Schema Table */}
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                Các Tham Số Body (JSON Payload)
+              </h4>
+              <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
+                    <tr>
+                      <th className="p-2.5">Trường</th>
+                      <th className="p-2.5">Kiểu</th>
+                      <th className="p-2.5">Bắt buộc</th>
+                      <th className="p-2.5">Mô tả & Ví dụ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-600">
+                    <tr>
+                      <td className="p-2.5 font-mono text-blue-700 font-bold">customerName</td>
+                      <td className="p-2.5 font-mono">string</td>
+                      <td className="p-2.5 font-bold text-rose-600">Có</td>
+                      <td className="p-2.5">Họ tên khách hàng / học viên (VD: "Nguyễn Văn A")</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 font-mono text-blue-700 font-bold">customerPhone</td>
+                      <td className="p-2.5 font-mono">string</td>
+                      <td className="p-2.5 text-slate-500">Tùy chọn</td>
+                      <td className="p-2.5">Số điện thoại để tự động gửi Zalo Bot và kết bạn (VD: "0334551531")</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 font-mono text-blue-700 font-bold">customerEmail</td>
+                      <td className="p-2.5 font-mono">string</td>
+                      <td className="p-2.5 text-slate-500">Tùy chọn</td>
+                      <td className="p-2.5">Email nhận hóa đơn và thông báo thanh toán (VD: "khach@example.com")</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 font-mono text-blue-700 font-bold">amount</td>
+                      <td className="p-2.5 font-mono">number</td>
+                      <td className="p-2.5 font-bold text-rose-600">Có</td>
+                      <td className="p-2.5">Số tiền thanh toán (VD: 500000)</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 font-mono text-blue-700 font-bold">description</td>
+                      <td className="p-2.5 font-mono">string</td>
+                      <td className="p-2.5 font-bold text-rose-600">Có</td>
+                      <td className="p-2.5">Tên gói dịch vụ / Khóa học / Nội dung thanh toán</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 font-mono text-blue-700 font-bold">notes</td>
+                      <td className="p-2.5 font-mono">string</td>
+                      <td className="p-2.5 text-slate-500">Tùy chọn</td>
+                      <td className="p-2.5">Ghi chú bổ sung (VD: "Đăng ký từ Landing Page hè")</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Code Examples: JSON & cURL */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-slate-900 text-slate-100 rounded-xl p-4 font-mono text-xs space-y-2">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-slate-400">
+                  <span className="text-amber-400 font-bold">// Ví dụ Payload JSON gửi lên:</span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(`{
+  "customerName": "Nguyễn Văn A",
+  "customerPhone": "0334551531",
+  "customerEmail": "khach@example.com",
+  "amount": 500000,
+  "description": "Khóa học AI Robotic Cơ Bản",
+  "notes": "Đăng ký từ landing page"
+}`, 'json_payload')}
+                    className="hover:text-white flex items-center space-x-1"
+                  >
+                    <Copy className="w-3 h-3" />
+                    <span>{copiedApiItem === 'json_payload' ? 'Đã chép' : 'Chép JSON'}</span>
+                  </button>
+                </div>
+                <pre className="text-slate-300 overflow-x-auto whitespace-pre-wrap">
 {`{
   "customerName": "Nguyễn Văn A",
   "customerPhone": "0334551531",
-  "customerEmail": "nguyenvana@example.com",
+  "customerEmail": "khach@example.com",
   "amount": 500000,
-  "description": "Thanh toán khóa học STEM Robotic",
+  "description": "Khóa học AI Robotic Cơ Bản",
   "notes": "Đăng ký từ landing page"
 }`}
                 </pre>
               </div>
+
+              <div className="bg-slate-900 text-slate-100 rounded-xl p-4 font-mono text-xs space-y-2">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-slate-400">
+                  <span className="text-emerald-400 font-bold">// Kết quả trả về (Response 201 Created):</span>
+                </div>
+                <pre className="text-emerald-300 overflow-x-auto whitespace-pre-wrap">
+{`{
+  "success": true,
+  "invoice": {
+    "invoiceNumber": "HD0001",
+    "grandTotal": 500000,
+    "shareToken": "e27a6966-...",
+    "viewUrl": "https://invoice.share4happy.com/view/e27a6966-...",
+    "pdfUrl": "https://invoice-backend-5tbi.onrender.com/api/delivery/public/e27a6966-.../pdf",
+    "qrDataUrl": "https://qr.sepay.vn/img?bank=Vietcombank&acc=SHYNNERI&amount=500000&des=HD0001"
+  },
+  "delivery": {
+    "email": { "attempted": true, "success": true },
+    "zalo": { "attempted": true, "success": true }
+  }
+}`}
+                </pre>
+              </div>
+            </div>
+          </section>
+
+          {/* Endpoint 2: Export Public PDF */}
+          <section className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2.5">
+                  <span className="px-2.5 py-1 bg-blue-600 text-white font-mono font-bold text-xs rounded-lg">GET</span>
+                  <span className="font-mono font-bold text-sm sm:text-base text-slate-900">/api/delivery/public/:token/pdf</span>
+                  <span className="bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-semibold px-2 py-0.5 rounded-full">
+                    Public Direct Stream
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-600">
+                  <strong>Tải trực tiếp file PDF hóa đơn:</strong> Dùng để nhúng link nút "Tải Hóa Đơn PDF" trên Landing Page hoặc gửi cho khách hàng mà không cần đăng nhập.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => copyToClipboard('https://invoice-backend-5tbi.onrender.com/api/delivery/public/{shareToken}/pdf', 'ep_pdf')}
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer shrink-0"
+              >
+                {copiedApiItem === 'ep_pdf' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedApiItem === 'ep_pdf' ? 'Đã chép URL' : 'Sao chép URL'}</span>
+              </button>
+            </div>
+
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs text-slate-600 font-mono">
+              GET https://invoice-backend-5tbi.onrender.com/api/delivery/public/<strong className="text-blue-700">{'<shareToken>'}</strong>/pdf
+            </div>
+          </section>
+
+          {/* Endpoint 3: Public Invoice JSON Data */}
+          <section className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2.5">
+                  <span className="px-2.5 py-1 bg-blue-600 text-white font-mono font-bold text-xs rounded-lg">GET</span>
+                  <span className="font-mono font-bold text-sm sm:text-base text-slate-900">/api/delivery/public/:token</span>
+                  <span className="bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-semibold px-2 py-0.5 rounded-full">
+                    Public JSON
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-600">
+                  <strong>Lấy dữ liệu hóa đơn công khai:</strong> Trả về thông tin chi tiết hóa đơn (trạng thái thanh toán, tổng tiền, mã QR SePay) để Landing Page render trực tiếp trên trang cảm ơn.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => copyToClipboard('https://invoice-backend-5tbi.onrender.com/api/delivery/public/{shareToken}', 'ep_token_data')}
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer shrink-0"
+              >
+                {copiedApiItem === 'ep_token_data' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedApiItem === 'ep_token_data' ? 'Đã chép URL' : 'Sao chép URL'}</span>
+              </button>
+            </div>
+
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs text-slate-600 font-mono">
+              GET https://invoice-backend-5tbi.onrender.com/api/delivery/public/<strong className="text-blue-700">{'<shareToken>'}</strong>
+            </div>
+          </section>
+
+          {/* Endpoint 4: Public View Page */}
+          <section className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2.5">
+                  <span className="px-2.5 py-1 bg-purple-600 text-white font-mono font-bold text-xs rounded-lg">WEB</span>
+                  <span className="font-mono font-bold text-sm sm:text-base text-slate-900">https://invoice.share4happy.com/view/:token</span>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-600">
+                  <strong>Trang xem hóa đơn & thanh toán online:</strong> Giao diện hiển thị hóa đơn đẹp mắt chuẩn A4, hiển thị mã VietQR chuyển khoản ngân hàng và cho phép in ấn / lưu trữ trực tiếp.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => copyToClipboard('https://invoice.share4happy.com/view/{shareToken}', 'ep_view_page')}
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer shrink-0"
+              >
+                {copiedApiItem === 'ep_view_page' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedApiItem === 'ep_view_page' ? 'Đã chép URL' : 'Sao chép URL'}</span>
+              </button>
             </div>
           </section>
         </div>
