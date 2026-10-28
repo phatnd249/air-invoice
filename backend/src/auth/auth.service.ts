@@ -368,14 +368,30 @@ export class AuthService implements OnModuleInit {
       'JWT_SECRET',
       'super-secret-jwt-key-invoice-air',
     );
-    const jwtExpiresIn = this.configService.get<string>('JWT_EXPIRES_IN', '15m');
-
     const refreshSecret = this.configService.get<string>(
       'REFRESH_TOKEN_SECRET',
       'super-secret-refresh-key-invoice-air',
     );
-    const refreshExpiresIn = this.configService.get<string>(
-      'REFRESH_TOKEN_EXPIRES_IN',
+    const sanitizeExpiresIn = (raw: string | undefined, defaultVal: string) => {
+      let val = (raw || defaultVal).toString().trim().replace(/['"]/g, '');
+      if (/^\d+$/.test(val)) {
+        const num = parseInt(val, 10);
+        val = defaultVal.endsWith('d')
+          ? (num <= 30 ? `${num}d` : `${num}s`)
+          : (num <= 60 ? `${num}m` : `${num}s`);
+      }
+      if (val === '0' || val === '0m' || val === '0s' || val === '0d' || !val) {
+        val = defaultVal;
+      }
+      return val;
+    };
+
+    const jwtExpiresIn = sanitizeExpiresIn(
+      this.configService.get<string>('JWT_EXPIRES_IN'),
+      '15m',
+    );
+    const refreshExpiresIn = sanitizeExpiresIn(
+      this.configService.get<string>('REFRESH_TOKEN_EXPIRES_IN'),
       '7d',
     );
 
