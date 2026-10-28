@@ -25,6 +25,28 @@ export class DeliveryController {
     return this.deliveryService.getPublicInvoiceByToken(token);
   }
 
+  @Public()  // 🌐 Link tải PDF công khai theo shareToken cho khách trên Landing Page / Zalo
+  @Get('public/:token/pdf')
+  async exportPublicPdf(@Param('token') token: string, @Res() res: Response) {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { shareToken: token },
+      include: { items: true },
+    });
+    if (!invoice) return res.status(404).send('Không tìm thấy hóa đơn');
+
+    const settings = await this.prisma.setting.findUnique({ where: { id: 'default' } });
+    const buffer = await this.pdfService.generatePdfBuffer(invoice, settings);
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `inline; filename="HD_${invoice.invoiceNumber}.pdf"`,
+      'Content-Length': buffer.length,
+    });
+
+    return res.end(buffer);
+  }
+
+  @Public()  // 🌐 Link tải PDF theo ID hoá đơn
   @Get('export-pdf/:id')
   async exportPdf(@Param('id') id: string, @Res() res: Response) {
     const invoice = await this.prisma.invoice.findUnique({
