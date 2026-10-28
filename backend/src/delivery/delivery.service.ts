@@ -16,20 +16,9 @@ export class DeliveryService {
 
   private getTransporter() {
     const host = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
-    const port = Number(process.env.SMTP_PORT) || (host.includes('gmail') ? 465 : 587);
+    const port = Number(process.env.SMTP_PORT) || 587;
     const user = (process.env.SMTP_USER || '').trim().replace(/^["']|["']$/g, '');
     const pass = (process.env.SMTP_PASS || '').trim().replace(/^["']|["']$/g, '').replace(/\s+/g, '');
-
-    if (host.includes('gmail') || process.env.SMTP_SERVICE === 'gmail') {
-      return nodemailer.createTransport({
-        service: 'gmail',
-        auth: { user, pass },
-        tls: { rejectUnauthorized: false },
-        connectionTimeout: 20000,
-        greetingTimeout: 15000,
-        socketTimeout: 30000,
-      });
-    }
 
     const secure = process.env.SMTP_SECURE !== undefined
       ? process.env.SMTP_SECURE === 'true'
@@ -39,12 +28,13 @@ export class DeliveryService {
       host,
       port,
       secure,
+      family: 4, // 👈 Bắt buộc ép kết nối qua IPv4 để tránh lỗi ENETUNREACH trên Render/Docker container
       auth: { user, pass },
       tls: { rejectUnauthorized: false },
-      connectionTimeout: 20000,
-      greetingTimeout: 15000,
+      connectionTimeout: 25000,
+      greetingTimeout: 20000,
       socketTimeout: 30000,
-    });
+    } as any);
   }
 
   async sendInvoiceEmail(invoiceId: string): Promise<{ success: boolean; message: string }> {
@@ -196,7 +186,8 @@ export class DeliveryService {
       return { success: true, message: `Đã gửi email thành công tới ${invoice.buyerEmail}` };
     } catch (error: any) {
       console.error('Lỗi gửi email:', error);
-      throw new Error(`Lỗi gửi mail: ${error.message}`);
+      const cleanMsg = (error.message || '').replace(/^Lỗi gửi mail:\s*/, '');
+      throw new Error(cleanMsg || 'Không thể gửi email');
     }
   }
 
@@ -287,7 +278,8 @@ export class DeliveryService {
       return { success: true, message: `Đã gửi email đặt lại mật khẩu tới ${to}` };
     } catch (error: any) {
       console.error('Lỗi gửi email đặt lại mật khẩu:', error);
-      throw new Error(`Lỗi gửi mail: ${error.message}`);
+      const cleanMsg = (error.message || '').replace(/^Lỗi gửi mail:\s*/, '');
+      throw new Error(cleanMsg || 'Không thể gửi email đặt lại mật khẩu');
     }
   }
 

@@ -1,6 +1,14 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import * as dns from 'node:dns';
+
+// Ép Node.js ưu tiên phân giải địa chỉ IPv4 trước IPv6 để tránh lỗi ENETUNREACH trên Render/Docker container
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch {
+  // Bỏ qua nếu môi trường Node không hỗ trợ
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
