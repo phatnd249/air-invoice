@@ -25,23 +25,52 @@ export class DeliveryController {
     }
   }
 
+  @Post('send-payment-email/:id')
+  async sendPaymentEmail(@Param('id') id: string) {
+    try {
+      return await this.deliveryService.sendPaymentSuccessEmail(id);
+    } catch (err: any) {
+      throw new BadRequestException(err?.message || 'Lỗi gửi email thanh toán thành công');
+    }
+  }
+
   @Post('send-zalo/:id')
   async sendZalo(@Param('id') id: string) {
     try {
-      const invoice = await this.prisma.invoice.findUnique({ where: { id } });
+      const invoice = await this.prisma.invoice.findUnique({
+        where: { id },
+        include: { items: true },
+      });
       if (!invoice) throw new BadRequestException('Không tìm thấy hóa đơn');
       if (!invoice.buyerPhone) throw new BadRequestException('Hóa đơn không có số điện thoại');
 
       const appUrl = (process.env.APP_URL || 'https://invoice.share4happy.com').replace(/\/+$/, '');
       const backendUrl = (process.env.BACKEND_URL || 'https://invoice-backend-5tbi.onrender.com').replace(/\/+$/, '');
+      const viewUrl = `${appUrl}/view/${invoice.shareToken}`;
+      const pdfUrl = `${backendUrl}/api/delivery/public/${invoice.shareToken}/pdf`;
+
+      if (invoice.status === 'PAID') {
+        const res = await this.zaloService.sendPaymentSuccessZalo({
+          phone: invoice.buyerPhone,
+          customerName: invoice.buyerName,
+          invoiceNumber: invoice.invoiceNumber,
+          grandTotal: invoice.grandTotal,
+          packageName: invoice.items?.[0]?.name,
+          brandName: 'AI WRITER',
+          viewUrl,
+          pdfUrl,
+        });
+        if (!res.success) throw new BadRequestException(res.error || 'Gửi tin nhắn Zalo không thành công');
+        return res;
+      }
 
       const res = await this.zaloService.sendInvoiceZalo({
         phone: invoice.buyerPhone,
         customerName: invoice.buyerName,
         invoiceNumber: invoice.invoiceNumber,
         grandTotal: invoice.grandTotal,
-        viewUrl: `${appUrl}/view/${invoice.shareToken}`,
-        pdfUrl: `${backendUrl}/api/delivery/public/${invoice.shareToken}/pdf`,
+        viewUrl,
+        pdfUrl,
       });
 
       if (!res.success) {
@@ -51,6 +80,41 @@ export class DeliveryController {
       return res;
     } catch (err: any) {
       throw new BadRequestException(err?.message || 'Lỗi gửi tin nhắn Zalo');
+    }
+  }
+
+  @Post('send-payment-zalo/:id')
+  async sendPaymentZalo(@Param('id') id: string, @Body('note') note?: string) {
+    try {
+      const invoice = await this.prisma.invoice.findUnique({
+        where: { id },
+        include: { items: true },
+      });
+      if (!invoice) throw new BadRequestException('Không tìm thấy hóa đơn');
+      if (!invoice.buyerPhone) throw new BadRequestException('Hóa đơn không có số điện thoại');
+
+      const appUrl = (process.env.APP_URL || 'https://invoice.share4happy.com').replace(/\/+$/, '');
+      const backendUrl = (process.env.BACKEND_URL || 'https://invoice-backend-5tbi.onrender.com').replace(/\/+$/, '');
+
+      const res = await this.zaloService.sendPaymentSuccessZalo({
+        phone: invoice.buyerPhone,
+        customerName: invoice.buyerName,
+        invoiceNumber: invoice.invoiceNumber,
+        grandTotal: invoice.grandTotal,
+        packageName: invoice.items?.[0]?.name,
+        brandName: 'AI WRITER',
+        viewUrl: `${appUrl}/view/${invoice.shareToken}`,
+        pdfUrl: `${backendUrl}/api/delivery/public/${invoice.shareToken}/pdf`,
+        note,
+      });
+
+      if (!res.success) {
+        throw new BadRequestException(res.error || 'Gửi tin nhắn Zalo thanh toán không thành công');
+      }
+
+      return res;
+    } catch (err: any) {
+      throw new BadRequestException(err?.message || 'Lỗi gửi tin nhắn Zalo thanh toán');
     }
   }
 

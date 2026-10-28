@@ -153,9 +153,21 @@ export default function InvoiceDetailPage() {
     mutationFn: async (note?: string) => {
       return api.post(`/invoices/${id}/pay`, { note });
     },
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ['invoice', id] });
-      alert('Đã xác nhận thanh toán thành công!');
+      const data = res?.data || {};
+      let msg = '🎉 Đã xác nhận thanh toán thành công!';
+      if (data.emailResult?.sent) {
+        msg += '\n• Đã gửi Email biên lai thanh toán kèm file PDF tới khách hàng';
+      } else if (data.emailResult?.error) {
+        msg += `\n• Lưu ý Email: ${data.emailResult.error}`;
+      }
+      if (data.zaloResult?.sent) {
+        msg += '\n• Đã gửi tin nhắn Zalo xác nhận kích hoạt tới khách hàng';
+      } else if (data.zaloResult?.error) {
+        msg += `\n• Lưu ý Zalo: ${data.zaloResult.error}`;
+      }
+      alert(msg);
     },
     onError: (err: any) => {
       alert('Lỗi khi xác nhận thanh toán: ' + (err.response?.data?.message || err.message));
@@ -309,7 +321,7 @@ export default function InvoiceDetailPage() {
             className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg shadow-sm space-x-1.5 transition-all"
           >
             <Send className="w-4 h-4" />
-            <span>{isSendingMail ? 'Đang gửi...' : 'Gửi Email'}</span>
+            <span>{isSendingMail ? 'Đang gửi...' : invoice.status === 'PAID' ? 'Gửi Lại Biên Lai Email' : 'Gửi Email'}</span>
           </button>
 
           {/* Nút gửi Zalo Bot */}
@@ -319,7 +331,8 @@ export default function InvoiceDetailPage() {
                 alert('Hóa đơn này chưa có số điện thoại người nhận để gửi Zalo.');
                 return;
               }
-              if (confirm(`Bạn có chắc muốn gửi tin nhắn Zalo kèm hóa đơn này tới số: ${invoice.buyerPhone}?`)) {
+              const actionText = invoice.status === 'PAID' ? 'xác nhận thanh toán thành công' : 'kèm hóa đơn';
+              if (confirm(`Bạn có chắc muốn gửi tin nhắn Zalo ${actionText} tới số: ${invoice.buyerPhone}?`)) {
                 try {
                   setIsSendingZalo(true);
                   const res = await api.post(`/delivery/send-zalo/${invoice.id}`);
@@ -338,10 +351,10 @@ export default function InvoiceDetailPage() {
             }}
             disabled={isSendingZalo}
             className="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg shadow-sm space-x-1.5 transition-all"
-            title="Gửi hóa đơn qua Zalo Bot"
+            title={invoice.status === 'PAID' ? 'Gửi lại Zalo xác nhận thanh toán' : 'Gửi hóa đơn qua Zalo Bot'}
           >
             <MessageSquare className="w-4 h-4" />
-            <span>{isSendingZalo ? 'Đang gửi...' : 'Gửi Zalo'}</span>
+            <span>{isSendingZalo ? 'Đang gửi...' : invoice.status === 'PAID' ? 'Gửi Lại Zalo Kích Hoạt' : 'Gửi Zalo'}</span>
           </button>
 
           {invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && (

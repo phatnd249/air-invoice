@@ -196,8 +196,144 @@ export class InvoicesController {
   }
 
   @Post(':id/pay')
-  async payInvoice(@Param('id') id: string, @Body('note') note?: string) {
-    return this.invoicesService.payInvoice(id, note);
+  async payInvoice(
+    @Param('id') id: string,
+    @Body() body: { note?: string; sendEmail?: boolean; sendZalo?: boolean; source?: string } = {},
+    @Req() req: any,
+  ) {
+    const note = body?.note;
+    // 1. Cập nhật trạng thái hóa đơn sang PAID trong Database
+    const updated = await this.invoicesService.payInvoice(id, note);
+
+    const appUrl = (process.env.APP_URL || 'https://invoice.share4happy.com').replace(/\/+$/, '');
+    const backendUrl = (process.env.BACKEND_URL || 'https://invoice-backend-5tbi.onrender.com').replace(/\/+$/, '');
+    const viewUrl = `${appUrl}/view/${updated.shareToken}`;
+    const pdfUrl = `${backendUrl}/api/delivery/public/${updated.shareToken}/pdf`;
+
+    const brandName = req?.apiKey?.name || body?.source || 'AI WRITER';
+    const firstItem = updated.items?.[0];
+    const packageName = firstItem?.name || 'Gói Dịch Vụ AI WRITER';
+
+    // 2. Tự động gửi Email Biên Lai Thanh Toán Thành Công kèm file PDF
+    let emailResult = { sent: false, error: null as any };
+    if (body?.sendEmail !== false && updated.buyerEmail) {
+      try {
+        await this.deliveryService.sendPaymentSuccessEmail(updated.id, {
+          note,
+          source: brandName,
+          packageName,
+        });
+        emailResult.sent = true;
+      } catch (err: any) {
+        emailResult.error = err?.message || String(err);
+        console.error('[Pay-Invoice] Lỗi gửi email thanh toán thành công:', err?.message);
+      }
+    }
+
+    // 3. Tự động gửi Tin Nhắn Zalo xác nhận thanh toán & kích hoạt gói
+    let zaloResult = { sent: false, error: null as any };
+    if (body?.sendZalo !== false && updated.buyerPhone) {
+      try {
+        const zRes = await this.zaloService.sendPaymentSuccessZalo({
+          phone: updated.buyerPhone,
+          customerName: updated.buyerName,
+          invoiceNumber: updated.invoiceNumber,
+          grandTotal: updated.grandTotal,
+          packageName,
+          brandName,
+          viewUrl,
+          pdfUrl,
+          note,
+        });
+        if (zRes.success) {
+          zaloResult.sent = true;
+        } else {
+          zaloResult.error = zRes.error;
+        }
+      } catch (err: any) {
+        zaloResult.error = err?.message || String(err);
+        console.error('[Pay-Invoice] Lỗi gửi tin nhắn Zalo thanh toán thành công:', err?.message);
+      }
+    }
+
+    return {
+      success: true,
+      invoice: updated,
+      emailResult,
+      zaloResult,
+    };
+  }
+
+  @Public() // 🌐 Endpoint dành cho Webhook đối soát (SePay, Casso, Ngân hàng) hoặc Landing Page gọi xác nhận
+  @Post('confirm-payment/:id')
+  async confirmPaymentWebhook(
+    @Param('id') id: string,
+    @Body() body: any = {},
+    @Req() req: any,
+  ) {
+    return this.payInvoice(id, body, req);
+  }
+
+  @Public() // 🌐 Endpoint kiểm tra trực tiếp gửi Email & Zalo thanh toán thành công
+  @Post('test-send-payment-success/:id')
+  async testSendPaymentSuccess(@Param('id') id: string, @Body() body: any = {}) {
+    const invoice = await this.invoicesService.getInvoiceById(id);
+    if (!invoice) throw new Error('Hóa đơn không tồn tại');
+
+    const appUrl = (process.env.APP_URL || 'https://invoice.share4happy.com').replace(/\/+$/, '');
+    const backendUrl = (process.env.BACKEND_URL || 'https://invoice-backend-5tbi.onrender.com').replace(/\/+$/, '');
+    const viewUrl = `${appUrl}/view/${invoice.shareToken}`;
+    const pdfUrl = `${backendUrl}/api/delivery/public/${invoice.shareToken}/pdf`;
+    const brandName = body?.source || 'AI WRITER';
+    const packageName = body?.packageName || invoice.items?.[0]?.name || 'Gói Dịch Vụ AI WRITER';
+    const note = body?.note || 'Xác nhận thanh toán thành công (Thử nghiệm)';
+
+    let emailResult = { sent: false, error: null as any };
+    if (invoice.buyerEmail) {
+      try {
+        await this.deliveryService.sendPaymentSuccessEmail(id, {
+          source: brandName,
+          packageName,
+          note,
+        });
+        emailResult.sent = true;
+      } catch (err: any) {
+        emailResult.error = err?.message || String(err);
+      }
+    }
+
+    let zaloResult = { sent: false, error: null as any };
+    if (invoice.buyerPhone) {
+      try {
+        const zRes = await this.zaloService.sendPaymentSuccessZalo({
+          phone: invoice.buyerPhone,
+          customerName: invoice.buyerName,
+          invoiceNumber: invoice.invoiceNumber,
+          grandTotal: invoice.grandTotal,
+          packageName,
+          brandName,
+          viewUrl,
+          pdfUrl,
+          note,
+        });
+        if (zRes.success) {
+          zaloResult.sent = true;
+        } else {
+          zaloResult.error = zRes.error;
+        }
+      } catch (err: any) {
+        zaloResult.error = err?.message || String(err);
+      }
+    }
+
+    return {
+      success: true,
+      invoiceNumber: invoice.invoiceNumber,
+      buyerEmail: invoice.buyerEmail,
+      buyerPhone: invoice.buyerPhone,
+      emailResult,
+      zaloResult,
+    };
   }
 
   @Post(':id/cancel')

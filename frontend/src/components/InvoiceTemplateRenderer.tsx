@@ -352,9 +352,15 @@ export default function InvoiceTemplateRenderer({
 
       {/* === QR + BANK INFO === */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '24px', padding: '16px 20px', border: '1px solid #d1d5db', background: '#f8fafc', borderRadius: '8px', pageBreakInside: 'avoid' }}>
-        {/* QR Code - PHÓNG TO RÕ NÉT */}
+        {/* QR Code hoặc Huy Hiệu ĐÃ THANH TOÁN */}
         <div style={{ flexShrink: 0, textAlign: 'center' }}>
-          {invoice.qrDataUrl ? (
+          {invoice.status === 'PAID' ? (
+            <div style={{ background: '#f0fdf4', padding: '20px 24px', borderRadius: '12px', border: '2px solid #10b981', display: 'inline-block', textAlign: 'center', minWidth: '180px' }}>
+              <div style={{ fontSize: '36px', lineHeight: 1, marginBottom: '6px' }}>✅</div>
+              <div style={{ fontSize: '14px', color: '#065f46', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>ĐÃ THANH TOÁN</div>
+              <div style={{ fontSize: '10px', color: '#047857', marginTop: '2px', fontWeight: 600 }}>PAID IN FULL</div>
+            </div>
+          ) : invoice.qrDataUrl ? (
             <div style={{ background: '#ffffff', padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 2px 6px rgba(0,0,0,0.06)', display: 'inline-block' }}>
               <img
                 src={invoice.qrDataUrl}
@@ -376,7 +382,7 @@ export default function InvoiceTemplateRenderer({
         {/* Bank Details */}
         <div style={{ fontSize: '13px', lineHeight: '2.0', color: '#334155', flex: 1 }}>
           <div style={{ fontWeight: 'bold', fontSize: '12px', textTransform: 'uppercase', color: pc, marginBottom: '6px', letterSpacing: '0.5px', borderBottom: '1px dashed #cbd5e1', paddingBottom: '4px' }}>
-            Thông tin thanh toán chuyển khoản
+            {invoice.status === 'PAID' ? 'Thông tin giao dịch & biên lai' : 'Thông tin thanh toán chuyển khoản'}
           </div>
           <div>
             Ngân hàng thụ hưởng: <strong style={{ color: '#0f172a' }}>{invoice.bankCode || settings?.bankCode || 'Vietcombank'}</strong>
@@ -401,6 +407,11 @@ export default function InvoiceTemplateRenderer({
               {invoice.invoiceNumber || 'HD'}
             </strong>
           </div>
+          {invoice.status === 'PAID' && (
+            <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '6px', padding: '6px 12px', marginTop: '8px', color: '#065f46', fontSize: '12px', fontWeight: 600 }}>
+              ✅ Hóa đơn đã được xác nhận thanh toán thành công &amp; hợp lệ.
+            </div>
+          )}
         </div>
       </div>
 

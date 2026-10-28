@@ -96,9 +96,21 @@ export default function InvoicesPage() {
     mutationFn: async ({ id, note }: { id: string; note?: string }) => {
       return api.post(`/invoices/${id}/pay`, { note });
     },
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      alert('Đã xác nhận thanh toán thành công!');
+      const data = res?.data || {};
+      let msg = '🎉 Đã xác nhận thanh toán thành công!';
+      if (data.emailResult?.sent) {
+        msg += '\n• Đã gửi Email biên lai thanh toán tới khách hàng';
+      } else if (data.emailResult?.error) {
+        msg += `\n• Lưu ý Email: ${data.emailResult.error}`;
+      }
+      if (data.zaloResult?.sent) {
+        msg += '\n• Đã gửi tin nhắn Zalo xác nhận kích hoạt tới khách hàng';
+      } else if (data.zaloResult?.error) {
+        msg += `\n• Lưu ý Zalo: ${data.zaloResult.error}`;
+      }
+      alert(msg);
     },
     onError: (err: any) => {
       alert('Lỗi xác nhận thanh toán: ' + (err.response?.data?.message || err.message));

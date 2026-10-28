@@ -11,6 +11,19 @@ export interface SendZaloOptions {
   customMessage?: string;
 }
 
+export interface SendPaymentSuccessZaloOptions {
+  phone: string;
+  customerName?: string;
+  invoiceNumber?: string;
+  grandTotal?: number;
+  packageName?: string;
+  brandName?: string;
+  viewUrl?: string;
+  pdfUrl?: string;
+  note?: string;
+  customMessage?: string;
+}
+
 export interface ZaloConfigOverride {
   baseUrl?: string;
   botId?: string;
@@ -100,11 +113,11 @@ export class ZaloService {
 
     if (messageText && messageText.trim() !== '') {
       messageText = messageText
-        .replace(/\{buyerName\}/g, buyerName)
-        .replace(/\{invoiceNumber\}/g, invoiceNum)
-        .replace(/\{grandTotal\}/g, totalStr)
-        .replace(/\{viewUrl\}/g, viewUrl)
-        .replace(/\{pdfUrl\}/g, pdfUrl);
+        .replace(/\{buyerName\}|\{\{customerName\}\}|\{\{buyerName\}\}/g, buyerName)
+        .replace(/\{invoiceNumber\}|\{\{invoiceNumber\}\}/g, invoiceNum)
+        .replace(/\{grandTotal\}|\{\{totalAmount\}\}|\{\{grandTotal\}\}/g, totalStr)
+        .replace(/\{viewUrl\}|\{\{viewUrl\}\}/g, viewUrl)
+        .replace(/\{pdfUrl\}|\{\{pdfUrl\}\}/g, pdfUrl);
     } else {
       messageText =
         `🔔 [Invoice-AIR] Thông báo hóa đơn dịch vụ\n` +
@@ -178,6 +191,60 @@ export class ZaloService {
       this.logger.error(`Lỗi kết nối tới Zalo Bot API: ${error?.message}`);
       return { success: false, error: error?.message };
     }
+  }
+
+  /**
+   * Gửi tin nhắn Zalo xác nhận thanh toán thành công & kích hoạt gói dịch vụ
+   */
+  async sendPaymentSuccessZalo(
+    options: SendPaymentSuccessZaloOptions,
+    configOverride?: ZaloConfigOverride,
+  ): Promise<{ success: boolean; data?: any; error?: string }> {
+    const cleanPhone = this.formatPhone(options.phone);
+    if (!cleanPhone || cleanPhone.length < 9) {
+      this.logger.warn(`Bỏ qua gửi Zalo thanh toán: Số điện thoại không hợp lệ (${options.phone})`);
+      return { success: false, error: 'Số điện thoại không hợp lệ' };
+    }
+
+    const formatCurrency = (n?: number) =>
+      new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
+
+    const buyerName = options.customerName || 'Quý khách';
+    const invoiceNum = options.invoiceNumber || 'Hóa đơn';
+    const totalStr = formatCurrency(options.grandTotal);
+    const brandName = options.brandName || 'AI WRITER';
+    const packageName = options.packageName || 'Gói Dịch Vụ AI WRITER';
+    const viewUrl = options.viewUrl || '';
+    const noteLine = options.note ? `• Ghi chú: ${options.note}\n` : '';
+    const viewLine = viewUrl ? `👉 Xem & Tải biên lai điện tử: ${viewUrl}\n` : '';
+
+    let messageText = options.customMessage;
+    if (!messageText) {
+      messageText =
+        `🎉 [${brandName}] XÁC NHẬN THANH TOÁN THÀNH CÔNG!\n` +
+        `Kính chào Anh/Chị ${buyerName},\n` +
+        `Hệ thống đã nhận được khoản thanh toán cho đơn hàng của Quý khách:\n` +
+        `• Dịch vụ: ${packageName}\n` +
+        `• Mã hóa đơn: #${invoiceNum}\n` +
+        `• Số tiền đã thanh toán: ${totalStr}\n` +
+        `• Trạng thái: ✅ ĐÃ HOÀN TẤT THANH TOÁN\n` +
+        noteLine +
+        viewLine +
+        `\n✨ Gói dịch vụ của Quý khách đã được kích hoạt thành công. Cảm ơn Quý khách đã tin tưởng và đồng hành cùng ${brandName}!`;
+    }
+
+    return this.sendInvoiceZalo(
+      {
+        phone: options.phone,
+        customerName: options.customerName,
+        invoiceNumber: options.invoiceNumber,
+        grandTotal: options.grandTotal,
+        viewUrl: options.viewUrl,
+        pdfUrl: options.pdfUrl,
+        customMessage: messageText,
+      },
+      configOverride,
+    );
   }
 
   /**

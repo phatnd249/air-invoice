@@ -143,11 +143,20 @@ export class PdfService implements OnModuleDestroy {
     const feeRow = invoice.otherFee ? `<tr><td style="${tdSumLabel}">Phí khác:</td><td style="${tdSumVal}">${fmt(invoice.otherFee)}</td></tr>` : '';
     const notesHtml = invoice.notes ? `<div style="font-size:11.5px;color:#555;margin-bottom:16px;font-style:italic"><strong style="font-style:normal">Ghi chú: </strong>${invoice.notes}</div>` : '';
     const dueLine = dueDate ? `<div style="font-size:12px;color:#555">Hạn TT: <strong style="color:#111">${dueDate}</strong></div>` : '';
-    const statusLine = invoice.status && statusLabel(invoice.status) ? `<div style="text-align:right;font-size:10px;color:#888;font-style:italic;margin-bottom:12px;padding-top:2px">Trạng thái: ${statusLabel(invoice.status)}</div>` : '';
+    const isPaid = invoice.status === 'PAID';
+    const statusLine = isPaid
+      ? `<div style="text-align:right;font-size:11px;font-weight:bold;color:#059669;margin-bottom:12px;padding-top:2px">Trạng thái: ✅ ĐÃ HOÀN TẤT THANH TOÁN</div>`
+      : (invoice.status && statusLabel(invoice.status) ? `<div style="text-align:right;font-size:10px;color:#888;font-style:italic;margin-bottom:12px;padding-top:2px">Trạng thái: ${statusLabel(invoice.status)}</div>` : '');
 
-    const qrHtml = invoice.qrDataUrl
-      ? `<div style="background:#ffffff;padding:8px;border-radius:8px;border:1px solid #e2e8f0;display:inline-block;text-align:center"><img src="${invoice.qrDataUrl}" style="width:200px;height:auto;display:block;margin:0 auto" /><div style="font-size:10px;color:#64748b;margin-top:4px;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px">QUÉT MÃ THANH TOÁN</div></div>`
-      : '<div style="width:200px;height:200px;border:2px dashed #cbd5e1;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:12px;background:#fff;flex-shrink:0">VietQR</div>';
+    const qrHtml = isPaid
+      ? `<div style="background:#f0fdf4;padding:16px 20px;border-radius:8px;border:2px solid #10b981;display:inline-block;text-align:center;min-width:180px">
+          <div style="font-size:32px;line-height:1;margin-bottom:6px">✅</div>
+          <div style="font-size:13px;color:#065f46;font-weight:bold;text-transform:uppercase;letter-spacing:1px">ĐÃ THANH TOÁN</div>
+          <div style="font-size:10px;color:#047857;margin-top:2px;font-weight:600">PAID IN FULL</div>
+        </div>`
+      : (invoice.qrDataUrl
+          ? `<div style="background:#ffffff;padding:8px;border-radius:8px;border:1px solid #e2e8f0;display:inline-block;text-align:center"><img src="${invoice.qrDataUrl}" style="width:200px;height:auto;display:block;margin:0 auto" /><div style="font-size:10px;color:#64748b;margin-top:4px;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px">QUÉT MÃ THANH TOÁN</div></div>`
+          : '<div style="width:200px;height:200px;border:2px dashed #cbd5e1;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:12px;background:#fff;flex-shrink:0">VietQR</div>');
 
     const bankCode = invoice.bankCode || settings?.bankCode || 'Vietcombank';
     const bankAccount = invoice.bankAccount || settings?.bankAccount || 'SHYNNERI';
