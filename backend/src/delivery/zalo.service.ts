@@ -112,8 +112,7 @@ export class ZaloService {
         `Hóa đơn điện tử của Quý khách đã được khởi tạo thành công:\n` +
         `• Mã hóa đơn: #${invoiceNum}\n` +
         `• Tổng tiền: ${totalStr}\n` +
-        (viewUrl ? `• Xem hóa đơn & Quét mã VietQR: ${viewUrl}\n` : '') +
-        (pdfUrl ? `• Tải file PDF trực tiếp: ${pdfUrl}\n` : '') +
+        (viewUrl ? `👉 Xem chi tiết & Quét mã VietQR: ${viewUrl}\n` : '') +
         `\nCảm ơn Quý khách đã tin tưởng và sử dụng dịch vụ!`;
     }
 

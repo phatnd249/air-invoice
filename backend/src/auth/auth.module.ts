@@ -7,6 +7,7 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { DeliveryModule } from '../delivery/delivery.module';
+import { ApiKeysModule } from '../api-keys/api-keys.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { DeliveryModule } from '../delivery/delivery.module';
     JwtModule.register({}),
     ConfigModule,
     DeliveryModule,
+    ApiKeysModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, JwtAuthGuard],

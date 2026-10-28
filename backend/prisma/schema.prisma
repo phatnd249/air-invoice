@@ -215,3 +215,18 @@ model CustomerSubscription {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model ApiKey {
+  id          String    @id @default(uuid())
+  name        String    // Tên mô tả (VD: "Landing Page Khóa Học", "N8N Automation", "CRM Vtiger")
+  keyHash     String    @unique // SHA-256 hash của API key để kiểm tra an toàn
+  prefix      String    // Tiền tố hiển thị: "air_live_7a8b..."
+  lastChars   String    // 4 ký tự cuối: "...9f2a"
+  permissions String    @default("all") // "all" | "invoices:create" | "invoices:read"
+  isActive    Boolean   @default(true)
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+

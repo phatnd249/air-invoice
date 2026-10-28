@@ -11,11 +11,13 @@ import { ServicesCatalogModule } from './services-catalog/services-catalog.modul
 import { UsersModule } from './users/users.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { HealthModule } from './health/health.module';
+import { ApiKeysModule } from './api-keys/api-keys.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    ApiKeysModule,
     AuthModule, // Must be imported before using JwtAuthGuard
     HealthModule, // Health check endpoints (public)
     SettingsModule,

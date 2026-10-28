@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class InvoicesService {
@@ -8,6 +9,11 @@ export class InvoicesService {
     private readonly prisma: PrismaService,
     private readonly settingsService: SettingsService,
   ) {}
+
+  // Sinh mã token chia sẻ ngẫu nhiên an toàn chuẩn mã hóa (32 ký tự hex)
+  private generateShareToken(): string {
+    return crypto.randomBytes(16).toString('hex');
+  }
 
   // Hàm sinh mã ngẫu nhiên 6 ký tự như Google Apps Script
   private generatePaymentCode(): string {
@@ -138,7 +144,7 @@ export class InvoicesService {
         vatAmount,
         grandTotal,
         qrDataUrl,
-        shareToken: Math.random().toString(36).substring(2) + Date.now().toString(36),
+        shareToken: this.generateShareToken(),
         items: {
           create: processedItems,
         },
@@ -299,7 +305,7 @@ export class InvoicesService {
         vatAmount: existing.vatAmount,
         grandTotal: existing.grandTotal,
         qrDataUrl,
-        shareToken: Math.random().toString(36).substring(2) + Date.now().toString(36),
+        shareToken: this.generateShareToken(),
         items: {
           create: existing.items.map((it, idx) => ({
             sortOrder: idx,
