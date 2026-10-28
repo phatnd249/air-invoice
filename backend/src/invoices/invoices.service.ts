@@ -440,4 +440,11 @@ export class InvoicesService {
   async deleteInvoice(id: string) {
     return this.prisma.invoice.delete({ where: { id } });
   }
+
+  async deleteManyInvoices(ids: string[]) {
+    if (!ids || ids.length === 0) return { count: 0 };
+    return this.prisma.invoice.deleteMany({
+      where: { id: { in: ids } },
+    });
+  }
 }

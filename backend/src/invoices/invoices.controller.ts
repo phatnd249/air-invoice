@@ -421,6 +421,11 @@ export class InvoicesController {
     return this.invoicesService.getInvoiceHistory(id);
   }
 
+  @Post('bulk-delete')
+  async bulkDeleteInvoices(@Body() body: { ids: string[] }) {
+    return this.invoicesService.deleteManyInvoices(body.ids || []);
+  }
+
   @Delete(':id')
   async deleteInvoice(@Param('id') id: string) {
     return this.invoicesService.deleteInvoice(id);

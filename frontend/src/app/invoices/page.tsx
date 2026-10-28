@@ -28,6 +28,7 @@ export default function InvoicesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [selectedType, setSelectedType] = useState<string>('ALL');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [openMenuRow, setOpenMenuRow] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -132,6 +133,22 @@ export default function InvoicesPage() {
     },
   });
 
+  // Xóa nhiều hóa đơn đã chọn (Bulk Delete)
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      return api.post('/invoices/bulk-delete', { ids });
+    },
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      const count = res?.data?.count || selectedIds.length;
+      setSelectedIds([]);
+      alert(`Đã xóa thành công ${count} hóa đơn đã chọn!`);
+    },
+    onError: (err: any) => {
+      alert('Lỗi xóa nhiều hóa đơn: ' + (err.response?.data?.message || err.message));
+    },
+  });
+
   // Tính toán KPI số liệu
   const metrics = useMemo(() => {
     const totalCount = invoices.length;
@@ -180,6 +197,37 @@ export default function InvoicesPage() {
       return matchSearch && matchStatus && matchType;
     });
   }, [invoices, searchTerm, selectedStatus, selectedType]);
+
+  // Xử lý chọn nhiều (Multi-Select)
+  const isAllSelected =
+    filteredInvoices.length > 0 &&
+    filteredInvoices.every((inv) => selectedIds.includes(inv.id));
+  const isSomeSelected = selectedIds.length > 0 && !isAllSelected;
+
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredInvoices.map((inv) => inv.id));
+    }
+  };
+
+  const handleToggleSelectRow = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedIds.length === 0) return;
+    if (
+      confirm(
+        `Bạn có chắc chắn muốn xóa ${selectedIds.length} hóa đơn đã chọn không?\nHành động này không thể hoàn tác!`
+      )
+    ) {
+      bulkDeleteMutation.mutate(selectedIds);
+    }
+  };
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0);
@@ -433,7 +481,20 @@ export default function InvoicesPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-200/80 bg-slate-50/75 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="py-3.5 px-5">Số Hóa Đơn</th>
+                  <th className="py-3.5 pl-4 pr-1 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = isSomeSelected;
+                      }}
+                      onChange={handleToggleSelectAll}
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                      title={isAllSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                      aria-label="Chọn tất cả hóa đơn"
+                    />
+                  </th>
+                  <th className="py-3.5 px-4">Số Hóa Đơn</th>
                   <th className="py-3.5 px-4">Khách Hàng / Đơn Vị</th>
                   <th className="py-3.5 px-4">Loại Hóa Đơn</th>
                   <th className="py-3.5 px-4">Ngày Lập</th>
@@ -443,10 +504,28 @@ export default function InvoicesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-                {filteredInvoices.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-slate-50/80 transition-colors group">
-                    {/* Số Hóa Đơn */}
-                    <td className="py-4 px-5">
+                {filteredInvoices.map((inv) => {
+                  const isSelected = selectedIds.includes(inv.id);
+                  return (
+                    <tr
+                      key={inv.id}
+                      className={`transition-colors group ${
+                        isSelected ? 'bg-blue-50/70 hover:bg-blue-50' : 'hover:bg-slate-50/80'
+                      }`}
+                    >
+                      {/* Checkbox chọn hàng */}
+                      <td className="py-4 pl-4 pr-1 w-10 text-center" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleSelectRow(inv.id)}
+                          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                          aria-label={`Chọn hóa đơn ${inv.invoiceNumber}`}
+                        />
+                      </td>
+
+                      {/* Số Hóa Đơn */}
+                      <td className="py-4 px-4">
                       <Link
                         href={`/invoices/${inv.id}`}
                         className="font-mono font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center space-x-1"
@@ -605,7 +684,8 @@ export default function InvoicesPage() {
                       )}
                     </td>
                   </tr>
-                ))}
+                );
+              })}
               </tbody>
             </table>
           </div>
@@ -628,6 +708,35 @@ export default function InvoicesPage() {
           </div>
         )}
       </div>
+
+      {/* Floating Batch Action Bar */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-200 border border-slate-800">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <span className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-xs font-mono font-bold text-white">
+              {selectedIds.length}
+            </span>
+            <span>Đã chọn {selectedIds.length} hóa đơn</span>
+          </div>
+          <div className="h-4 w-px bg-slate-700" />
+          <button
+            type="button"
+            onClick={handleBulkDelete}
+            disabled={bulkDeleteMutation.isPending}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-all shadow-sm cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>{bulkDeleteMutation.isPending ? 'Đang xóa...' : 'Xóa tất cả đã chọn'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedIds([])}
+            className="text-xs text-slate-400 hover:text-white transition-colors cursor-pointer px-2 py-1"
+          >
+            Bỏ chọn
+          </button>
+        </div>
+      )}
     </div>
   );
 }
