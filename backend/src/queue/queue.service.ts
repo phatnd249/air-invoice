@@ -8,7 +8,15 @@ export interface EnqueueOptions {
   priority?: number;
   maxRetries?: number;
   delaySeconds?: number;
+  apiName?: string;
+  endpoint?: string;
+  source?: string;
+  title?: string;
+  targetInfo?: string;
 }
+
+// Bảng thời gian thử lại sau vài phút khi có lỗi: 2 phút, 5 phút, 10 phút, 15 phút, 30 phút
+const RETRY_DELAYS_MINUTES = [2, 5, 10, 15, 30];
 
 @Injectable()
 export class QueueService implements OnModuleInit, OnModuleDestroy {
@@ -23,7 +31,7 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit() {
-    this.logger.log('🚀 RequestQueue Worker đã khởi tạo - Chu kỳ kiểm tra 5s');
+    this.logger.log('🚀 RequestQueue Worker đã khởi tạo - Chu kỳ tuần tự 5s');
     // Chạy định kỳ mỗi 5 giây để kiểm tra và xử lý các request đang chờ hoặc đến hạn thử lại
     this.timer = setInterval(() => {
       this.processPendingJobs().catch((err) => {
@@ -40,7 +48,7 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Thêm một request vào hàng chờ (Queue) để lưu trữ bền vững và tự động thử lại khi có lỗi
+   * Thêm một request vào hàng chờ (Queue) để lưu trữ bền vững, chạy tuần tự và tự động thử lại khi có lỗi
    */
   async enqueue(type: QueueType, payload: any, options: EnqueueOptions = {}) {
     const priority = options.priority || 0;
@@ -57,12 +65,19 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
         maxRetries,
         nextRunAt,
         status: QueueStatus.PENDING,
+        apiName: options.apiName || 'Hệ thống',
+        endpoint: options.endpoint || '/api/queue/enqueue',
+        source: options.source || 'Tự động',
+        title: options.title || `Xử lý tác vụ ${type}`,
+        targetInfo: options.targetInfo || null,
       },
     });
 
-    this.logger.log(`📥 [Queue] Đã tiếp nhận job ${job.id} (Type: ${type}, Priority: ${priority})`);
+    this.logger.log(
+      `📥 [Queue] Đã tiếp nhận job ${job.id} (API: ${job.apiName}, Type: ${type}, Priority: ${priority})`,
+    );
 
-    // Kích hoạt xử lý ngay lập tức để người dùng không phải chờ chu kỳ 5s
+    // Kích hoạt xử lý ngay lập tức để chạy tuần tự không cần chờ chu kỳ 5s
     setImmediate(() => {
       this.processPendingJobs().catch(() => undefined);
     });
@@ -71,7 +86,8 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Quét và xử lý các job đang ở trạng thái PENDING và đã tới giờ chạy (nextRunAt <= now)
+   * Quét và xử lý các job đang ở trạng thái PENDING và đã tới giờ chạy (nextRunAt <= now).
+   * Đảm bảo chạy TUẦN TỰ (chạy lần lượt từng request, concurrency = 1).
    */
   async processPendingJobs() {
     if (this.isProcessing) return;
@@ -79,7 +95,7 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
 
     try {
       const now = new Date();
-      // Lấy tối đa 5 job sẵn sàng xử lý, ưu tiên priority cao trước
+      // Lấy tối đa 10 job sẵn sàng xử lý, ưu tiên priority cao trước, sau đó tới createdAt cũ nhất (FIFO)
       const jobs = await this.prisma.requestQueue.findMany({
         where: {
           status: QueueStatus.PENDING,
@@ -89,9 +105,10 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
           { priority: 'desc' },
           { createdAt: 'asc' },
         ],
-        take: 5,
+        take: 10,
       });
 
+      // Chạy LẦN LƯỢT (tuần tự từng job một)
       for (const job of jobs) {
         await this.executeJob(job);
       }
@@ -111,11 +128,15 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
         data: { status: QueueStatus.PROCESSING },
       });
     } catch {
-      // Job có thể đã được worker khác nhặt
+      // Job có thể đã được worker xử lý
       return;
     }
 
-    this.logger.log(`⚙️ [Queue] Bắt đầu xử lý job ${job.id} (Type: ${job.type}, Lần thử: ${job.retryCount + 1}/${job.maxRetries})`);
+    this.logger.log(
+      `⚙️ [Queue] Bắt đầu xử lý tuần tự job ${job.id} (API: ${job.apiName}, Type: ${job.type}, Lần thử: ${
+        job.retryCount + 1
+      }/${job.maxRetries})`,
+    );
 
     try {
       const result = await this.dispatchHandler(job.type, job.payload);
@@ -131,39 +152,47 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
         },
       });
 
-      this.logger.log(`✅ [Queue] Hoàn thành job ${job.id} thành công!`);
+      this.logger.log(`✅ [Queue] Hoàn thành job ${job.id} (${job.title || job.type}) thành công!`);
     } catch (err: any) {
       const errorMsg = err?.message || String(err);
       const nextRetryCount = job.retryCount + 1;
 
       if (nextRetryCount < job.maxRetries) {
-        // Áp dụng exponential backoff: 5s, 10s, 20s, 40s, tối đa 300s
-        const backoffSeconds = Math.min(300, Math.pow(2, nextRetryCount) * 5);
-        const nextRunAt = new Date(Date.now() + backoffSeconds * 1000);
+        // Gửi sau vài phút: lần 1 (2p), lần 2 (5p), lần 3 (10p), lần 4 (15p), lần 5 (30p)
+        const delayMinutes =
+          RETRY_DELAYS_MINUTES[Math.min(nextRetryCount - 1, RETRY_DELAYS_MINUTES.length - 1)] || 5;
+        const nextRunAt = new Date(Date.now() + delayMinutes * 60 * 1000);
 
         await this.prisma.requestQueue.update({
           where: { id: job.id },
           data: {
             status: QueueStatus.PENDING,
             retryCount: nextRetryCount,
-            errorMessage: errorMsg,
+            errorMessage: `[Lần ${nextRetryCount}/${job.maxRetries} lỗi - Sẽ gửi lại sau ${delayMinutes} phút]: ${errorMsg}`,
             nextRunAt,
           },
         });
 
-        this.logger.warn(`⚠️ [Queue] Job ${job.id} thất bại (Lần ${nextRetryCount}/${job.maxRetries}): ${errorMsg}. Sẽ thử lại sau ${backoffSeconds}s`);
+        this.logger.warn(
+          `⚠️ [Queue] Job ${job.id} (${job.title || job.type}) gửi lỗi lần ${nextRetryCount}/${
+            job.maxRetries
+          }: ${errorMsg}. Sẽ tự động thử lại sau ${delayMinutes} phút.`,
+        );
       } else {
-        // Đã hết số lần thử lại -> FAILED
+        // Sau nhiều lần gửi thử vẫn không được thì DỪNG, NHƯNG VẪN ĐỂ ĐÓ trong hệ thống để quản trị viên kiểm tra
         await this.prisma.requestQueue.update({
           where: { id: job.id },
           data: {
             status: QueueStatus.FAILED,
             retryCount: nextRetryCount,
-            errorMessage: errorMsg,
+            errorMessage: `[Đã dừng thử lại sau ${nextRetryCount} lần thất bại]: ${errorMsg}`,
+            processedAt: new Date(),
           },
         });
 
-        this.logger.error(`❌ [Queue] Job ${job.id} THẤT BẠI HOÀN TOÀN sau ${nextRetryCount} lần thử: ${errorMsg}`);
+        this.logger.error(
+          `❌ [Queue] Job ${job.id} (${job.title || job.type}) ĐÃ DỪNG THỬ LẠI sau ${nextRetryCount} lần: ${errorMsg}. Bản ghi vẫn được lưu trong hàng chờ.`,
+        );
       }
     }
   }
@@ -175,7 +204,7 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
     switch (type) {
       case QueueType.DELIVERY_EMAIL: {
         const { invoiceId, options, isPaymentSuccess } = payload;
-        if (!invoiceId) throw new Error('Missing invoiceId in DELIVERY_EMAIL payload');
+        if (!invoiceId) throw new Error('Thiếu invoiceId trong dữ liệu DELIVERY_EMAIL');
         if (isPaymentSuccess) {
           return await this.deliveryService.sendPaymentSuccessEmail(invoiceId, options);
         } else {
@@ -197,16 +226,10 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
       }
 
       case QueueType.PAYMENT_CONFIRMATION: {
-        // Tự động kích hoạt email + zalo biên lai thanh toán
         const { invoiceId, emailOptions, zaloOptions } = payload;
         const results: any = {};
         if (emailOptions) {
-          try {
-            results.email = await this.deliveryService.sendPaymentSuccessEmail(invoiceId, emailOptions);
-          } catch (err: any) {
-            results.emailError = err?.message;
-            throw err;
-          }
+          results.email = await this.deliveryService.sendPaymentSuccessEmail(invoiceId, emailOptions);
         }
         if (zaloOptions) {
           const zRes = await this.zaloService.sendPaymentSuccessZalo(zaloOptions);
@@ -227,7 +250,7 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Thống kê trạng thái hàng chờ
+   * Thống kê tổng quan trạng thái hàng chờ
    */
   async getStats() {
     const [total, pending, processing, completed, failed] = await Promise.all([
@@ -242,19 +265,166 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Lấy danh sách job
+   * Danh sách các API hiện có hiển thị số lượng request của từng API đó
    */
-  async getJobs(status?: QueueStatus, type?: QueueType, limit = 50, page = 1) {
+  async getApiSummary() {
+    // 1. Lấy danh sách API Key đã được đăng ký trong hệ thống
+    const apiKeys = await this.prisma.apiKey.findMany({
+      select: {
+        id: true,
+        name: true,
+        prefix: true,
+        isActive: true,
+        lastUsedAt: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // 2. Thống kê theo apiName từ bảng RequestQueue
+    const groupStats = await this.prisma.requestQueue.groupBy({
+      by: ['apiName', 'status'],
+      _count: { _all: true },
+    });
+
+    // Gom dữ liệu theo từng apiName
+    const statsMap: Record<
+      string,
+      {
+        total: number;
+        pending: number;
+        processing: number;
+        completed: number;
+        failed: number;
+      }
+    > = {};
+
+    for (const row of groupStats) {
+      const name = row.apiName || 'Hệ thống';
+      if (!statsMap[name]) {
+        statsMap[name] = { total: 0, pending: 0, processing: 0, completed: 0, failed: 0 };
+      }
+      const count = row._count._all;
+      statsMap[name].total += count;
+      if (row.status === QueueStatus.PENDING) statsMap[name].pending += count;
+      if (row.status === QueueStatus.PROCESSING) statsMap[name].processing += count;
+      if (row.status === QueueStatus.COMPLETED) statsMap[name].completed += count;
+      if (row.status === QueueStatus.FAILED) statsMap[name].failed += count;
+    }
+
+    // 3. Lấy thời gian request gần nhất cho mỗi apiName
+    const latestRequests = await this.prisma.requestQueue.findMany({
+      orderBy: { createdAt: 'desc' },
+      distinct: ['apiName'],
+      select: { apiName: true, endpoint: true, createdAt: true },
+    });
+    const latestMap = new Map<string, { endpoint?: string | null; lastRequestAt: Date }>();
+    for (const r of latestRequests) {
+      if (r.apiName) {
+        latestMap.set(r.apiName, { endpoint: r.endpoint, lastRequestAt: r.createdAt });
+      }
+    }
+
+    // 4. Tổng hợp danh sách API: Kết hợp API Key đã cấu hình và các API xuất hiện trong Queue
+    const resultList: Array<{
+      apiName: string;
+      endpoint?: string;
+      isApiKey: boolean;
+      isActive?: boolean;
+      total: number;
+      pending: number;
+      processing: number;
+      completed: number;
+      failed: number;
+      lastRequestAt?: Date | null;
+    }> = [];
+
+    const processedNames = new Set<string>();
+
+    // Duyệt qua API Key đã đăng ký
+    for (const key of apiKeys) {
+      processedNames.add(key.name);
+      const counts = statsMap[key.name] || { total: 0, pending: 0, processing: 0, completed: 0, failed: 0 };
+      const latest = latestMap.get(key.name);
+      resultList.push({
+        apiName: key.name,
+        endpoint: latest?.endpoint || '/api/invoices/quick-create',
+        isApiKey: true,
+        isActive: key.isActive,
+        total: counts.total,
+        pending: counts.pending,
+        processing: counts.processing,
+        completed: counts.completed,
+        failed: counts.failed,
+        lastRequestAt: latest?.lastRequestAt || key.lastUsedAt || null,
+      });
+    }
+
+    // Duyệt qua các API khác trong Queue (ví dụ: 'AI WRITER', 'Hệ thống', 'Landing Page Form', 'Tạo Hóa Đơn Nhanh')
+    for (const [name, counts] of Object.entries(statsMap)) {
+      if (!processedNames.has(name)) {
+        processedNames.add(name);
+        const latest = latestMap.get(name);
+        resultList.push({
+          apiName: name,
+          endpoint: latest?.endpoint || '/api/invoices/quick-create',
+          isApiKey: false,
+          isActive: true,
+          total: counts.total,
+          pending: counts.pending,
+          processing: counts.processing,
+          completed: counts.completed,
+          failed: counts.failed,
+          lastRequestAt: latest?.lastRequestAt || null,
+        });
+      }
+    }
+
+    // Sắp xếp: API có request đang chờ hoặc có nhiều request hơn lên đầu
+    resultList.sort((a, b) => b.pending - a.pending || b.total - a.total);
+
+    return resultList;
+  }
+
+  /**
+   * Lấy danh sách job trong hàng chờ với bộ lọc linh hoạt
+   */
+  async getJobs(params: {
+    status?: QueueStatus;
+    type?: QueueType;
+    apiName?: string;
+    search?: string;
+    limit?: number;
+    page?: number;
+  }) {
+    const { status, type, apiName, search, limit = 50, page = 1 } = params;
     const where: any = {};
+
     if (status) where.status = status;
     if (type) where.type = type;
+    if (apiName && apiName !== 'ALL') where.apiName = apiName;
+
+    if (search && search.trim()) {
+      const q = search.trim();
+      where.OR = [
+        { title: { contains: q, mode: 'insensitive' } },
+        { targetInfo: { contains: q, mode: 'insensitive' } },
+        { apiName: { contains: q, mode: 'insensitive' } },
+        { endpoint: { contains: q, mode: 'insensitive' } },
+        { id: { contains: q, mode: 'insensitive' } },
+        { errorMessage: { contains: q, mode: 'insensitive' } },
+      ];
+    }
 
     const skip = (page - 1) * limit;
 
     const [items, total] = await Promise.all([
       this.prisma.requestQueue.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [
+          // Ưu tiên trạng thái PENDING & PROCESSING lên trước
+          { createdAt: 'desc' },
+        ],
         take: limit,
         skip,
       }),
@@ -271,11 +441,11 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Thử lại một job đã thất bại
+   * Thử lại ngay một job (Manual Retry)
    */
   async retryJob(id: string) {
     const job = await this.prisma.requestQueue.findUnique({ where: { id } });
-    if (!job) throw new Error('Job không tồn tại');
+    if (!job) throw new Error('Job không tồn tại trong hàng chờ');
 
     const updated = await this.prisma.requestQueue.update({
       where: { id },
@@ -287,10 +457,39 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
       },
     });
 
+    this.logger.log(`🔄 [Queue] Yêu cầu thử lại thủ công job ${id} (API: ${job.apiName})`);
+
+    // Kích hoạt xử lý tuần tự ngay lập tức
     setImmediate(() => {
       this.processPendingJobs().catch(() => undefined);
     });
 
     return updated;
+  }
+
+  /**
+   * Xóa 1 job khỏi hàng chờ
+   */
+  async deleteJob(id: string) {
+    return this.prisma.requestQueue.delete({ where: { id } });
+  }
+
+  /**
+   * Xóa nhiều job đã chọn khỏi hàng chờ
+   */
+  async deleteManyJobs(ids: string[]) {
+    if (!ids || ids.length === 0) return { count: 0 };
+    return this.prisma.requestQueue.deleteMany({
+      where: { id: { in: ids } },
+    });
+  }
+
+  /**
+   * Xóa tất cả các job đã hoàn thành thành công để dọn dẹp hàng chờ
+   */
+  async clearCompletedJobs() {
+    return this.prisma.requestQueue.deleteMany({
+      where: { status: QueueStatus.COMPLETED },
+    });
   }
 }

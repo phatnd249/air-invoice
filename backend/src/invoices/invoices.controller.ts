@@ -69,42 +69,41 @@ export class InvoicesController {
       (created.items && created.items[0]?.name) ||
       'Gói Dịch Vụ AI WRITER';
 
-    // 3. Tự động gửi email hóa đơn:
-    // Bất cứ khi nào khách hàng nhập Email (created.buyerEmail), hệ thống LUÔN LUÔN tự động gửi email hóa đơn kèm PDF!
-    // (Khắc phục trường hợp Landing Page cũ gửi sendEmail: false do backend trước đây từng bị timeout)
-    let emailResult = { sent: false, queued: false, error: null as any };
+    const apiName = req?.apiKey?.name || body.source || body.brandName || 'AI WRITER';
+    const targetInfo = `${created.buyerName} (${created.buyerEmail || created.buyerPhone || 'Chưa có SĐT/Email'})`;
+    const source = req?.apiKey ? `API Key: ${req.apiKey.name}` : (body.source || 'Landing Page');
+
+    // 3. Tự động gửi email hóa đơn: Lưu vào Hàng Chờ (Queue) để gửi tuần tự và tự động thử lại sau vài phút nếu lỗi
+    let emailResult = { sent: false, queued: false, jobId: null as any };
     if (created.buyerEmail && body.disableEmail !== true) {
-      try {
-        await this.deliveryService.sendInvoiceEmail(created.id, {
-          source: brandName,
-          packageName: serviceTitle,
-          subject: body.emailSubject,
-          isRegistration: true,
-        });
-        emailResult.sent = true;
-      } catch (err: any) {
-        emailResult.error = err?.message || String(err);
-        console.error('[Quick-Create] Gửi email trực tiếp lỗi, đã lưu vào Hàng chờ để tự động thử lại:', err?.message);
-        await this.queueService.enqueue(
-          QueueType.DELIVERY_EMAIL,
-          {
-            invoiceId: created.id,
-            options: {
-              source: brandName,
-              packageName: serviceTitle,
-              subject: body.emailSubject,
-              isRegistration: true,
-            },
-            isPaymentSuccess: false,
+      const emailJob = await this.queueService.enqueue(
+        QueueType.DELIVERY_EMAIL,
+        {
+          invoiceId: created.id,
+          options: {
+            source: brandName,
+            packageName: serviceTitle,
+            subject: body.emailSubject,
+            isRegistration: true,
           },
-          { priority: 1, maxRetries: 5 },
-        );
-        emailResult.queued = true;
-      }
+          isPaymentSuccess: false,
+        },
+        {
+          priority: 2,
+          maxRetries: 5,
+          apiName,
+          endpoint: '/api/invoices/quick-create',
+          source,
+          title: `Gửi Email hóa đơn #${created.invoiceNumber}`,
+          targetInfo,
+        },
+      );
+      emailResult.queued = true;
+      emailResult.jobId = emailJob.id;
     }
 
-    // 4. Tự động gửi tin nhắn Zalo kèm link PDF nếu có số điện thoại
-    let zaloResult = { sent: false, queued: false, error: null as any };
+    // 4. Tự động gửi tin nhắn Zalo kèm link PDF: Lưu vào Hàng Chờ để gửi tuần tự
+    let zaloResult = { sent: false, queued: false, jobId: null as any };
     if (created.buyerPhone && body.disableZalo !== true) {
       const formatCurrency = (n?: number) =>
         new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
@@ -133,36 +132,24 @@ export class InvoicesController {
         customMessage: customZaloMessage,
       };
 
-      try {
-        const zRes = await this.zaloService.sendInvoiceZalo(zaloPayload);
-        if (zRes.success) {
-          zaloResult.sent = true;
-        } else {
-          zaloResult.error = zRes.error;
-          console.warn('[Quick-Create] Gửi Zalo thất bại, đã lưu vào Hàng chờ để thử lại:', zRes.error);
-          await this.queueService.enqueue(
-            QueueType.DELIVERY_ZALO,
-            {
-              isPaymentSuccess: false,
-              zaloOptions: zaloPayload,
-            },
-            { priority: 1, maxRetries: 5 },
-          );
-          zaloResult.queued = true;
-        }
-      } catch (err: any) {
-        zaloResult.error = err?.message || String(err);
-        console.error('[Quick-Create] Lỗi gửi tin nhắn Zalo, đã lưu vào Hàng chờ để thử lại:', err?.message);
-        await this.queueService.enqueue(
-          QueueType.DELIVERY_ZALO,
-          {
-            isPaymentSuccess: false,
-            zaloOptions: zaloPayload,
-          },
-          { priority: 1, maxRetries: 5 },
-        );
-        zaloResult.queued = true;
-      }
+      const zaloJob = await this.queueService.enqueue(
+        QueueType.DELIVERY_ZALO,
+        {
+          isPaymentSuccess: false,
+          zaloOptions: zaloPayload,
+        },
+        {
+          priority: 1,
+          maxRetries: 5,
+          apiName,
+          endpoint: '/api/invoices/quick-create',
+          source,
+          title: `Gửi Tin nhắn Zalo #${created.invoiceNumber}`,
+          targetInfo,
+        },
+      );
+      zaloResult.queued = true;
+      zaloResult.jobId = zaloJob.id;
     }
 
     return {
@@ -254,39 +241,40 @@ export class InvoicesController {
     const brandName = req?.apiKey?.name || body?.source || 'AI WRITER';
     const firstItem = updated.items?.[0];
     const packageName = firstItem?.name || 'Gói Dịch Vụ AI WRITER';
+    const apiName = req?.apiKey?.name || body?.source || 'AI WRITER';
+    const targetInfo = `${updated.buyerName} (${updated.buyerEmail || updated.buyerPhone || '---'})`;
+    const source = req?.apiKey ? `API Key: ${req.apiKey.name}` : 'Thanh Toán / Webhook';
 
-    // 2. Tự động gửi Email Biên Lai Thanh Toán Thành Công kèm file PDF
-    let emailResult = { sent: false, queued: false, error: null as any };
+    // 2. Tự động gửi Email Biên Lai Thanh Toán Thành Công: Đưa vào Hàng Chờ (Queue)
+    let emailResult = { sent: false, queued: false, jobId: null as any };
     if (body?.sendEmail !== false && updated.buyerEmail) {
-      try {
-        await this.deliveryService.sendPaymentSuccessEmail(updated.id, {
-          note,
-          source: brandName,
-          packageName,
-        });
-        emailResult.sent = true;
-      } catch (err: any) {
-        emailResult.error = err?.message || String(err);
-        console.error('[Pay-Invoice] Gửi email thanh toán lỗi, đưa vào Hàng chờ để thử lại:', err?.message);
-        await this.queueService.enqueue(
-          QueueType.DELIVERY_EMAIL,
-          {
-            invoiceId: updated.id,
-            options: {
-              note,
-              source: brandName,
-              packageName,
-            },
-            isPaymentSuccess: true,
+      const emailJob = await this.queueService.enqueue(
+        QueueType.DELIVERY_EMAIL,
+        {
+          invoiceId: updated.id,
+          options: {
+            note,
+            source: brandName,
+            packageName,
           },
-          { priority: 2, maxRetries: 5 },
-        );
-        emailResult.queued = true;
-      }
+          isPaymentSuccess: true,
+        },
+        {
+          priority: 3,
+          maxRetries: 5,
+          apiName,
+          endpoint: '/api/invoices/:id/pay',
+          source,
+          title: `Gửi Email Biên lai thanh toán #${updated.invoiceNumber}`,
+          targetInfo,
+        },
+      );
+      emailResult.queued = true;
+      emailResult.jobId = emailJob.id;
     }
 
-    // 3. Tự động gửi Tin Nhắn Zalo xác nhận thanh toán & kích hoạt gói
-    let zaloResult = { sent: false, queued: false, error: null as any };
+    // 3. Tự động gửi Tin Nhắn Zalo xác nhận thanh toán & kích hoạt gói: Đưa vào Hàng Chờ
+    let zaloResult = { sent: false, queued: false, jobId: null as any };
     if (body?.sendZalo !== false && updated.buyerPhone) {
       const zaloPayload = {
         phone: updated.buyerPhone,
@@ -299,36 +287,25 @@ export class InvoicesController {
         pdfUrl,
         note,
       };
-      try {
-        const zRes = await this.zaloService.sendPaymentSuccessZalo(zaloPayload);
-        if (zRes.success) {
-          zaloResult.sent = true;
-        } else {
-          zaloResult.error = zRes.error;
-          console.warn('[Pay-Invoice] Gửi Zalo thanh toán thất bại, đưa vào Hàng chờ:', zRes.error);
-          await this.queueService.enqueue(
-            QueueType.DELIVERY_ZALO,
-            {
-              isPaymentSuccess: true,
-              zaloOptions: zaloPayload,
-            },
-            { priority: 2, maxRetries: 5 },
-          );
-          zaloResult.queued = true;
-        }
-      } catch (err: any) {
-        zaloResult.error = err?.message || String(err);
-        console.error('[Pay-Invoice] Lỗi gửi Zalo thanh toán, đưa vào Hàng chờ:', err?.message);
-        await this.queueService.enqueue(
-          QueueType.DELIVERY_ZALO,
-          {
-            isPaymentSuccess: true,
-            zaloOptions: zaloPayload,
-          },
-          { priority: 2, maxRetries: 5 },
-        );
-        zaloResult.queued = true;
-      }
+
+      const zaloJob = await this.queueService.enqueue(
+        QueueType.DELIVERY_ZALO,
+        {
+          isPaymentSuccess: true,
+          zaloOptions: zaloPayload,
+        },
+        {
+          priority: 2,
+          maxRetries: 5,
+          apiName,
+          endpoint: '/api/invoices/:id/pay',
+          source,
+          title: `Gửi Zalo Xác nhận thanh toán #${updated.invoiceNumber}`,
+          targetInfo,
+        },
+      );
+      zaloResult.queued = true;
+      zaloResult.jobId = zaloJob.id;
     }
 
     return {

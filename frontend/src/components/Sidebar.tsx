@@ -37,6 +37,7 @@ const navGroups: NavGroup[] = [
     items: [
       { name: 'Quản lý Hóa đơn', href: '/invoices', icon: Receipt },
       { name: 'Khách hàng & Dịch vụ', href: '/subscriptions', icon: CalendarClock },
+      { name: 'Hàng Chờ Request', href: '/queue', icon: Clock },
       { name: 'Lịch sử Giao dịch', href: '/history', icon: History },
     ],
   },
