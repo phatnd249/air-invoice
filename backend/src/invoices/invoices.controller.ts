@@ -2,7 +2,9 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req } from '@ne
 import { InvoicesService } from './invoices.service';
 import { DeliveryService } from '../delivery/delivery.service';
 import { ZaloService } from '../delivery/zalo.service';
+import { QueueService } from '../queue/queue.service';
 import { Public } from '../auth/decorators/public.decorator';
+import { QueueType } from '@prisma/client';
 
 // 🔒 Protected by global JwtAuthGuard in app.module.ts
 @Controller('invoices')
@@ -11,6 +13,7 @@ export class InvoicesController {
     private readonly invoicesService: InvoicesService,
     private readonly deliveryService: DeliveryService,
     private readonly zaloService: ZaloService,
+    private readonly queueService: QueueService,
   ) {}
 
   @Public() // 🌐 Endpoint dành riêng cho Landing Page (gọi tạo hoá đơn & sinh PDF trực tiếp)
@@ -69,7 +72,7 @@ export class InvoicesController {
     // 3. Tự động gửi email hóa đơn:
     // Bất cứ khi nào khách hàng nhập Email (created.buyerEmail), hệ thống LUÔN LUÔN tự động gửi email hóa đơn kèm PDF!
     // (Khắc phục trường hợp Landing Page cũ gửi sendEmail: false do backend trước đây từng bị timeout)
-    let emailResult = { sent: false, error: null as any };
+    let emailResult = { sent: false, queued: false, error: null as any };
     if (created.buyerEmail && body.disableEmail !== true) {
       try {
         await this.deliveryService.sendInvoiceEmail(created.id, {
@@ -81,48 +84,84 @@ export class InvoicesController {
         emailResult.sent = true;
       } catch (err: any) {
         emailResult.error = err?.message || String(err);
-        console.error('[Quick-Create] Không thể gửi email tự động:', err?.message);
+        console.error('[Quick-Create] Gửi email trực tiếp lỗi, đã lưu vào Hàng chờ để tự động thử lại:', err?.message);
+        await this.queueService.enqueue(
+          QueueType.DELIVERY_EMAIL,
+          {
+            invoiceId: created.id,
+            options: {
+              source: brandName,
+              packageName: serviceTitle,
+              subject: body.emailSubject,
+              isRegistration: true,
+            },
+            isPaymentSuccess: false,
+          },
+          { priority: 1, maxRetries: 5 },
+        );
+        emailResult.queued = true;
       }
     }
 
     // 4. Tự động gửi tin nhắn Zalo kèm link PDF nếu có số điện thoại
-    let zaloResult = { sent: false, error: null as any };
+    let zaloResult = { sent: false, queued: false, error: null as any };
     if (created.buyerPhone && body.disableZalo !== true) {
+      const formatCurrency = (n?: number) =>
+        new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
+
+      let customZaloMessage = body.customMessage || body.message;
+      if (!customZaloMessage) {
+        customZaloMessage =
+          `🎉 [${brandName}] Xác nhận đăng ký gói dịch vụ thành công!\n` +
+          `Kính chào Anh/Chị ${created.buyerName},\n` +
+          `Hệ thống đã tiếp nhận yêu cầu đăng ký gói dịch vụ của Quý khách:\n` +
+          `• Dịch vụ: ${serviceTitle}\n` +
+          `• Mã hóa đơn: #${created.invoiceNumber}\n` +
+          `• Tổng thanh toán: ${formatCurrency(created.grandTotal)}\n` +
+          (created.paymentCode ? `• Cú pháp chuyển khoản: ${created.paymentCode}\n` : '') +
+          `👉 Xem hóa đơn & Quét mã VietQR thanh toán tự động: ${viewUrl}\n\n` +
+          `Gói dịch vụ sẽ được kích hoạt ngay khi hoàn tất thanh toán. Cảm ơn Quý khách!`;
+      }
+
+      const zaloPayload = {
+        phone: created.buyerPhone,
+        customerName: created.buyerName,
+        invoiceNumber: created.invoiceNumber,
+        grandTotal: created.grandTotal,
+        viewUrl,
+        pdfUrl,
+        customMessage: customZaloMessage,
+      };
+
       try {
-        const formatCurrency = (n?: number) =>
-          new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
-
-        let customZaloMessage = body.customMessage || body.message;
-        if (!customZaloMessage) {
-          customZaloMessage =
-            `🎉 [${brandName}] Xác nhận đăng ký gói dịch vụ thành công!\n` +
-            `Kính chào Anh/Chị ${created.buyerName},\n` +
-            `Hệ thống đã tiếp nhận yêu cầu đăng ký gói dịch vụ của Quý khách:\n` +
-            `• Dịch vụ: ${serviceTitle}\n` +
-            `• Mã hóa đơn: #${created.invoiceNumber}\n` +
-            `• Tổng thanh toán: ${formatCurrency(created.grandTotal)}\n` +
-            (created.paymentCode ? `• Cú pháp chuyển khoản: ${created.paymentCode}\n` : '') +
-            `👉 Xem hóa đơn & Quét mã VietQR thanh toán tự động: ${viewUrl}\n\n` +
-            `Gói dịch vụ sẽ được kích hoạt ngay khi hoàn tất thanh toán. Cảm ơn Quý khách!`;
-        }
-
-        const zRes = await this.zaloService.sendInvoiceZalo({
-          phone: created.buyerPhone,
-          customerName: created.buyerName,
-          invoiceNumber: created.invoiceNumber,
-          grandTotal: created.grandTotal,
-          viewUrl,
-          pdfUrl,
-          customMessage: customZaloMessage,
-        });
+        const zRes = await this.zaloService.sendInvoiceZalo(zaloPayload);
         if (zRes.success) {
           zaloResult.sent = true;
         } else {
           zaloResult.error = zRes.error;
+          console.warn('[Quick-Create] Gửi Zalo thất bại, đã lưu vào Hàng chờ để thử lại:', zRes.error);
+          await this.queueService.enqueue(
+            QueueType.DELIVERY_ZALO,
+            {
+              isPaymentSuccess: false,
+              zaloOptions: zaloPayload,
+            },
+            { priority: 1, maxRetries: 5 },
+          );
+          zaloResult.queued = true;
         }
       } catch (err: any) {
         zaloResult.error = err?.message || String(err);
-        console.error('[Quick-Create] Không thể gửi tin nhắn Zalo tự động:', err?.message);
+        console.error('[Quick-Create] Lỗi gửi tin nhắn Zalo, đã lưu vào Hàng chờ để thử lại:', err?.message);
+        await this.queueService.enqueue(
+          QueueType.DELIVERY_ZALO,
+          {
+            isPaymentSuccess: false,
+            zaloOptions: zaloPayload,
+          },
+          { priority: 1, maxRetries: 5 },
+        );
+        zaloResult.queued = true;
       }
     }
 
@@ -217,7 +256,7 @@ export class InvoicesController {
     const packageName = firstItem?.name || 'Gói Dịch Vụ AI WRITER';
 
     // 2. Tự động gửi Email Biên Lai Thanh Toán Thành Công kèm file PDF
-    let emailResult = { sent: false, error: null as any };
+    let emailResult = { sent: false, queued: false, error: null as any };
     if (body?.sendEmail !== false && updated.buyerEmail) {
       try {
         await this.deliveryService.sendPaymentSuccessEmail(updated.id, {
@@ -228,33 +267,67 @@ export class InvoicesController {
         emailResult.sent = true;
       } catch (err: any) {
         emailResult.error = err?.message || String(err);
-        console.error('[Pay-Invoice] Lỗi gửi email thanh toán thành công:', err?.message);
+        console.error('[Pay-Invoice] Gửi email thanh toán lỗi, đưa vào Hàng chờ để thử lại:', err?.message);
+        await this.queueService.enqueue(
+          QueueType.DELIVERY_EMAIL,
+          {
+            invoiceId: updated.id,
+            options: {
+              note,
+              source: brandName,
+              packageName,
+            },
+            isPaymentSuccess: true,
+          },
+          { priority: 2, maxRetries: 5 },
+        );
+        emailResult.queued = true;
       }
     }
 
     // 3. Tự động gửi Tin Nhắn Zalo xác nhận thanh toán & kích hoạt gói
-    let zaloResult = { sent: false, error: null as any };
+    let zaloResult = { sent: false, queued: false, error: null as any };
     if (body?.sendZalo !== false && updated.buyerPhone) {
+      const zaloPayload = {
+        phone: updated.buyerPhone,
+        customerName: updated.buyerName,
+        invoiceNumber: updated.invoiceNumber,
+        grandTotal: updated.grandTotal,
+        packageName,
+        brandName,
+        viewUrl,
+        pdfUrl,
+        note,
+      };
       try {
-        const zRes = await this.zaloService.sendPaymentSuccessZalo({
-          phone: updated.buyerPhone,
-          customerName: updated.buyerName,
-          invoiceNumber: updated.invoiceNumber,
-          grandTotal: updated.grandTotal,
-          packageName,
-          brandName,
-          viewUrl,
-          pdfUrl,
-          note,
-        });
+        const zRes = await this.zaloService.sendPaymentSuccessZalo(zaloPayload);
         if (zRes.success) {
           zaloResult.sent = true;
         } else {
           zaloResult.error = zRes.error;
+          console.warn('[Pay-Invoice] Gửi Zalo thanh toán thất bại, đưa vào Hàng chờ:', zRes.error);
+          await this.queueService.enqueue(
+            QueueType.DELIVERY_ZALO,
+            {
+              isPaymentSuccess: true,
+              zaloOptions: zaloPayload,
+            },
+            { priority: 2, maxRetries: 5 },
+          );
+          zaloResult.queued = true;
         }
       } catch (err: any) {
         zaloResult.error = err?.message || String(err);
-        console.error('[Pay-Invoice] Lỗi gửi tin nhắn Zalo thanh toán thành công:', err?.message);
+        console.error('[Pay-Invoice] Lỗi gửi Zalo thanh toán, đưa vào Hàng chờ:', err?.message);
+        await this.queueService.enqueue(
+          QueueType.DELIVERY_ZALO,
+          {
+            isPaymentSuccess: true,
+            zaloOptions: zaloPayload,
+          },
+          { priority: 2, maxRetries: 5 },
+        );
+        zaloResult.queued = true;
       }
     }
 

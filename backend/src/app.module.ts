@@ -12,6 +12,7 @@ import { UsersModule } from './users/users.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { HealthModule } from './health/health.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
+import { QueueModule } from './queue/queue.module';
 import { RequestLoggerMiddleware } from './common/logger.middleware';
 
 @Module({
@@ -24,6 +25,7 @@ import { RequestLoggerMiddleware } from './common/logger.middleware';
     SettingsModule,
     InvoicesModule,
     DeliveryModule,
+    QueueModule,
     ServicesCatalogModule,
     UsersModule,
     SubscriptionsModule,

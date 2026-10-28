@@ -230,3 +230,40 @@ model ApiKey {
   updatedAt   DateTime  @updatedAt
 }
 
+enum QueueStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum QueueType {
+  QUICK_CREATE_INVOICE
+  PAYMENT_CONFIRMATION
+  DELIVERY_EMAIL
+  DELIVERY_ZALO
+  WEBHOOK_EVENT
+  CUSTOM
+}
+
+model RequestQueue {
+  id           String      @id @default(uuid())
+  type         QueueType   @default(QUICK_CREATE_INVOICE)
+  status       QueueStatus @default(PENDING)
+  priority     Int         @default(0) // Số càng cao mức độ ưu tiên càng lớn
+  payload      Json        // Dữ liệu payload của request (body, headers, params)
+  result       Json?       // Kết quả xử lý (nếu thành công)
+  errorMessage String?     // Ghi nhận lỗi nếu thất bại
+  retryCount   Int         @default(0)
+  maxRetries   Int         @default(5)
+  nextRunAt    DateTime    @default(now()) // Thời điểm chạy tiếp theo (hỗ trợ exponential backoff)
+  processedAt  DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([status, nextRunAt])
+  @@index([type, status])
+  @@index([createdAt])
+}
+
+
