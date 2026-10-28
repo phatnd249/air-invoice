@@ -1,4 +1,4 @@
-import { Controller, Post, Param, Get, Res, Body } from '@nestjs/common';
+import { Controller, Post, Param, Get, Res, Body, BadRequestException } from '@nestjs/common';
 import { Response } from 'express';
 import { DeliveryService } from './delivery.service';
 import { ZaloService } from './zalo.service';
@@ -18,26 +18,34 @@ export class DeliveryController {
 
   @Post('send-email/:id')
   async sendEmail(@Param('id') id: string) {
-    return this.deliveryService.sendInvoiceEmail(id);
+    try {
+      return await this.deliveryService.sendInvoiceEmail(id);
+    } catch (err: any) {
+      throw new BadRequestException(err?.message || 'Lỗi gửi email');
+    }
   }
 
   @Post('send-zalo/:id')
   async sendZalo(@Param('id') id: string) {
-    const invoice = await this.prisma.invoice.findUnique({ where: { id } });
-    if (!invoice) throw new Error('Không tìm thấy hóa đơn');
-    if (!invoice.buyerPhone) throw new Error('Hóa đơn không có số điện thoại');
+    try {
+      const invoice = await this.prisma.invoice.findUnique({ where: { id } });
+      if (!invoice) throw new BadRequestException('Không tìm thấy hóa đơn');
+      if (!invoice.buyerPhone) throw new BadRequestException('Hóa đơn không có số điện thoại');
 
-    const appUrl = (process.env.APP_URL || 'https://invoice.share4happy.com').replace(/\/+$/, '');
-    const backendUrl = (process.env.BACKEND_URL || 'https://invoice-backend-5tbi.onrender.com').replace(/\/+$/, '');
+      const appUrl = (process.env.APP_URL || 'https://invoice.share4happy.com').replace(/\/+$/, '');
+      const backendUrl = (process.env.BACKEND_URL || 'https://invoice-backend-5tbi.onrender.com').replace(/\/+$/, '');
 
-    return this.zaloService.sendInvoiceZalo({
-      phone: invoice.buyerPhone,
-      customerName: invoice.buyerName,
-      invoiceNumber: invoice.invoiceNumber,
-      grandTotal: invoice.grandTotal,
-      viewUrl: `${appUrl}/view/${invoice.shareToken}`,
-      pdfUrl: `${backendUrl}/api/delivery/public/${invoice.shareToken}/pdf`,
-    });
+      return await this.zaloService.sendInvoiceZalo({
+        phone: invoice.buyerPhone,
+        customerName: invoice.buyerName,
+        invoiceNumber: invoice.invoiceNumber,
+        grandTotal: invoice.grandTotal,
+        viewUrl: `${appUrl}/view/${invoice.shareToken}`,
+        pdfUrl: `${backendUrl}/api/delivery/public/${invoice.shareToken}/pdf`,
+      });
+    } catch (err: any) {
+      throw new BadRequestException(err?.message || 'Lỗi gửi tin nhắn Zalo');
+    }
   }
 
   @Post('test-zalo')

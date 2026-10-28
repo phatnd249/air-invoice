@@ -108,9 +108,36 @@ export class DeliveryService {
       </div>
     `;
 
-    // 4. Gửi qua SMTP
+    // 4. Gửi qua Resend API hoặc SMTP
     try {
-      if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      if (process.env.RESEND_API_KEY) {
+        // Gửi qua Resend REST API (HTTPS cổng 443 — hoạt động 100% trên Render Free)
+        const fromEmail = process.env.SMTP_FROM || 'Invoice-AIR <onboarding@resend.dev>';
+        const resendRes = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${process.env.RESEND_API_KEY.trim()}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: fromEmail,
+            to: [invoice.buyerEmail],
+            subject: `[Thông báo hóa đơn] - #${invoice.invoiceNumber}`,
+            html: htmlBody,
+            attachments: [
+              {
+                filename: `HD_${invoice.invoiceNumber}.pdf`,
+                content: pdfBuffer.toString('base64'),
+              },
+            ],
+          }),
+        });
+
+        const resendData = await resendRes.json().catch(() => ({}));
+        if (!resendRes.ok) {
+          throw new Error(`Resend API HTTP ${resendRes.status}: ${resendData?.message || JSON.stringify(resendData)}`);
+        }
+      } else if (process.env.SMTP_USER && process.env.SMTP_PASS) {
         await this.transporter.sendMail({
           from: process.env.SMTP_FROM || '"Đội ngũ Tetrasco" <no-reply@invoice-air.com>',
           to: invoice.buyerEmail,
@@ -124,6 +151,8 @@ export class DeliveryService {
             },
           ],
         });
+      } else {
+        throw new Error('Chưa cấu hình thông tin gửi Email (Cần SMTP_USER + SMTP_PASS hoặc RESEND_API_KEY trên Render)');
       }
 
       // 5. Cập nhật trạng thái hóa đơn sang SENT
