@@ -37,7 +37,16 @@ export class DeliveryService {
     } as any);
   }
 
-  async sendInvoiceEmail(invoiceId: string): Promise<{ success: boolean; message: string }> {
+  async sendInvoiceEmail(
+    invoiceId: string,
+    options?: {
+      source?: string;
+      packageName?: string;
+      subject?: string;
+      customMessage?: string;
+      isRegistration?: boolean;
+    },
+  ): Promise<{ success: boolean; message: string }> {
     const invoice = await this.prisma.invoice.findUnique({
       where: { id: invoiceId },
       include: { items: true },
@@ -56,61 +65,62 @@ export class DeliveryService {
       new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 
     const firstItem = invoice.items[0] || { name: 'Dịch vụ', description: '', metaInfo: '' };
-    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    const packageName = options?.packageName || firstItem.name || 'Gói Dịch Vụ';
+    const brandName = options?.source || settings?.companyName || 'AI WRITER';
+    const appUrl = process.env.APP_URL || 'https://invoice.share4happy.com';
     const shareUrl = `${appUrl}/view/${invoice.shareToken}`;
     const dueDateStr = invoice.dueDate
       ? new Date(invoice.dueDate).toLocaleDateString('vi-VN')
       : new Date(invoice.issueDate).toLocaleDateString('vi-VN');
 
-    // 3. Nội dung Email theo đúng mẫu yêu cầu của Tetrasco
+    const isRegistration = options?.isRegistration !== false;
+    const emailHeaderTitle = isRegistration
+      ? 'XÁC NHẬN ĐĂNG KÝ GÓI DỊCH VỤ & THÔNG BÁO HÓA ĐƠN'
+      : 'THÔNG BÁO HÓA ĐƠN & NHẮC LỊCH THANH TOÁN';
+
+    const emailSubject =
+      options?.subject ||
+      `[${brandName}] Xác nhận đăng ký ${packageName} & Hóa đơn thanh toán - #${invoice.invoiceNumber}`;
+
+    // 3. Nội dung Email theo chuẩn thương hiệu
     const htmlBody = `
       <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333; max-width: 650px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
-        <h2 style="color: #2c3e50; border-bottom: 2px solid #2c3e50; padding-bottom: 10px;">THÔNG BÁO HÓA ĐƠN & NHẮC LỊCH THANH TOÁN</h2>
+        <h2 style="color: #2c3e50; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">${emailHeaderTitle}</h2>
         
         <p>Kính gửi Quý khách hàng <strong>${invoice.buyerName}</strong>,</p>
         
-        <p>Lời đầu tiên, <strong>Tetrasco</strong> xin chân thành cảm ơn Quý khách đã tin tưởng và đồng hành cùng dịch vụ của chúng tôi trong suốt thời gian qua.</p>
+        <p>Lời đầu tiên, <strong>${brandName}</strong> xin chân thành cảm ơn Quý khách đã tin tưởng và đăng ký sử dụng dịch vụ của chúng tôi.</p>
         
-        <p>Chúng tôi xin gửi thông báo hóa đơn & nhắc lịch thanh toán cho dịch vụ mà Quý khách đang sử dụng để đảm bảo hoạt động luôn trong trạng thái ổn định nhất. Thông tin chi tiết dịch vụ:</p>
+        <p>Hệ thống đã khởi tạo hóa đơn thanh toán cho gói dịch vụ của Quý khách với thông tin chi tiết dưới đây:</p>
         
         <div style="background: #f8fafc; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 15px 0; border-radius: 4px;">
-          <p style="margin: 4px 0;"><strong>• Dịch vụ:</strong> ${firstItem.name}</p>
-          ${firstItem.description ? `<p style="margin: 4px 0;"><strong>• Tên miền liên kết / Chi tiết:</strong> ${firstItem.description}</p>` : ''}
-          ${firstItem.metaInfo ? `<p style="margin: 4px 0;"><strong>• Thời hạn dịch vụ:</strong> ${firstItem.metaInfo}</p>` : ''}
+          <p style="margin: 4px 0;"><strong>• Gói dịch vụ:</strong> ${packageName}</p>
+          ${firstItem.description ? `<p style="margin: 4px 0;"><strong>• Chi tiết gói:</strong> ${firstItem.description}</p>` : ''}
+          ${firstItem.metaInfo ? `<p style="margin: 4px 0;"><strong>• Thời hạn / Quy mô:</strong> ${firstItem.metaInfo}</p>` : ''}
           <p style="margin: 4px 0;"><strong>• Số tiền thanh toán:</strong> <span style="color: #dc2626; font-size: 16px; font-weight: bold;">${formatCurrency(invoice.grandTotal)}</span></p>
-          <p style="margin: 4px 0;"><strong>• Ngày hết hạn / Đến hạn:</strong> ${dueDateStr}</p>
+          <p style="margin: 4px 0;"><strong>• Hạn thanh toán:</strong> ${dueDateStr}</p>
         </div>
 
-        <h4 style="color: #2c3e50; margin-top: 20px; margin-bottom: 8px;">Tại sao Quý khách cần gia hạn / thanh toán đúng hạn?</h4>
-        <p style="margin: 4px 0;">Việc gia hạn kịp thời giúp Quý khách:</p>
-        <ul style="padding-left: 20px; margin-top: 4px;">
-          <li>Duy trì hoạt động liên tục 24/7 của hệ thống website và email doanh nghiệp.</li>
-          <li>Đảm bảo an toàn dữ liệu, tránh các rủi ro phát sinh khi dịch vụ bị gián đoạn.</li>
-          <li>Giữ vững thứ hạng SEO và uy tín thương hiệu trên môi trường internet.</li>
-        </ul>
-
-        <h4 style="color: #2c3e50; margin-top: 20px; margin-bottom: 8px;">Hướng dẫn thanh toán & Xem hóa đơn:</h4>
-        <p>Quý khách vui lòng kiểm tra chi tiết hóa đơn (kèm file PDF đính kèm trong email này) và thực hiện thanh toán bằng cách truy cập trực tiếp vào đường dẫn dưới đây:</p>
+        <h4 style="color: #2c3e50; margin-top: 20px; margin-bottom: 8px;">Hướng dẫn thanh toán & Kích hoạt dịch vụ:</h4>
+        <p>Quý khách vui lòng kiểm tra chi tiết hóa đơn (kèm file PDF đính kèm trong email này) và thực hiện thanh toán nhanh bằng cách truy cập đường dẫn dưới đây:</p>
 
         <div style="text-align: center; margin: 25px 0;">
           <a href="${shareUrl}" target="_blank" style="background: #2563eb; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; font-size: 14px;">
-            🔗 Xem Hóa Đơn & Quét Mã VietQR Trực Tuyến
+            🔗 Xem Hóa Đơn & Quét Mã VietQR Thanh Toán
           </a>
         </div>
 
         <p style="font-size: 13px; color: #666; font-style: italic;">
-          (Lưu ý: Quý khách vui lòng kiểm tra thông tin tài khoản và cú pháp chuyển khoản <strong>${invoice.paymentCode || ''}</strong> được ghi sẵn trong hóa đơn để hoàn tất quy trình).
+          (Lưu ý: Quý khách vui lòng kiểm tra thông tin tài khoản và cú pháp chuyển khoản <strong>${invoice.paymentCode || ''}</strong> để hệ thống tự động kích hoạt dịch vụ ngay sau khi nhận tiền).
         </p>
 
-        <p style="margin-top: 20px;">Bên cạnh đó, Quý khách cũng có thể liên hệ để được hỗ trợ gia hạn hoặc gửi biên lai trực tiếp qua:</p>
-        <p style="margin: 4px 0;">💬 <strong>Zalo TetrasCo:</strong> 0812305046</p>
-        <p style="margin: 4px 0;">📞 <strong>Hotline:</strong> 0812305046</p>
-
-        <p style="margin-top: 15px;">Nếu Quý khách cần hỗ trợ kỹ thuật hoặc có bất kỳ thắc mắc nào về quy trình, xin vui lòng phản hồi email này hoặc liên hệ hotline 0812305046.</p>
+        <p style="margin-top: 20px;">Nếu Quý khách cần hỗ trợ kích hoạt khẩn cấp hoặc gửi xác nhận chuyển khoản, vui lòng liên hệ:</p>
+        <p style="margin: 4px 0;">💬 <strong>Zalo Hỗ Trợ:</strong> ${settings?.phone || '0812305046'}</p>
+        <p style="margin: 4px 0;">📞 <strong>Hotline:</strong> ${settings?.phone || '0812305046'}</p>
 
         <p style="margin-top: 25px; border-top: 1px solid #eee; padding-top: 15px;">
           Trân trọng,<br />
-          <strong>Đội ngũ Hỗ trợ khách hàng Tetrasco</strong>
+          <strong>Đội ngũ Chăm sóc khách hàng ${brandName}</strong>
         </p>
       </div>
     `;
@@ -122,9 +132,9 @@ export class DeliveryService {
         let fromEmail = (process.env.SMTP_FROM || '').trim().replace(/^["']|["']$/g, '');
         // Tự động dùng domain đã verified trên Resend: invoice.share4happy.com
         if (!fromEmail || fromEmail.includes('onboarding@resend.dev') || fromEmail.includes('your-email') || !fromEmail.includes('@invoice.share4happy.com')) {
-          fromEmail = `"${settings?.companyName || 'Invoice-AIR'}" <billing@invoice.share4happy.com>`;
+          fromEmail = `"${brandName}" <billing@invoice.share4happy.com>`;
         } else if (!fromEmail.includes('<') && fromEmail.includes('@')) {
-          fromEmail = `"${settings?.companyName || 'Invoice-AIR'}" <${fromEmail}>`;
+          fromEmail = `"${brandName}" <${fromEmail}>`;
         }
 
         const resendRes = await fetch('https://api.resend.com/emails', {
@@ -136,7 +146,7 @@ export class DeliveryService {
           body: JSON.stringify({
             from: fromEmail,
             to: [invoice.buyerEmail],
-            subject: `[Thông báo hóa đơn] - #${invoice.invoiceNumber}`,
+            subject: emailSubject,
             html: htmlBody,
             attachments: [
               {

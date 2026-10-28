@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req } from '@nestjs/common';
 import { InvoicesService } from './invoices.service';
 import { DeliveryService } from '../delivery/delivery.service';
 import { ZaloService } from '../delivery/zalo.service';
@@ -15,7 +15,7 @@ export class InvoicesController {
 
   @Public() // 🌐 Endpoint dành riêng cho Landing Page (gọi tạo hoá đơn & sinh PDF trực tiếp)
   @Post('quick-create')
-  async quickCreateInvoice(@Body() body: any) {
+  async quickCreateInvoice(@Body() body: any, @Req() req: any) {
     let dto: any = {};
 
     // 1. Nhận diện cấu trúc dữ liệu từ Landing Page (Form đặt hàng / tư vấn)
@@ -27,7 +27,7 @@ export class InvoicesController {
         buyerName: customer.fullName || customer.name || 'Khách hàng',
         buyerPhone: customer.phone || '',
         buyerEmail: customer.email || '',
-        notes: body.notes || order.description || `Đơn hàng từ ${body.source || 'Landing Page'}`,
+        notes: body.notes || order.description || `Đơn hàng từ ${body.source || req?.apiKey?.name || 'AI WRITER'}`,
         invoiceType: body.invoiceType || 'GTGT',
         invoiceForm: body.invoiceForm || 'WITH_TAX_CODE',
         hasVat: body.hasVat === true,
@@ -53,10 +53,28 @@ export class InvoicesController {
     const viewUrl = `${appUrl}/view/${created.shareToken}`;
     const pdfUrl = `${backendUrl}/api/delivery/public/${created.shareToken}/pdf`;
 
+    // Nhận diện thương hiệu từ API Key (VD: 'AI WRITER') hoặc body.source
+    const brandName =
+      req?.apiKey?.name ||
+      body.source ||
+      body.brandName ||
+      (body.order?.packageName?.toUpperCase().includes('AI') ? 'AI WRITER' : 'AI WRITER');
+
+    const serviceTitle =
+      body.order?.packageName ||
+      body.packageName ||
+      (created.items && created.items[0]?.name) ||
+      'Gói Dịch Vụ AI WRITER';
+
     // 3. Tự động gửi email hóa đơn nếu có email và không tắt cờ sendEmail
     if (body.sendEmail !== false && created.buyerEmail) {
       try {
-        await this.deliveryService.sendInvoiceEmail(created.id);
+        await this.deliveryService.sendInvoiceEmail(created.id, {
+          source: brandName,
+          packageName: serviceTitle,
+          subject: body.emailSubject,
+          isRegistration: true,
+        });
       } catch (err: any) {
         console.warn('[Quick-Create] Không thể gửi email tự động:', err?.message);
       }
@@ -65,6 +83,23 @@ export class InvoicesController {
     // 4. Tự động gửi tin nhắn Zalo kèm link PDF nếu có số điện thoại
     if (body.sendZalo !== false && created.buyerPhone) {
       try {
+        const formatCurrency = (n?: number) =>
+          new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
+
+        let customZaloMessage = body.customMessage || body.message;
+        if (!customZaloMessage) {
+          customZaloMessage =
+            `🎉 [${brandName}] Xác nhận đăng ký gói dịch vụ thành công!\n` +
+            `Kính chào Anh/Chị ${created.buyerName},\n` +
+            `Hệ thống đã tiếp nhận yêu cầu đăng ký gói dịch vụ của Quý khách:\n` +
+            `• Dịch vụ: ${serviceTitle}\n` +
+            `• Mã hóa đơn: #${created.invoiceNumber}\n` +
+            `• Tổng thanh toán: ${formatCurrency(created.grandTotal)}\n` +
+            (created.paymentCode ? `• Cú pháp chuyển khoản: ${created.paymentCode}\n` : '') +
+            `👉 Xem hóa đơn & Quét mã VietQR thanh toán tự động: ${viewUrl}\n\n` +
+            `Gói dịch vụ sẽ được kích hoạt ngay khi hoàn tất thanh toán. Cảm ơn Quý khách!`;
+        }
+
         await this.zaloService.sendInvoiceZalo({
           phone: created.buyerPhone,
           customerName: created.buyerName,
@@ -72,6 +107,7 @@ export class InvoicesController {
           grandTotal: created.grandTotal,
           viewUrl,
           pdfUrl,
+          customMessage: customZaloMessage,
         });
       } catch (err: any) {
         console.warn('[Quick-Create] Không thể gửi tin nhắn Zalo tự động:', err?.message);

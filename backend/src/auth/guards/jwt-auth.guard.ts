@@ -19,10 +19,6 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       context.getClass(),
     ]);
 
-    if (isPublic) {
-      return true;
-    }
-
     const request = context.switchToHttp().getRequest();
     const apiKeyHeader = request.headers['x-api-key'] || request.headers['x-api-token'];
     const authHeader = request.headers['authorization'];
@@ -36,17 +32,22 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
     if (potentialKey) {
       const validKey = await this.apiKeysService.validateApiKey(potentialKey);
-      if (!validKey) {
+      if (validKey) {
+        request.apiKey = validKey;
+        request.user = {
+          id: `apikey_${validKey.id}`,
+          name: validKey.name,
+          role: 'API_KEY',
+          permissions: validKey.permissions,
+        };
+        return true;
+      }
+      if (!isPublic) {
         throw new UnauthorizedException('API Key không hợp lệ, đã bị thu hồi hoặc đã hết hạn');
       }
+    }
 
-      request.apiKey = validKey;
-      request.user = {
-        id: `apikey_${validKey.id}`,
-        name: validKey.name,
-        role: 'API_KEY',
-        permissions: validKey.permissions,
-      };
+    if (isPublic) {
       return true;
     }
 
