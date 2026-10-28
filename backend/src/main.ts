@@ -1,3 +1,6 @@
+// ⏰ Thiết lập múi giờ mặc định cho hệ thống là Giờ Việt Nam (Asia/Ho_Chi_Minh, GMT+7)
+process.env.TZ = 'Asia/Ho_Chi_Minh';
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';

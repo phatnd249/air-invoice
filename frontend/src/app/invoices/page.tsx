@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getExportPdfUrl } from '@/lib/api';
+import { formatVietnamDateTime } from '@/lib/date';
 import {
   Plus,
   Search,
@@ -481,8 +482,8 @@ export default function InvoicesPage() {
                     </td>
 
                     {/* Ngày Lập */}
-                    <td className="py-4 px-4 text-slate-600">
-                      {new Date(inv.issueDate || inv.createdAt).toLocaleDateString('vi-VN')}
+                    <td className="py-4 px-4 text-slate-600 font-mono text-[11.5px]">
+                      {formatVietnamDateTime(inv.issueDate || inv.createdAt)}
                     </td>
 
                     {/* Tổng Tiền */}

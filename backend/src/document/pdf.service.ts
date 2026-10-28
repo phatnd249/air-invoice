@@ -132,8 +132,43 @@ export class PdfService implements OnModuleDestroy {
       })
       .join('');
 
-    const issueDate = invoice.issueDate ? new Date(invoice.issueDate).toLocaleDateString('vi-VN') : '---';
-    const dueDate = invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('vi-VN') : '';
+    const formatVietnamDateTime = (dateInput: any): string => {
+      if (!dateInput) return '---';
+      const d = new Date(dateInput);
+      if (isNaN(d.getTime())) return '---';
+      const formatter = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour12: false,
+      });
+      const parts = formatter.formatToParts(d);
+      const m: Record<string, string> = {};
+      for (const p of parts) m[p.type] = p.value;
+      return `${m.hour}:${m.minute} - ${m.day}/${m.month}/${m.year}`;
+    };
+
+    const formatVietnamDate = (dateInput: any): string => {
+      if (!dateInput) return '';
+      const d = new Date(dateInput);
+      if (isNaN(d.getTime())) return '';
+      const formatter = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+      const parts = formatter.formatToParts(d);
+      const m: Record<string, string> = {};
+      for (const p of parts) m[p.type] = p.value;
+      return `${m.day}/${m.month}/${m.year}`;
+    };
+
+    const issueDate = formatVietnamDateTime(invoice.issueDate || invoice.createdAt);
+    const dueDate = formatVietnamDate(invoice.dueDate);
 
     const thStyle = 'border:1px solid #999;padding:6px 8px;font-size:11px;font-weight:bold;text-transform:uppercase;color:#333';
     const tdSumLabel = 'border:1px solid #bbb;padding:5px 10px;text-align:right;font-size:12px;color:#444;width:70%';
@@ -187,6 +222,7 @@ export class PdfService implements OnModuleDestroy {
           return '(Có mã của cơ quan thuế)';
       }
     })();
+
 
     return `<!DOCTYPE html>
 <html>

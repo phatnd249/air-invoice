@@ -42,6 +42,7 @@ RUN pnpm --filter "./backend" build
 # Platform (Railway/Render/Fly.io) will set PORT via environment
 # Default to 4000 if not set
 ENV PORT=4000
+ENV TZ="Asia/Ho_Chi_Minh"
 EXPOSE 4000 10000
 
 # Giới hạn V8 heap để Node không phình quá mức trong container 512MB.

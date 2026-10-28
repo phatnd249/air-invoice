@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { numberToVietnameseWords } from '@/lib/numberToWords';
+import { formatVietnamDateTime, formatVietnamDate } from '@/lib/date';
 
 export interface InvoiceTemplateProps {
   invoice: {
@@ -124,6 +125,7 @@ export default function InvoiceTemplateRenderer({
     }
   })();
 
+
   return (
     <>
       <style>{`
@@ -239,7 +241,7 @@ export default function InvoiceTemplateRenderer({
           <span className="invoice-meta-dot">•</span>
           <div>
             Ngày tạo: <strong style={{ color: '#0f172a' }}>
-              {invoice.issueDate ? new Date(invoice.issueDate).toLocaleDateString('vi-VN') : '---'}
+              {formatVietnamDateTime(invoice.issueDate || (invoice as any).createdAt)}
             </strong>
           </div>
           {invoice.dueDate && (
@@ -247,7 +249,7 @@ export default function InvoiceTemplateRenderer({
               <span className="invoice-meta-dot">•</span>
               <div>
                 Hạn TT: <strong style={{ color: '#0f172a' }}>
-                  {new Date(invoice.dueDate).toLocaleDateString('vi-VN')}
+                  {formatVietnamDate(invoice.dueDate)}
                 </strong>
               </div>
             </>
@@ -502,27 +504,7 @@ export default function InvoiceTemplateRenderer({
         </div>
       </div>
 
-      {/* === SIGNATURES === */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', textAlign: 'center', fontSize: '12px', color: '#444', borderTop: '1px solid #ddd', paddingTop: '16px', pageBreakInside: 'avoid' }}>
-        <div style={{ width: '45%' }}>
-          <div style={{ fontWeight: 'bold', textTransform: 'uppercase', fontSize: '12px', color: '#111', marginBottom: '2px' }}>
-            Đại diện khách hàng
-          </div>
-          <div style={{ fontSize: '11px', color: '#888', fontStyle: 'italic', marginBottom: '60px' }}>
-            (Ký và ghi rõ họ tên)
-          </div>
-          <div style={{ fontWeight: 'bold', color: '#333' }}>{invoice.buyerName || '...............'}</div>
-        </div>
-
-        <div style={{ width: '45%' }}>
-          <div style={{ fontWeight: 'bold', textTransform: 'uppercase', fontSize: '12px', color: '#111', marginBottom: '2px' }}>
-            Người lập hóa đơn
-          </div>
-          <div style={{ fontSize: '11px', color: '#888', fontStyle: 'italic', marginBottom: '60px' }}>
-            (Ký và ghi rõ họ tên)
-          </div>
-        </div>
-      </div>
+      
       </div>
     </>
   );
