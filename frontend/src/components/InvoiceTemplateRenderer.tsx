@@ -124,12 +124,6 @@ export default function InvoiceTemplateRenderer({
     }
   })();
 
-  const companyName = invoice.sellerName || settings?.companyName || 'CÔNG TY TNHH GIÁO DỤC AI ROBOTIC';
-  const address = invoice.sellerAddress || settings?.address || 'Số 10 Huỳnh Văn Nghệ, P. Trấn Biên, Đồng Nai';
-  const taxCode = invoice.sellerTaxCode || settings?.taxCode || '3603893101';
-  const phone = invoice.sellerPhone || settings?.phone;
-  const email = invoice.sellerEmail || settings?.email;
-
   return (
     <>
       <style>{`
@@ -151,36 +145,32 @@ export default function InvoiceTemplateRenderer({
             padding: 40px 48px;
           }
         }
-        .invoice-header-row {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          padding-bottom: 12px;
+        .invoice-header-clean {
+          text-align: center;
+          padding-bottom: 14px;
           border-bottom: 2px solid ${pc};
-          margin-bottom: 8px;
+          margin-bottom: 12px;
         }
-        @media (min-width: 640px) {
-          .invoice-header-row {
-            flex-direction: row;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 20px;
+        .invoice-meta-row {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 14px;
+          font-size: 13px;
+          color: #475569;
+        }
+        .invoice-meta-dot {
+          color: #94a3b8;
+          user-select: none;
+        }
+        @media (max-width: 480px) {
+          .invoice-meta-dot {
+            display: none;
           }
-        }
-        .invoice-seller-col {
-          width: 100%;
-        }
-        @media (min-width: 640px) {
-          .invoice-seller-col {
-            max-width: 55%;
-          }
-        }
-        .invoice-meta-col {
-          text-align: left;
-        }
-        @media (min-width: 640px) {
-          .invoice-meta-col {
-            text-align: right;
+          .invoice-meta-row {
+            flex-direction: column;
+            gap: 4px;
           }
         }
         .table-responsive-wrapper {
@@ -231,56 +221,44 @@ export default function InvoiceTemplateRenderer({
         className="invoice-paper-root bg-white max-w-[850px] mx-auto shadow-sm sm:shadow rounded-xl sm:rounded-2xl print:shadow-none print:border-none print:p-0"
       >
       {/* === HEADER === */}
-      <div className="invoice-header-row">
-        {/* Seller Info */}
-        <div className="invoice-seller-col">
-          <div style={{ fontWeight: 'bold', fontSize: '14px', textTransform: 'uppercase', color: pc, marginBottom: '4px', letterSpacing: '0.5px' }}>
-            {companyName}
-          </div>
-          <div style={{ fontSize: '11.5px', color: '#444' }}>
-            Địa chỉ: {address}
-          </div>
-          <div style={{ fontSize: '11.5px', color: '#444' }}>
-            MST: {taxCode}
-            {phone && <> &nbsp;—&nbsp; ĐT: {phone}</>}
-          </div>
-          {email && (
-            <div style={{ fontSize: '11.5px', color: '#444' }}>Email: {email}</div>
-          )}
+      <div className="invoice-header-clean">
+        <div style={{ fontSize: '22px', fontWeight: 'bold', textTransform: 'uppercase', color: pc, letterSpacing: '1px', marginBottom: '4px' }}>
+          {typeTitle}
         </div>
-
-        {/* Invoice Title */}
-        <div className="invoice-meta-col">
-          <div style={{ fontSize: '20px', fontWeight: 'bold', textTransform: 'uppercase', color: pc, letterSpacing: '1px' }}>
-            {typeTitle}
-          </div>
-          <div style={{ fontSize: '11px', color: '#666', marginBottom: '6px', fontStyle: 'italic' }}>
+        {formSubtitle && (
+          <div style={{ fontSize: '11.5px', color: '#64748b', fontStyle: 'italic', marginBottom: '8px' }}>
             {formSubtitle}
           </div>
-          <div style={{ fontSize: '12px', color: '#555' }}>
-            Số: <strong style={{ fontSize: '14px', color: '#111', fontFamily: "'Courier New', monospace" }}>
+        )}
+        <div className="invoice-meta-row">
+          <div>
+            Số: <strong style={{ fontSize: '14px', color: '#0f172a', fontFamily: "'Courier New', monospace" }}>
               {invoice.invoiceNumber || 'HD-000001'}
             </strong>
           </div>
-          <div style={{ fontSize: '12px', color: '#555' }}>
-            Ngày: <strong style={{ color: '#111' }}>
+          <span className="invoice-meta-dot">•</span>
+          <div>
+            Ngày tạo: <strong style={{ color: '#0f172a' }}>
               {invoice.issueDate ? new Date(invoice.issueDate).toLocaleDateString('vi-VN') : '---'}
             </strong>
           </div>
           {invoice.dueDate && (
-            <div style={{ fontSize: '12px', color: '#555' }}>
-              Hạn TT: <strong style={{ color: '#111' }}>
-                {new Date(invoice.dueDate).toLocaleDateString('vi-VN')}
-              </strong>
-            </div>
+            <>
+              <span className="invoice-meta-dot">•</span>
+              <div>
+                Hạn TT: <strong style={{ color: '#0f172a' }}>
+                  {new Date(invoice.dueDate).toLocaleDateString('vi-VN')}
+                </strong>
+              </div>
+            </>
           )}
         </div>
       </div>
 
       {/* Status line */}
       {invoice.status && statusText(invoice.status) && (
-        <div style={{ textAlign: 'right', fontSize: '10px', color: '#888', fontStyle: 'italic', marginBottom: '12px', paddingTop: '2px' }}>
-          Trạng thái: {statusText(invoice.status)}
+        <div style={{ textAlign: 'center', fontSize: '11px', color: '#64748b', fontStyle: 'italic', marginBottom: '14px' }}>
+          Trạng thái: <strong style={{ color: invoice.status === 'PAID' ? '#059669' : '#334155' }}>{statusText(invoice.status)}</strong>
         </div>
       )}
 
@@ -538,12 +516,11 @@ export default function InvoiceTemplateRenderer({
 
         <div style={{ width: '45%' }}>
           <div style={{ fontWeight: 'bold', textTransform: 'uppercase', fontSize: '12px', color: '#111', marginBottom: '2px' }}>
-            Đại diện đơn vị cung cấp
+            Người lập hóa đơn
           </div>
           <div style={{ fontSize: '11px', color: '#888', fontStyle: 'italic', marginBottom: '60px' }}>
-            (Ký, đóng dấu hoặc xác nhận số)
+            (Ký và ghi rõ họ tên)
           </div>
-          <div style={{ fontWeight: 'bold', color: '#333' }}>{settings?.companyName || 'AI ROBOTIC'}</div>
         </div>
       </div>
       </div>

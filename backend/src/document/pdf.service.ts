@@ -145,8 +145,8 @@ export class PdfService implements OnModuleDestroy {
     const dueLine = dueDate ? `<div style="font-size:12px;color:#555">Hạn TT: <strong style="color:#111">${dueDate}</strong></div>` : '';
     const isPaid = invoice.status === 'PAID';
     const statusLine = isPaid
-      ? `<div style="text-align:right;font-size:11px;font-weight:bold;color:#059669;margin-bottom:12px;padding-top:2px">Trạng thái: ✅ ĐÃ HOÀN TẤT THANH TOÁN</div>`
-      : (invoice.status && statusLabel(invoice.status) ? `<div style="text-align:right;font-size:10px;color:#888;font-style:italic;margin-bottom:12px;padding-top:2px">Trạng thái: ${statusLabel(invoice.status)}</div>` : '');
+      ? `<div style="text-align:center;font-size:11px;font-weight:bold;color:#059669;margin-bottom:14px">Trạng thái: ✅ ĐÃ HOÀN TẤT THANH TOÁN</div>`
+      : (invoice.status && statusLabel(invoice.status) ? `<div style="text-align:center;font-size:10.5px;color:#64748b;font-style:italic;margin-bottom:14px">Trạng thái: ${statusLabel(invoice.status)}</div>` : '');
 
     const qrHtml = isPaid
       ? `<div style="background:#f0fdf4;padding:16px 20px;border-radius:8px;border:2px solid #10b981;display:inline-block;text-align:center;min-width:180px">
@@ -161,11 +161,6 @@ export class PdfService implements OnModuleDestroy {
     const bankCode = invoice.bankCode || settings?.bankCode || 'Vietcombank';
     const bankAccount = invoice.bankAccount || settings?.bankAccount || 'SHYNNERI';
     const bankName = invoice.bankAccountName || settings?.bankAccountName || 'AI ROBOTIC';
-    const companyName = invoice.sellerName || settings?.companyName || 'CÔNG TY TNHH GIÁO DỤC AI ROBOTIC';
-    const address = invoice.sellerAddress || settings?.address || 'Số 10 Huỳnh Văn Nghệ, P. Trấn Biên, Đồng Nai';
-    const taxCode = invoice.sellerTaxCode || settings?.taxCode || '3603893101';
-    const phone = invoice.sellerPhone || settings?.phone;
-    const email = invoice.sellerEmail || settings?.email;
 
     const typeTitle = (() => {
       switch (invoice.invoiceType) {
@@ -212,19 +207,14 @@ body {
 <div class="c">
 
 <!-- HEADER -->
-<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px;border-bottom:2px solid ${pc};margin-bottom:4px">
-  <div style="max-width:55%">
-    <div style="font-weight:bold;font-size:14px;text-transform:uppercase;color:${pc};margin-bottom:4px;letter-spacing:0.5px">${companyName}</div>
-    <div style="font-size:11.5px;color:#444">Địa chỉ: ${address}</div>
-    <div style="font-size:11.5px;color:#444">MST: ${taxCode}${phone ? ` &nbsp;—&nbsp; ĐT: ${phone}` : ''}</div>
-    ${email ? `<div style="font-size:11.5px;color:#444">Email: ${email}</div>` : ''}
-  </div>
-  <div style="text-align:right">
-    <div style="font-size:20px;font-weight:bold;text-transform:uppercase;color:${pc};letter-spacing:1px">${typeTitle}</div>
-    <div style="font-size:11px;color:#666;margin-bottom:6px;font-style:italic">${formSubtitle}</div>
-    <div style="font-size:12px;color:#555">Số: <strong style="font-size:14px;color:#111;font-family:'Courier New',monospace">${invoice.invoiceNumber || 'HD-000001'}</strong></div>
-    <div style="font-size:12px;color:#555">Ngày: <strong style="color:#111">${issueDate}</strong></div>
-    ${dueLine}
+<div style="text-align:center;padding-bottom:14px;border-bottom:2px solid ${pc};margin-bottom:12px">
+  <div style="font-size:22px;font-weight:bold;text-transform:uppercase;color:${pc};letter-spacing:1px;margin-bottom:4px">${typeTitle}</div>
+  ${formSubtitle ? `<div style="font-size:11.5px;color:#64748b;font-style:italic;margin-bottom:8px">${formSubtitle}</div>` : ''}
+  <div style="display:flex;justify-content:center;align-items:center;gap:14px;font-size:12.5px;color:#475569">
+    <div>Số: <strong style="font-size:14px;color:#0f172a;font-family:'Courier New',monospace">${invoice.invoiceNumber || 'HD-000001'}</strong></div>
+    <span style="color:#94a3b8">•</span>
+    <div>Ngày tạo: <strong style="color:#0f172a">${issueDate}</strong></div>
+    ${dueDate ? `<span style="color:#94a3b8">•</span><div>Hạn TT: <strong style="color:#0f172a">${dueDate}</strong></div>` : ''}
   </div>
 </div>
 ${statusLine}
@@ -302,9 +292,8 @@ ${notesHtml}
     <div style="font-weight:bold;color:#333">${invoice.buyerName || '...............'}</div>
   </div>
   <div style="width:45%">
-    <div style="font-weight:bold;text-transform:uppercase;font-size:12px;color:#111;margin-bottom:2px">Đại diện đơn vị cung cấp</div>
-    <div style="font-size:11px;color:#888;font-style:italic;margin-bottom:60px">(Ký, đóng dấu hoặc xác nhận số)</div>
-    <div style="font-weight:bold;color:#333">${companyName}</div>
+    <div style="font-weight:bold;text-transform:uppercase;font-size:12px;color:#111;margin-bottom:2px">Người lập hóa đơn</div>
+    <div style="font-size:11px;color:#888;font-style:italic;margin-bottom:60px">(Ký và ghi rõ họ tên)</div>
   </div>
 </div>
 
