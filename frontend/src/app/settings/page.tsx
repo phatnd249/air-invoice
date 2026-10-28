@@ -30,6 +30,7 @@ import {
   RefreshCw,
   Copy,
   Check,
+  Info,
 } from 'lucide-react';
 import { CompanyProfile, BankAccountItem } from '@invoice/types';
 
@@ -78,6 +79,10 @@ export default function SettingsPage() {
   const [zaloAutoFriendRequest, setZaloAutoFriendRequest] = useState<boolean>(false);
   const [zaloAliasPrefix, setZaloAliasPrefix] = useState<string>('KH_');
   const [zaloMessageTemplate, setZaloMessageTemplate] = useState<string>('');
+
+  // State Mẫu Email Nhắc Hạn & Cảnh Báo Hệ Thống
+  const [emailAlertSubject, setEmailAlertSubject] = useState<string>('');
+  const [emailAlertBody, setEmailAlertBody] = useState<string>('');
 
   // State Modal Zalo
   const [isZaloModalOpen, setIsZaloModalOpen] = useState(false);
@@ -205,6 +210,10 @@ export default function SettingsPage() {
       setZaloAutoFriendRequest(settings.zaloAutoFriendRequest ?? false);
       setZaloAliasPrefix(settings.zaloAliasPrefix || 'KH_');
       setZaloMessageTemplate(settings.zaloMessageTemplate || '');
+
+      // Mẫu email nhắc hạn & cảnh báo
+      if (settings.emailAlertSubject != null) setEmailAlertSubject(settings.emailAlertSubject);
+      if (settings.emailAlertBody != null) setEmailAlertBody(settings.emailAlertBody);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings]);
@@ -461,6 +470,13 @@ export default function SettingsPage() {
     await persist(
       { zaloMessageTemplate },
       'Đã lưu mẫu tin nhắn Zalo'
+    );
+  };
+
+  const handleSaveEmailTemplate = async () => {
+    await persist(
+      { emailAlertSubject, emailAlertBody },
+      'Đã lưu mẫu email nhắc hạn & cảnh báo dịch vụ'
     );
   };
 
@@ -1026,6 +1042,100 @@ Tải file PDF trực tiếp:
 
 Trân trọng!`}
               />
+            </div>
+          </section>
+
+          {/* Email Alert & Subscription Reminder Template Card */}
+          <section className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-3">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+                  <Mail className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">
+                    Mẫu Tin Nhắn Email Cảnh Báo & Nhắc Hạn Dịch Vụ
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Cấu hình tiêu đề và lời nhắn mở đầu email gửi khách hàng khi dịch vụ / hợp đồng sắp hết hạn.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSaveEmailTemplate}
+                disabled={saveSettings.isPending}
+                className="inline-flex items-center space-x-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer shrink-0"
+              >
+                <Save className="w-4 h-4" />
+                <span>{saveSettings.isPending ? 'Đang lưu...' : 'Lưu Mẫu Email'}</span>
+              </button>
+            </div>
+
+            {/* Placeholders */}
+            <div className="bg-blue-50/70 border border-blue-100 rounded-xl p-4 text-xs text-slate-600 space-y-2">
+              <div className="font-bold text-blue-900 flex items-center gap-1.5">
+                <Info className="w-4 h-4 text-blue-600" />
+                <span>Các biến tự động chèn dữ liệu (bấm để thêm vào nội dung):</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {[
+                  { tag: '{customerName}', desc: 'Tên KH' },
+                  { tag: '{serviceName}', desc: 'Tên gói' },
+                  { tag: '{daysRemaining}', desc: 'Số ngày còn' },
+                  { tag: '{endDate}', desc: 'Ngày hết hạn' },
+                  { tag: '{servicePrice}', desc: 'Giá gói' },
+                  { tag: '{staffName}', desc: 'Người phụ trách' },
+                  { tag: '{companyName}', desc: 'Tên công ty' },
+                  { tag: '{hotline}', desc: 'Hotline' },
+                ].map((item) => (
+                  <button
+                    key={item.tag}
+                    type="button"
+                    onClick={() => setEmailAlertBody((prev) => (prev ? `${prev} ${item.tag}` : item.tag))}
+                    className="inline-flex items-center space-x-1 px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-mono transition-colors"
+                    title={`Chèn ${item.tag} (${item.desc})`}
+                  >
+                    <span>{item.tag}</span>
+                    <span className="text-[10px] text-blue-400 font-sans">({item.desc})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">
+                  Tiêu Đề Email Mặc Định
+                </label>
+                <input
+                  type="text"
+                  value={emailAlertSubject}
+                  onChange={(e) => setEmailAlertSubject(e.target.value)}
+                  placeholder='VD: [THÔNG BÁO GIA HẠN DỊCH VỤ] Gói "{serviceName}" của {customerName} {daysRemaining}'
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Nếu để trống, hệ thống sẽ tự động dùng tiêu đề tiêu chuẩn.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">
+                  Nội Dung / Lời Nhắn Mở Đầu Email
+                </label>
+                <textarea
+                  rows={4}
+                  value={emailAlertBody}
+                  onChange={(e) => setEmailAlertBody(e.target.value)}
+                  placeholder="VD: Kính gửi Quý khách hàng, hệ thống xin thông báo gói dịch vụ của Quý khách sắp đến thời hạn gia hạn. Quý khách vui lòng kiểm tra và liên hệ hỗ trợ để dịch vụ không bị gián đoạn..."
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none leading-relaxed"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Nội dung này sẽ hiển thị trang trọng ở phần đầu email gửi đến khách hàng kèm bảng chi tiết gói dịch vụ và thông tin người phụ trách.
+                </p>
+              </div>
             </div>
           </section>
 
