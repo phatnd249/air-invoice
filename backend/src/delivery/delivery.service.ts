@@ -11,22 +11,39 @@ export class DeliveryService {
     private readonly prisma: PrismaService,
     private readonly pdfService: PdfService,
   ) {
-    const port = Number(process.env.SMTP_PORT) || 587;
+    this.transporter = this.getTransporter();
+  }
+
+  private getTransporter() {
+    const host = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
+    const port = Number(process.env.SMTP_PORT) || (host.includes('gmail') ? 465 : 587);
+    const user = (process.env.SMTP_USER || '').trim().replace(/^["']|["']$/g, '');
+    const pass = (process.env.SMTP_PASS || '').trim().replace(/^["']|["']$/g, '').replace(/\s+/g, '');
+
+    if (host.includes('gmail') || process.env.SMTP_SERVICE === 'gmail') {
+      return nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user, pass },
+        tls: { rejectUnauthorized: false },
+        connectionTimeout: 20000,
+        greetingTimeout: 15000,
+        socketTimeout: 30000,
+      });
+    }
+
     const secure = process.env.SMTP_SECURE !== undefined
       ? process.env.SMTP_SECURE === 'true'
       : port === 465;
 
-    this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.ethereal.email',
+    return nodemailer.createTransport({
+      host,
       port,
       secure,
-      auth: {
-        user: process.env.SMTP_USER || '',
-        pass: process.env.SMTP_PASS || '',
-      },
-      connectionTimeout: 15000,
-      greetingTimeout: 10000,
-      socketTimeout: 25000,
+      auth: { user, pass },
+      tls: { rejectUnauthorized: false },
+      connectionTimeout: 20000,
+      greetingTimeout: 15000,
+      socketTimeout: 30000,
     });
   }
 
@@ -138,10 +155,17 @@ export class DeliveryService {
           throw new Error(`Resend API HTTP ${resendRes.status}: ${resendData?.message || JSON.stringify(resendData)}`);
         }
       } else if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-        await this.transporter.sendMail({
-          from: process.env.SMTP_FROM || '"Đội ngũ Tetrasco" <no-reply@invoice-air.com>',
+        const user = (process.env.SMTP_USER || '').trim().replace(/^["']|["']$/g, '');
+        let fromAddress = (process.env.SMTP_FROM || '').trim().replace(/^["']|["']$/g, '');
+        if (!fromAddress || fromAddress.includes('your-email@gmail.com') || fromAddress.includes('no-reply@invoice-air.com')) {
+          fromAddress = `"${settings?.companyName || 'Invoice-AIR'}" <${user}>`;
+        }
+
+        const transporter = this.getTransporter();
+        await transporter.sendMail({
+          from: fromAddress,
           to: invoice.buyerEmail,
-          subject: `[Tetrasco] Thông báo hóa đơn & Nhắc lịch thanh toán dịch vụ - ${invoice.invoiceNumber}`,
+          subject: `[${settings?.companyName || 'Invoice-AIR'}] Thông báo hóa đơn & Nhắc lịch thanh toán dịch vụ - ${invoice.invoiceNumber}`,
           html: htmlBody,
           attachments: [
             {
@@ -152,7 +176,7 @@ export class DeliveryService {
           ],
         });
       } else {
-        throw new Error('Chưa cấu hình thông tin gửi Email (Cần SMTP_USER + SMTP_PASS hoặc RESEND_API_KEY trên Render)');
+        throw new Error('Chưa cấu hình thông tin gửi Email (Cần SMTP_USER + SMTP_PASS trên Render)');
       }
 
       // 5. Cập nhật trạng thái hóa đơn sang SENT

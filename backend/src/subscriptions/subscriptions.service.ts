@@ -15,22 +15,39 @@ export class SubscriptionsService {
   private transporter: nodemailer.Transporter;
 
   constructor(private readonly prisma: PrismaService) {
-    const port = Number(process.env.SMTP_PORT) || 587;
+    this.transporter = this.getTransporter();
+  }
+
+  private getTransporter() {
+    const host = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
+    const port = Number(process.env.SMTP_PORT) || (host.includes('gmail') ? 465 : 587);
+    const user = (process.env.SMTP_USER || '').trim().replace(/^["']|["']$/g, '');
+    const pass = (process.env.SMTP_PASS || '').trim().replace(/^["']|["']$/g, '').replace(/\s+/g, '');
+
+    if (host.includes('gmail') || process.env.SMTP_SERVICE === 'gmail') {
+      return nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user, pass },
+        tls: { rejectUnauthorized: false },
+        connectionTimeout: 20000,
+        greetingTimeout: 15000,
+        socketTimeout: 30000,
+      });
+    }
+
     const secure = process.env.SMTP_SECURE !== undefined
       ? process.env.SMTP_SECURE === 'true'
       : port === 465;
 
-    this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.ethereal.email',
+    return nodemailer.createTransport({
+      host,
       port,
       secure,
-      auth: {
-        user: process.env.SMTP_USER || '',
-        pass: process.env.SMTP_PASS || '',
-      },
-      connectionTimeout: 15000,
-      greetingTimeout: 10000,
-      socketTimeout: 25000,
+      auth: { user, pass },
+      tls: { rejectUnauthorized: false },
+      connectionTimeout: 20000,
+      greetingTimeout: 15000,
+      socketTimeout: 30000,
     });
   }
 
