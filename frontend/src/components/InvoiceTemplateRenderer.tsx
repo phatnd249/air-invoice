@@ -6,6 +6,7 @@ import { numberToVietnameseWords } from '@/lib/numberToWords';
 export interface InvoiceTemplateProps {
   invoice: {
     invoiceNumber?: string;
+    paymentCode?: string | null;
     issueDate?: string | Date;
     dueDate?: string | Date | null;
     status?: string;
@@ -131,15 +132,108 @@ export default function InvoiceTemplateRenderer({
 
   return (
     <>
-      <style>{`@media print { @page { size: A4; margin: 12mm 14mm; } }`}</style>
+      <style>{`
+        @media print {
+          @page { size: A4; margin: 12mm 14mm; }
+          .no-print { display: none !important; }
+        }
+        .invoice-paper-root {
+          font-family: 'Times New Roman', 'Noto Serif', serif;
+          color: #1a1a1a;
+          font-size: 13px;
+          line-height: 1.5;
+          padding: 16px 14px;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        @media (min-width: 640px) {
+          .invoice-paper-root {
+            padding: 40px 48px;
+          }
+        }
+        .invoice-header-row {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          padding-bottom: 12px;
+          border-bottom: 2px solid ${pc};
+          margin-bottom: 8px;
+        }
+        @media (min-width: 640px) {
+          .invoice-header-row {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+          }
+        }
+        .invoice-seller-col {
+          width: 100%;
+        }
+        @media (min-width: 640px) {
+          .invoice-seller-col {
+            max-width: 55%;
+          }
+        }
+        .invoice-meta-col {
+          text-align: left;
+        }
+        @media (min-width: 640px) {
+          .invoice-meta-col {
+            text-align: right;
+          }
+        }
+        .table-responsive-wrapper {
+          width: 100%;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          margin-bottom: 8px;
+        }
+        .invoice-qr-bank-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 18px;
+          margin-bottom: 24px;
+          padding: 16px 14px;
+          border: 1px solid #d1d5db;
+          background: #f8fafc;
+          border-radius: 12px;
+          page-break-inside: avoid;
+        }
+        @media (min-width: 640px) {
+          .invoice-qr-bank-container {
+            flex-direction: row;
+            align-items: center;
+            gap: 24px;
+            padding: 18px 24px;
+            border-radius: 8px;
+          }
+        }
+        .invoice-qr-box {
+          flex-shrink: 0;
+          text-align: center;
+        }
+        .invoice-bank-box {
+          width: 100%;
+          font-size: 13px;
+          line-height: 1.8;
+          color: #334155;
+        }
+        @media (min-width: 640px) {
+          .invoice-bank-box {
+            flex: 1;
+            width: auto;
+          }
+        }
+      `}</style>
       <div
-        className="bg-white max-w-[850px] mx-auto print:shadow-none print:border-none print:p-0"
-        style={{ fontFamily: "'Times New Roman', 'Noto Serif', serif", color: '#1a1a1a', fontSize: '13px', lineHeight: '1.5', padding: '40px 48px', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
+        className="invoice-paper-root bg-white max-w-[850px] mx-auto shadow-sm sm:shadow rounded-xl sm:rounded-2xl print:shadow-none print:border-none print:p-0"
       >
       {/* === HEADER === */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: '12px', borderBottom: `2px solid ${pc}`, marginBottom: '4px' }}>
+      <div className="invoice-header-row">
         {/* Seller Info */}
-        <div style={{ maxWidth: '55%' }}>
+        <div className="invoice-seller-col">
           <div style={{ fontWeight: 'bold', fontSize: '14px', textTransform: 'uppercase', color: pc, marginBottom: '4px', letterSpacing: '0.5px' }}>
             {companyName}
           </div>
@@ -156,7 +250,7 @@ export default function InvoiceTemplateRenderer({
         </div>
 
         {/* Invoice Title */}
-        <div style={{ textAlign: 'right' }}>
+        <div className="invoice-meta-col">
           <div style={{ fontSize: '20px', fontWeight: 'bold', textTransform: 'uppercase', color: pc, letterSpacing: '1px' }}>
             {typeTitle}
           </div>
@@ -238,7 +332,8 @@ export default function InvoiceTemplateRenderer({
       </div>
 
       {/* === SERVICE TABLE === */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '6px' }}>
+      <div className="table-responsive-wrapper">
+        <table style={{ width: '100%', minWidth: '560px', borderCollapse: 'collapse', marginBottom: '6px' }}>
         <thead>
           <tr style={{ backgroundColor: '#f5f5f5' }}>
             <th style={{ border: '1px solid #999', padding: '6px 8px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'center', width: '36px', color: '#333' }}>STT</th>
@@ -294,6 +389,7 @@ export default function InvoiceTemplateRenderer({
           )}
         </tbody>
       </table>
+      </div>
 
       {/* === TOTALS === */}
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
@@ -351,9 +447,9 @@ export default function InvoiceTemplateRenderer({
       )}
 
       {/* === QR + BANK INFO === */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '24px', padding: '16px 20px', border: '1px solid #d1d5db', background: '#f8fafc', borderRadius: '8px', pageBreakInside: 'avoid' }}>
+      <div className="invoice-qr-bank-container">
         {/* QR Code hoặc Huy Hiệu ĐÃ THANH TOÁN */}
-        <div style={{ flexShrink: 0, textAlign: 'center' }}>
+        <div className="invoice-qr-box">
           {invoice.status === 'PAID' ? (
             <div style={{ background: '#f0fdf4', padding: '20px 24px', borderRadius: '12px', border: '2px solid #10b981', display: 'inline-block', textAlign: 'center', minWidth: '180px' }}>
               <div style={{ fontSize: '36px', lineHeight: 1, marginBottom: '6px' }}>✅</div>
@@ -361,18 +457,18 @@ export default function InvoiceTemplateRenderer({
               <div style={{ fontSize: '10px', color: '#047857', marginTop: '2px', fontWeight: 600 }}>PAID IN FULL</div>
             </div>
           ) : invoice.qrDataUrl ? (
-            <div style={{ background: '#ffffff', padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 2px 6px rgba(0,0,0,0.06)', display: 'inline-block' }}>
+            <div style={{ background: '#ffffff', padding: '10px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', display: 'inline-block' }}>
               <img
                 src={invoice.qrDataUrl}
                 alt="VietQR"
-                style={{ width: '200px', height: 'auto', display: 'block', margin: '0 auto' }}
+                style={{ width: '190px', maxWidth: '100%', height: 'auto', display: 'block', margin: '0 auto' }}
               />
-              <div style={{ fontSize: '10px', color: '#64748b', marginTop: '4px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              <div style={{ fontSize: '10px', color: '#64748b', marginTop: '6px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 QUÉT MÃ THANH TOÁN
               </div>
             </div>
           ) : (
-            <div style={{ width: '200px', height: '200px', border: '2px dashed #cbd5e1', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '12px', background: '#fff' }}>
+            <div style={{ width: '190px', height: '190px', border: '2px dashed #cbd5e1', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '12px', background: '#fff' }}>
               <span style={{ fontWeight: 'bold', fontSize: '14px' }}>VietQR</span>
               <span style={{ fontSize: '10px', marginTop: '4px' }}>Chưa tạo mã QR</span>
             </div>
@@ -380,35 +476,48 @@ export default function InvoiceTemplateRenderer({
         </div>
 
         {/* Bank Details */}
-        <div style={{ fontSize: '13px', lineHeight: '2.0', color: '#334155', flex: 1 }}>
-          <div style={{ fontWeight: 'bold', fontSize: '12px', textTransform: 'uppercase', color: pc, marginBottom: '6px', letterSpacing: '0.5px', borderBottom: '1px dashed #cbd5e1', paddingBottom: '4px' }}>
+        <div className="invoice-bank-box">
+          <div style={{ fontWeight: 'bold', fontSize: '12px', textTransform: 'uppercase', color: pc, marginBottom: '10px', letterSpacing: '0.5px', borderBottom: '1px dashed #cbd5e1', paddingBottom: '6px' }}>
             {invoice.status === 'PAID' ? 'Thông tin giao dịch & biên lai' : 'Thông tin thanh toán chuyển khoản'}
           </div>
-          <div>
-            Ngân hàng thụ hưởng: <strong style={{ color: '#0f172a' }}>{invoice.bankCode || settings?.bankCode || 'Vietcombank'}</strong>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px' }}>
+              <span style={{ color: '#64748b', fontSize: '12.5px' }}>Ngân hàng thụ hưởng:</span>
+              <strong style={{ color: '#0f172a', fontSize: '13px' }}>{invoice.bankCode || settings?.bankCode || 'TPBank'}</strong>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px' }}>
+              <span style={{ color: '#64748b', fontSize: '12.5px' }}>Số tài khoản:</span>
+              <strong style={{ fontFamily: "'Courier New', monospace", fontSize: '16px', color: pc, letterSpacing: '0.5px' }}>
+                {invoice.bankAccount || settings?.bankAccount || '00006322633'}
+              </strong>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px' }}>
+              <span style={{ color: '#64748b', fontSize: '12.5px' }}>Chủ tài khoản:</span>
+              <strong style={{ textTransform: 'uppercase', color: '#0f172a', fontSize: '13px' }}>
+                {invoice.bankAccountName || settings?.bankAccountName || 'AI ROBOTIC'}
+              </strong>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px' }}>
+              <span style={{ color: '#64748b', fontSize: '12.5px' }}>Số tiền:</span>
+              <strong style={{ color: '#059669', fontSize: '16px' }}>
+                {formatCurrency(invoice.grandTotal)}
+              </strong>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px', paddingTop: '2px' }}>
+              <span style={{ color: '#64748b', fontSize: '12.5px' }}>Nội dung chuyển khoản:</span>
+              <strong style={{ fontFamily: "'Courier New', monospace", background: '#ffffff', padding: '3px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', color: '#0f172a', fontSize: '14px', letterSpacing: '0.5px' }}>
+                {invoice.paymentCode || invoice.invoiceNumber || 'HD'}
+              </strong>
+            </div>
           </div>
-          <div>
-            Số tài khoản: <strong style={{ fontFamily: "'Courier New', monospace", fontSize: '16px', color: pc, letterSpacing: '0.5px' }}>
-              {invoice.bankAccount || settings?.bankAccount || 'SHYNNERI'}
-            </strong>
-          </div>
-          <div>
-            Chủ tài khoản: <strong style={{ textTransform: 'uppercase', color: '#0f172a' }}>
-              {invoice.bankAccountName || settings?.bankAccountName || 'AI ROBOTIC'}
-            </strong>
-          </div>
-          <div>
-            Số tiền: <strong style={{ color: '#059669', fontSize: '15px' }}>
-              {formatCurrency(invoice.grandTotal)}
-            </strong>
-          </div>
-          <div style={{ marginTop: '2px' }}>
-            Nội dung chuyển khoản: <strong style={{ fontFamily: "'Courier New', monospace", background: '#fff', padding: '2px 8px', border: '1px solid #94a3b8', borderRadius: '4px', color: '#0f172a', fontSize: '14px' }}>
-              {invoice.invoiceNumber || 'HD'}
-            </strong>
-          </div>
+
           {invoice.status === 'PAID' && (
-            <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '6px', padding: '6px 12px', marginTop: '8px', color: '#065f46', fontSize: '12px', fontWeight: 600 }}>
+            <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '6px', padding: '8px 12px', marginTop: '12px', color: '#065f46', fontSize: '12px', fontWeight: 600 }}>
               ✅ Hóa đơn đã được xác nhận thanh toán thành công &amp; hợp lệ.
             </div>
           )}
