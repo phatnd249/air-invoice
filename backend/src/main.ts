@@ -24,18 +24,20 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin, callback) => {
-      if (
-        !origin ||
-        allowedOrigins.has('*') ||
-        allowedOrigins.has(origin) ||
-        origin.endsWith('.share4happy.com') ||
-        origin.endsWith('.vercel.app')
-      ) {
-        return callback(null, true);
-      }
-      return callback(new Error(`Origin ${origin} not allowed by CORS`));
+      // Cho phép tất cả các nguồn gọi API (bao gồm các Landing Page, aiwriter.ntcore.io.vn, v.v.)
+      return callback(null, true);
     },
     credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Accept',
+      'Authorization',
+      'x-api-key',
+      'x-api-token',
+      'X-Requested-With',
+      'Origin',
+    ],
   });
 
   app.setGlobalPrefix('api');
