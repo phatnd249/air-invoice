@@ -119,7 +119,14 @@ export class DeliveryService {
     try {
       if (process.env.RESEND_API_KEY) {
         // Gửi qua Resend REST API (HTTPS cổng 443 — hoạt động 100% trên Render Free)
-        const fromEmail = process.env.SMTP_FROM || 'Invoice-AIR <onboarding@resend.dev>';
+        let fromEmail = (process.env.SMTP_FROM || '').trim().replace(/^["']|["']$/g, '');
+        // Tự động dùng domain đã verified trên Resend: invoice.share4happy.com
+        if (!fromEmail || fromEmail.includes('onboarding@resend.dev') || fromEmail.includes('your-email') || !fromEmail.includes('@invoice.share4happy.com')) {
+          fromEmail = `"${settings?.companyName || 'Invoice-AIR'}" <billing@invoice.share4happy.com>`;
+        } else if (!fromEmail.includes('<') && fromEmail.includes('@')) {
+          fromEmail = `"${settings?.companyName || 'Invoice-AIR'}" <${fromEmail}>`;
+        }
+
         const resendRes = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
@@ -265,13 +272,41 @@ export class DeliveryService {
     `;
 
     try {
-      if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      if (process.env.RESEND_API_KEY) {
+        let fromEmail = (process.env.SMTP_FROM || '').trim().replace(/^["']|["']$/g, '');
+        if (!fromEmail || fromEmail.includes('onboarding@resend.dev') || fromEmail.includes('your-email') || !fromEmail.includes('@invoice.share4happy.com')) {
+          fromEmail = '"Invoice-AIR" <billing@invoice.share4happy.com>';
+        } else if (!fromEmail.includes('<') && fromEmail.includes('@')) {
+          fromEmail = `"Invoice-AIR" <${fromEmail}>`;
+        }
+
+        const resendRes = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${process.env.RESEND_API_KEY.trim()}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: fromEmail,
+            to: [to],
+            subject: '[Invoice-AIR] Yêu cầu đặt lại mật khẩu',
+            html: htmlBody,
+          }),
+        });
+
+        const resendData = await resendRes.json().catch(() => ({}));
+        if (!resendRes.ok) {
+          throw new Error(`Resend API HTTP ${resendRes.status}: ${resendData?.message || JSON.stringify(resendData)}`);
+        }
+      } else if (process.env.SMTP_USER && process.env.SMTP_PASS) {
         await this.transporter.sendMail({
-          from: process.env.SMTP_FROM || '"Invoice-AIR" <no-reply@invoice-air.com>',
+          from: process.env.SMTP_FROM || '"Invoice-AIR" <billing@invoice.share4happy.com>',
           to,
           subject: '[Invoice-AIR] Yêu cầu đặt lại mật khẩu',
           html: htmlBody,
         });
+      } else {
+        throw new Error('Chưa cấu hình thông tin gửi Email (Cần RESEND_API_KEY hoặc SMTP_USER/PASS)');
       }
 
       console.log(`Đã gửi email đặt lại mật khẩu cho ${to}`);

@@ -375,18 +375,48 @@ export class SubscriptionsService {
       ccRecipients.push(preview.cc);
     }
 
+    let fromEmail = (process.env.SMTP_FROM || '').trim().replace(/^["']|["']$/g, '');
+    if (!fromEmail || fromEmail.includes('onboarding@resend.dev') || fromEmail.includes('your-email') || !fromEmail.includes('@invoice.share4happy.com')) {
+      fromEmail = `"${preview.companyName}" <billing@invoice.share4happy.com>`;
+    } else if (!fromEmail.includes('<') && fromEmail.includes('@')) {
+      fromEmail = `"${preview.companyName}" <${fromEmail}>`;
+    }
+
     try {
-      await this.transporter.sendMail({
-        from: `"${preview.companyName}" <${process.env.SMTP_FROM || 'no-reply@invoice-air.com'}>`,
-        to: recipients.join(', '),
-        cc: ccRecipients.length > 0 ? ccRecipients.join(', ') : undefined,
-        subject: preview.subject,
-        html: preview.htmlContent,
-      });
+      if (process.env.RESEND_API_KEY) {
+        const resendRes = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${process.env.RESEND_API_KEY.trim()}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: fromEmail,
+            to: recipients,
+            cc: ccRecipients.length > 0 ? ccRecipients : undefined,
+            subject: preview.subject,
+            html: preview.htmlContent,
+          }),
+        });
+
+        const resendData = await resendRes.json().catch(() => ({}));
+        if (!resendRes.ok) {
+          throw new Error(`Resend API HTTP ${resendRes.status}: ${resendData?.message || JSON.stringify(resendData)}`);
+        }
+      } else {
+        await this.transporter.sendMail({
+          from: fromEmail,
+          to: recipients.join(', '),
+          cc: ccRecipients.length > 0 ? ccRecipients.join(', ') : undefined,
+          subject: preview.subject,
+          html: preview.htmlContent,
+        });
+      }
 
       this.logger.log(`Đã gửi email cảnh báo gia hạn cho ${preview.to} (CC: ${ccRecipients.join(', ') || 'không'})`);
-    } catch (err) {
-      this.logger.warn(`Không thể gửi email qua SMTP thật (Sẽ ghi log hệ thống): ${err}`);
+    } catch (err: any) {
+      this.logger.warn(`Không thể gửi email cảnh báo: ${err?.message}`);
+      throw err;
     }
 
     // Cập nhật số lần cảnh báo và thời gian
