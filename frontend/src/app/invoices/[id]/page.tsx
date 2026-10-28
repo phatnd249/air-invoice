@@ -295,7 +295,7 @@ export default function InvoiceDetailPage() {
               if (confirm(`Bạn có chắc muốn gửi email hóa đơn này tới: ${invoice.buyerEmail}?`)) {
                 try {
                   setIsSendingMail(true);
-                  await api.post(`/delivery/send-email/${invoice.id}`);
+                  await api.post(`/delivery/send-email/${invoice.id}`, {}, { timeout: 60000 });
                   alert('Đã gửi email thành công!');
                   queryClient.invalidateQueries({ queryKey: ['invoice', id] });
                 } catch (e: any) {

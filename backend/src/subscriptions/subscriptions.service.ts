@@ -15,14 +15,22 @@ export class SubscriptionsService {
   private transporter: nodemailer.Transporter;
 
   constructor(private readonly prisma: PrismaService) {
+    const port = Number(process.env.SMTP_PORT) || 587;
+    const secure = process.env.SMTP_SECURE !== undefined
+      ? process.env.SMTP_SECURE === 'true'
+      : port === 465;
+
     this.transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: false,
+      port,
+      secure,
       auth: {
         user: process.env.SMTP_USER || '',
         pass: process.env.SMTP_PASS || '',
       },
+      connectionTimeout: 15000,
+      greetingTimeout: 10000,
+      socketTimeout: 25000,
     });
   }
 

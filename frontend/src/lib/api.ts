@@ -30,7 +30,7 @@ export const clearTokens = () => {
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000, // 10s timeout mặc định
+  timeout: 30000, // 30s timeout mặc định cho các tác vụ server (tạo PDF, gửi mail/zalo)
   headers: {
     'Content-Type': 'application/json',
   },
