@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
 import { InvoicesService } from './invoices.service';
 import { DeliveryService } from '../delivery/delivery.service';
+import { ZaloService } from '../delivery/zalo.service';
 import { Public } from '../auth/decorators/public.decorator';
 
 // 🔒 Protected by global JwtAuthGuard in app.module.ts
@@ -9,6 +10,7 @@ export class InvoicesController {
   constructor(
     private readonly invoicesService: InvoicesService,
     private readonly deliveryService: DeliveryService,
+    private readonly zaloService: ZaloService,
   ) {}
 
   @Public() // 🌐 Endpoint dành riêng cho Landing Page (gọi tạo hoá đơn & sinh PDF trực tiếp)
@@ -46,6 +48,11 @@ export class InvoicesController {
     // 2. Tạo hóa đơn trong Database
     const created = await this.invoicesService.createInvoice(dto);
 
+    const appUrl = (process.env.APP_URL || 'https://invoice.share4happy.com').replace(/\/+$/, '');
+    const backendUrl = (process.env.BACKEND_URL || 'https://invoice-backend-5tbi.onrender.com').replace(/\/+$/, '');
+    const viewUrl = `${appUrl}/view/${created.shareToken}`;
+    const pdfUrl = `${backendUrl}/api/delivery/public/${created.shareToken}/pdf`;
+
     // 3. Tự động gửi email hóa đơn nếu có email và không tắt cờ sendEmail
     if (body.sendEmail !== false && created.buyerEmail) {
       try {
@@ -55,8 +62,21 @@ export class InvoicesController {
       }
     }
 
-    const appUrl = (process.env.APP_URL || 'https://invoice.share4happy.com').replace(/\/+$/, '');
-    const backendUrl = (process.env.BACKEND_URL || 'https://invoice-backend-5tbi.onrender.com').replace(/\/+$/, '');
+    // 4. Tự động gửi tin nhắn Zalo kèm link PDF nếu có số điện thoại
+    if (body.sendZalo !== false && created.buyerPhone) {
+      try {
+        await this.zaloService.sendInvoiceZalo({
+          phone: created.buyerPhone,
+          customerName: created.buyerName,
+          invoiceNumber: created.invoiceNumber,
+          grandTotal: created.grandTotal,
+          viewUrl,
+          pdfUrl,
+        });
+      } catch (err: any) {
+        console.warn('[Quick-Create] Không thể gửi tin nhắn Zalo tự động:', err?.message);
+      }
+    }
 
     return {
       success: true,
@@ -66,8 +86,8 @@ export class InvoicesController {
       grandTotal: created.grandTotal,
       shareToken: created.shareToken,
       qrDataUrl: created.qrDataUrl,
-      viewUrl: `${appUrl}/view/${created.shareToken}`,
-      pdfUrl: `${backendUrl}/api/delivery/public/${created.shareToken}/pdf`,
+      viewUrl,
+      pdfUrl,
       downloadPdfUrl: `${backendUrl}/api/delivery/export-pdf/${created.id}`,
     };
   }

@@ -21,6 +21,7 @@ import {
   User,
   Trash2,
   Copy,
+  MessageSquare,
 } from 'lucide-react';
 import Link from 'next/link';
 import InvoiceTemplateRenderer from '@/components/InvoiceTemplateRenderer';
@@ -116,6 +117,7 @@ export default function InvoiceDetailPage() {
   const queryClient = useQueryClient();
   const id = params?.id as string;
   const [isSendingMail, setIsSendingMail] = useState(false);
+  const [isSendingZalo, setIsSendingZalo] = useState(false);
 
   const { data: invoice, isLoading } = useQuery({
     queryKey: ['invoice', id],
@@ -308,6 +310,38 @@ export default function InvoiceDetailPage() {
           >
             <Send className="w-4 h-4" />
             <span>{isSendingMail ? 'Đang gửi...' : 'Gửi Email'}</span>
+          </button>
+
+          {/* Nút gửi Zalo Bot */}
+          <button
+            onClick={async () => {
+              if (!invoice.buyerPhone) {
+                alert('Hóa đơn này chưa có số điện thoại người nhận để gửi Zalo.');
+                return;
+              }
+              if (confirm(`Bạn có chắc muốn gửi tin nhắn Zalo kèm hóa đơn này tới số: ${invoice.buyerPhone}?`)) {
+                try {
+                  setIsSendingZalo(true);
+                  const res = await api.post(`/delivery/send-zalo/${invoice.id}`);
+                  if (res.data?.success) {
+                    alert('Đã gửi tin nhắn Zalo thành công!');
+                  } else {
+                    alert('Gửi Zalo không thành công: ' + (res.data?.message || 'Có lỗi xảy ra'));
+                  }
+                  queryClient.invalidateQueries({ queryKey: ['invoice', id] });
+                } catch (e: any) {
+                  alert('Lỗi gửi Zalo: ' + (e.response?.data?.message || e.message));
+                } finally {
+                  setIsSendingZalo(false);
+                }
+              }
+            }}
+            disabled={isSendingZalo}
+            className="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg shadow-sm space-x-1.5 transition-all"
+            title="Gửi hóa đơn qua Zalo Bot"
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>{isSendingZalo ? 'Đang gửi...' : 'Gửi Zalo'}</span>
           </button>
 
           {invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && (

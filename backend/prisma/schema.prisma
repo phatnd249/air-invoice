@@ -77,6 +77,16 @@ model Setting {
   invoiceEmailSubject String?
   invoiceEmailBody    String?
 
+  // Cấu hình Kênh thông báo (Email & Zalo Bot Gateway)
+  enableEmailNotification Boolean @default(true)
+  enableZaloNotification  Boolean @default(false)
+  zaloApiBaseUrl          String? @default("https://sms-service.talab.io.vn/api/gateway/v1.0")
+  zaloBotId               String?
+  zaloApiKey              String?
+  zaloAutoFriendRequest   Boolean @default(false)
+  zaloAliasPrefix         String? @default("KH_")
+  zaloMessageTemplate     String?
+
   updatedAt DateTime @updatedAt
 }
 
