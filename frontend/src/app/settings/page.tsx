@@ -441,9 +441,21 @@ export default function SettingsPage() {
   };
 
   const handleSaveZaloConfig = async () => {
+    let botId = modalBotId.trim();
+    let apiKey = modalApiKey.trim();
+
+    // Tự động nhận diện & hoán đổi nếu dán nhầm API Key vào ô Bot ID
+    if (botId.startsWith('zlite_') || (!apiKey.startsWith('zlite_') && botId.includes('zlite_'))) {
+      const temp = botId;
+      botId = apiKey;
+      apiKey = temp;
+      setModalBotId(botId);
+      setModalApiKey(apiKey);
+    }
+
     const payload = {
-      zaloBotId: modalBotId.trim(),
-      zaloApiKey: modalApiKey.trim(),
+      zaloBotId: botId,
+      zaloApiKey: apiKey,
       zaloApiBaseUrl: modalBaseUrl.trim() || 'https://sms-service.talab.io.vn/api/gateway/v1.0',
       zaloAutoFriendRequest: modalAutoFriend,
       zaloAliasPrefix: modalAliasPrefix.trim() || 'KH_',
@@ -458,7 +470,19 @@ export default function SettingsPage() {
   };
 
   const handleTestZalo = async () => {
-    if (!modalBotId || !modalApiKey) {
+    let botId = modalBotId.trim();
+    let apiKey = modalApiKey.trim();
+
+    // Tự động hoán đổi nếu dán nhầm
+    if (botId.startsWith('zlite_') || (!apiKey.startsWith('zlite_') && botId.includes('zlite_'))) {
+      const temp = botId;
+      botId = apiKey;
+      apiKey = temp;
+      setModalBotId(botId);
+      setModalApiKey(apiKey);
+    }
+
+    if (!botId || !apiKey) {
       toast('warning', 'Thiếu thông tin Bot', 'Vui lòng nhập Bot ID và API Key trước khi gửi thử.');
       return;
     }
@@ -471,8 +495,8 @@ export default function SettingsPage() {
     try {
       const res = await api.post('/delivery/test-zalo', {
         baseUrl: modalBaseUrl || 'https://sms-service.talab.io.vn/api/gateway/v1.0',
-        botId: modalBotId.trim(),
-        apiKey: modalApiKey.trim(),
+        botId,
+        apiKey,
         testPhone: testPhone.trim(),
       });
       setTestResult(res.data);
@@ -1802,16 +1826,27 @@ Trân trọng!`}
 
             {/* Body */}
             <div className="p-6 space-y-4 overflow-y-auto max-h-[75vh]">
+              {/* Guidance Banner */}
+              <div className="p-3.5 bg-blue-50/80 border border-blue-200/80 rounded-xl text-xs text-blue-900 flex items-start space-x-2.5">
+                <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                <div className="text-[11px] leading-relaxed space-y-1">
+                  <div className="font-semibold text-blue-950">Quy tắc định dạng của Talab SMS Gateway:</div>
+                  <div>• <strong className="text-blue-950">Zalo Bot ID:</strong> Mã UUID định danh Bot (VD: <code className="px-1 py-0.5 bg-blue-100/80 text-blue-900 rounded font-mono font-bold">ae32c723-1a7a-4e22-985f-eb3e8876f2cc</code>)</div>
+                  <div>• <strong className="text-blue-950">API Key:</strong> Khóa bí mật luôn bắt đầu bằng tiền tố <code className="px-1 py-0.5 bg-blue-100/80 text-blue-900 rounded font-mono font-bold">zlite_...</code> (VD: <code className="px-1 py-0.5 bg-blue-100/80 text-blue-900 rounded font-mono">zlite_31d757...</code>)</div>
+                  <div className="text-slate-500 italic mt-0.5">💡 Hệ thống tự động nhận diện và đảo chuẩn xác nếu bạn vô tình dán ngược giữa 2 ô.</div>
+                </div>
+              </div>
+
               {/* Bot ID */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Zalo Bot ID (bot_id) *
+                  Zalo Bot ID (bot_id) * <span className="font-normal text-slate-400">— Mã định danh Bot (UUID)</span>
                 </label>
                 <input
                   type="text"
                   value={modalBotId}
                   onChange={(e) => setModalBotId(e.target.value)}
-                  placeholder="VD: 6867341... hoặc ID bot trên hệ thống Talab"
+                  placeholder="VD: ae32c723-1a7a-4e22-985f-eb3e8876f2cc"
                   className="w-full px-3.5 py-2 text-sm font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
@@ -1819,14 +1854,14 @@ Trân trọng!`}
               {/* API Key */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  API Key (x-api-key) *
+                  API Key (x-api-key) * <span className="font-normal text-slate-400">— Khóa truy cập (bắt đầu bằng zlite_)</span>
                 </label>
                 <div className="relative">
                   <input
                     type={showApiKey ? 'text' : 'password'}
                     value={modalApiKey}
                     onChange={(e) => setModalApiKey(e.target.value)}
-                    placeholder="VD: d58ef8b4-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                    placeholder="VD: zlite_31d7572529b37294b69ce96881a9c2ce78ac7280"
                     className="w-full px-3.5 py-2 pr-10 text-sm font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                   <button

@@ -40,6 +40,25 @@ export class ZaloService {
   }
 
   /**
+   * Tự động chuẩn hóa & hoán đổi thông minh giữa Bot ID và API Key nếu bị dán nhầm.
+   * - API Key của Talab Gateway luôn bắt đầu bằng tiền tố 'zlite_'
+   * - Bot ID là mã định danh Bot (dạng UUID hoặc số/chữ không có tiền tố zlite_)
+   */
+  resolveCredentials(rawBotId?: string, rawApiKey?: string): { botId: string; apiKey: string } {
+    let botId = (rawBotId || '').trim();
+    let apiKey = (rawApiKey || '').trim();
+
+    if (botId.startsWith('zlite_') || (!apiKey.startsWith('zlite_') && botId.includes('zlite_'))) {
+      this.logger.log(`Tự động hoán đổi Bot ID và API Key do phát hiện tiền tố zlite_ trong Bot ID`);
+      const temp = botId;
+      botId = apiKey;
+      apiKey = temp;
+    }
+
+    return { botId, apiKey };
+  }
+
+  /**
    * Gửi tin nhắn Zalo kèm hóa đơn & mã VietQR tới khách hàng qua Zalo Bot Batch API
    */
   async sendInvoiceZalo(options: SendZaloOptions, configOverride?: ZaloConfigOverride): Promise<{ success: boolean; data?: any; error?: string }> {
@@ -52,8 +71,10 @@ export class ZaloService {
     const settings = await this.prisma.setting.findUnique({ where: { id: 'default' } });
 
     const baseUrl = (configOverride?.baseUrl || settings?.zaloApiBaseUrl || 'https://sms-service.talab.io.vn/api/gateway/v1.0').replace(/\/+$/, '');
-    const botId = configOverride?.botId || settings?.zaloBotId;
-    const apiKey = configOverride?.apiKey || settings?.zaloApiKey;
+    const { botId, apiKey } = this.resolveCredentials(
+      configOverride?.botId || settings?.zaloBotId,
+      configOverride?.apiKey || settings?.zaloApiKey,
+    );
     const autoFriend = configOverride?.autoFriendRequest !== undefined ? configOverride.autoFriendRequest : settings?.zaloAutoFriendRequest;
     const aliasPrefix = configOverride?.aliasPrefix || settings?.zaloAliasPrefix || 'KH_';
 
@@ -112,7 +133,7 @@ export class ZaloService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': apiKey.trim(),
+          'x-api-key': apiKey,
         },
         body: JSON.stringify(messagePayload),
       });
@@ -120,8 +141,9 @@ export class ZaloService {
       const result = await response.json().catch(() => ({}));
 
       if (!response.ok) {
+        const errorDetail = result?.error || result?.message || `HTTP ${response.status}: ${response.statusText}`;
         this.logger.error(`Zalo API error HTTP ${response.status}: ${JSON.stringify(result)}`);
-        return { success: false, error: `Zalo API HTTP ${response.status}`, data: result };
+        return { success: false, error: `Lỗi Zalo Gateway (${response.status}): ${errorDetail}`, data: result };
       }
 
       this.logger.log(`Đã gửi tin nhắn Zalo thành công tới ${cleanPhone}: ${JSON.stringify(result)}`);
@@ -143,7 +165,7 @@ export class ZaloService {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'x-api-key': apiKey.trim(),
+              'x-api-key': apiKey,
             },
             body: JSON.stringify(friendPayload),
           });
@@ -168,8 +190,13 @@ export class ZaloService {
       throw new Error('Số điện thoại kiểm tra không hợp lệ');
     }
 
+    const { botId, apiKey } = this.resolveCredentials(config.botId, config.apiKey);
+    if (!botId || !apiKey) {
+      throw new Error('Vui lòng nhập đầy đủ Bot ID và API Key');
+    }
+
     const baseUrl = (config.baseUrl || 'https://sms-service.talab.io.vn/api/gateway/v1.0').replace(/\/+$/, '');
-    const endpoint = `${baseUrl}/bots/${config.botId.trim()}/messages/send-batch`;
+    const endpoint = `${baseUrl}/bots/${botId}/messages/send-batch`;
 
     const payload = {
       recipients: [{ phone: cleanPhone }],
@@ -186,7 +213,7 @@ export class ZaloService {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': config.apiKey.trim(),
+        'x-api-key': apiKey,
       },
       body: JSON.stringify(payload),
     });
@@ -194,9 +221,11 @@ export class ZaloService {
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error(data?.message || data?.error || `HTTP ${response.status}: ${response.statusText}`);
+      const errorDetail = data?.error || data?.message || `HTTP ${response.status}: ${response.statusText}`;
+      throw new Error(`Zalo Gateway trả về lỗi (${response.status}): ${errorDetail}`);
     }
 
     return { success: true, data };
   }
 }
+

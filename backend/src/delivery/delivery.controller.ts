@@ -35,7 +35,7 @@ export class DeliveryController {
       const appUrl = (process.env.APP_URL || 'https://invoice.share4happy.com').replace(/\/+$/, '');
       const backendUrl = (process.env.BACKEND_URL || 'https://invoice-backend-5tbi.onrender.com').replace(/\/+$/, '');
 
-      return await this.zaloService.sendInvoiceZalo({
+      const res = await this.zaloService.sendInvoiceZalo({
         phone: invoice.buyerPhone,
         customerName: invoice.buyerName,
         invoiceNumber: invoice.invoiceNumber,
@@ -43,6 +43,12 @@ export class DeliveryController {
         viewUrl: `${appUrl}/view/${invoice.shareToken}`,
         pdfUrl: `${backendUrl}/api/delivery/public/${invoice.shareToken}/pdf`,
       });
+
+      if (!res.success) {
+        throw new BadRequestException(res.error || 'Gửi tin nhắn Zalo không thành công');
+      }
+
+      return res;
     } catch (err: any) {
       throw new BadRequestException(err?.message || 'Lỗi gửi tin nhắn Zalo');
     }
@@ -50,7 +56,11 @@ export class DeliveryController {
 
   @Post('test-zalo')
   async testZalo(@Body() body: { baseUrl?: string; botId: string; apiKey: string; testPhone: string }) {
-    return this.zaloService.testConnection(body);
+    try {
+      return await this.zaloService.testConnection(body);
+    } catch (err: any) {
+      throw new BadRequestException(err?.message || 'Lỗi gửi tin nhắn Zalo kiểm tra');
+    }
   }
 
   @Public()  // 🌐 Link chia sẻ công khai cho khách xem hoá đơn — không cần đăng nhập
