@@ -113,17 +113,7 @@ export default function InvoiceTemplateRenderer({
     }
   })();
 
-  const formSubtitle = (() => {
-    switch (invoice.invoiceForm) {
-      case 'WITHOUT_TAX_CODE':
-        return '(Không có mã của cơ quan thuế)';
-      case 'POS_CONNECTED':
-        return '(Khởi tạo từ máy tính tiền)';
-      case 'WITH_TAX_CODE':
-      default:
-        return '(Có mã của cơ quan thuế)';
-    }
-  })();
+
 
 
   return (
@@ -224,14 +214,9 @@ export default function InvoiceTemplateRenderer({
       >
       {/* === HEADER === */}
       <div className="invoice-header-clean">
-        <div style={{ fontSize: '22px', fontWeight: 'bold', textTransform: 'uppercase', color: pc, letterSpacing: '1px', marginBottom: '4px' }}>
+        <div style={{ fontSize: '22px', fontWeight: 'bold', textTransform: 'uppercase', color: pc, letterSpacing: '1px', marginBottom: '8px' }}>
           {typeTitle}
         </div>
-        {formSubtitle && (
-          <div style={{ fontSize: '11.5px', color: '#64748b', fontStyle: 'italic', marginBottom: '8px' }}>
-            {formSubtitle}
-          </div>
-        )}
         <div className="invoice-meta-row">
           <div>
             Số: <strong style={{ fontSize: '14px', color: '#0f172a', fontFamily: "'Courier New', monospace" }}>

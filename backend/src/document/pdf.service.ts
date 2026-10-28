@@ -211,17 +211,7 @@ export class PdfService implements OnModuleDestroy {
       }
     })();
 
-    const formSubtitle = (() => {
-      switch (invoice.invoiceForm) {
-        case 'WITHOUT_TAX_CODE':
-          return '(Không có mã của cơ quan thuế)';
-        case 'POS_CONNECTED':
-          return '(Khởi tạo từ máy tính tiền)';
-        case 'WITH_TAX_CODE':
-        default:
-          return '(Có mã của cơ quan thuế)';
-      }
-    })();
+
 
 
     return `<!DOCTYPE html>
@@ -243,9 +233,8 @@ body {
 <div class="c">
 
 <!-- HEADER -->
-<div style="text-align:center;padding-bottom:14px;border-bottom:2px solid ${pc};margin-bottom:12px">
-  <div style="font-size:22px;font-weight:bold;text-transform:uppercase;color:${pc};letter-spacing:1px;margin-bottom:4px">${typeTitle}</div>
-  ${formSubtitle ? `<div style="font-size:11.5px;color:#64748b;font-style:italic;margin-bottom:8px">${formSubtitle}</div>` : ''}
+<div style="text-align:center;padding-bottom:14px;border-bottom:2px solid ${pc};margin-bottom:14px">
+  <div style="font-size:22px;font-weight:bold;text-transform:uppercase;color:${pc};letter-spacing:1px;margin-bottom:8px">${typeTitle}</div>
   <div style="display:flex;justify-content:center;align-items:center;gap:14px;font-size:12.5px;color:#475569">
     <div>Số: <strong style="font-size:14px;color:#0f172a;font-family:'Courier New',monospace">${invoice.invoiceNumber || 'HD-000001'}</strong></div>
     <span style="color:#94a3b8">•</span>
@@ -320,18 +309,7 @@ ${notesHtml}
   </div>
 </div>
 
-<!-- SIGNATURES -->
-<div style="display:flex;justify-content:space-between;text-align:center;font-size:12px;color:#444;border-top:1px solid #ddd;padding-top:16px;page-break-inside:avoid">
-  <div style="width:45%">
-    <div style="font-weight:bold;text-transform:uppercase;font-size:12px;color:#111;margin-bottom:2px">Đại diện khách hàng</div>
-    <div style="font-size:11px;color:#888;font-style:italic;margin-bottom:60px">(Ký và ghi rõ họ tên)</div>
-    <div style="font-weight:bold;color:#333">${invoice.buyerName || '...............'}</div>
-  </div>
-  <div style="width:45%">
-    <div style="font-weight:bold;text-transform:uppercase;font-size:12px;color:#111;margin-bottom:2px">Người lập hóa đơn</div>
-    <div style="font-size:11px;color:#888;font-style:italic;margin-bottom:60px">(Ký và ghi rõ họ tên)</div>
-  </div>
-</div>
+
 
 </div>
 </body>
