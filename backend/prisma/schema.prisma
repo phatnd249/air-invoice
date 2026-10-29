@@ -318,3 +318,51 @@ model RequestQueue {
 }
 
 
+
+
+model InvoiceDesignTemplate {
+  id                 String   @id @default(uuid())
+  name               String   // Tên mẫu (VD: "Mẫu Doanh Nghiệp Chuẩn", "Mẫu Tối Giản Hiện Đại")
+  code               String   @unique // slug/code (VD: "standard-classic", "modern-emerald")
+  description        String?  // Mô tả ngắn
+
+  // Phong cách & Màu sắc
+  primaryColor       String   @default("#1e3a8a") // Màu chủ đạo (tiêu đề, khung, tổng tiền)
+  headerBgColor      String   @default("#f8fafc") // Màu nền header bảng
+  textColor          String   @default("#1e293b") // Màu chữ
+  fontFamily         String   @default("serif")   // "serif" (Times New Roman), "sans" (Inter/Roboto), "mono" (Courier)
+
+  // Tiêu đề & Thông tin bổ trợ
+  customTitle        String?  // Tiêu đề tùy chỉnh (nếu trống sẽ lấy theo loại hóa đơn)
+  subtitle           String?  // Dòng phụ dưới tiêu đề (VD: "(Có mã của cơ quan thuế)")
+  showTaxCodeBadge   Boolean  @default(false)     // Bật/tắt hiện badge thuế
+  slogan             String?  // Khẩu hiệu hoặc slogan ngắn
+
+  // Các khối nội dung (Bật / Tắt theo ý muốn)
+  showSellerInfo     Boolean  @default(false)     // Hiện thông tin người bán ở đầu trang
+  showBuyerInfo      Boolean  @default(true)      // Hiện thông tin người mua
+  showBuyerCompany   Boolean  @default(true)      // Hiện đơn vị/công ty người mua
+  showBuyerAddress   Boolean  @default(true)      // Hiện địa chỉ người mua
+  showBuyerPhone     Boolean  @default(true)      // Hiện SĐT người mua
+  showBuyerEmail     Boolean  @default(true)      // Hiện email người mua
+  showDueDate        Boolean  @default(true)      // Hiện hạn thanh toán
+  showServiceUnit    Boolean  @default(true)      // Hiện cột ĐVT
+  showMetaInfo       Boolean  @default(true)      // Hiện dòng meta/chu kỳ dịch vụ
+  showTotalInWords   Boolean  @default(true)      // Hiện số tiền bằng chữ
+  showQrCode         Boolean  @default(true)      // Hiện mã QR thanh toán
+  showBankInfo       Boolean  @default(true)      // Hiện thông tin ngân hàng
+  qrLayout           String   @default("side-by-side") // "side-by-side" hoặc "stacked"
+
+  // Khối chữ ký & Chân trang
+  showSignatures     Boolean  @default(false)     // Bật/tắt hiển thị chữ ký
+  customerSignTitle  String   @default("ĐẠI DIỆN KHÁCH HÀNG")
+  customerSignSub    String   @default("(Ký và ghi rõ họ tên)")
+  sellerSignTitle    String   @default("NGƯỜI LẬP HÓA ĐƠN")
+  sellerSignSub      String   @default("(Ký và ghi rõ họ tên)")
+  footerNote         String?  // Lời cảm ơn / Ghi chú chân trang
+
+  isDefault          Boolean  @default(false)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}

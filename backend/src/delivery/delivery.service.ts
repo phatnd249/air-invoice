@@ -751,6 +751,18 @@ export class DeliveryService {
     });
     if (!invoice) throw new Error('Hóa đơn không tồn tại hoặc liên kết đã hết hạn');
     const settings = await this.prisma.setting.findUnique({ where: { id: 'default' } });
-    return { invoice, settings };
+    let template = null;
+    if (invoice.templateId) {
+      try {
+        template = await this.prisma.invoiceDesignTemplate.findFirst({
+          where: {
+            OR: [{ id: invoice.templateId }, { code: invoice.templateId }],
+          },
+        });
+      } catch {
+        // Fallback
+      }
+    }
+    return { invoice, settings, template };
   }
 }

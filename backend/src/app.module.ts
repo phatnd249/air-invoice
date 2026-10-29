@@ -9,6 +9,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { DeliveryModule } from './delivery/delivery.module';
 import { ServicesCatalogModule } from './services-catalog/services-catalog.module';
 import { MessageTemplatesModule } from './message-templates/message-templates.module';
+import { InvoiceTemplatesModule } from './invoice-templates/invoice-templates.module';
 import { UploadModule } from './upload/upload.module';
 import { UsersModule } from './users/users.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
@@ -30,6 +31,7 @@ import { RequestLoggerMiddleware } from './common/logger.middleware';
     QueueModule,
     ServicesCatalogModule,
     MessageTemplatesModule,
+    InvoiceTemplatesModule,
     UploadModule,
     UsersModule,
     SubscriptionsModule,

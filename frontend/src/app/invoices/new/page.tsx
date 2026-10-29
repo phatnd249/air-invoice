@@ -28,6 +28,7 @@ import {
   Building2,
   FileSpreadsheet,
   CheckCircle2,
+  ExternalLink,
 } from 'lucide-react';
 import Link from 'next/link';
 import InvoiceTemplateRenderer from '@/components/InvoiceTemplateRenderer';
@@ -269,6 +270,19 @@ export default function NewInvoicePage() {
   };
 
   const selectedTemplateId = watchedValues.templateId || 'standard-classic';
+  // Lấy danh sách mẫu thiết kế hóa đơn
+  const { data: invoiceTemplates = [] } = useQuery<any[]>({
+    queryKey: ['invoice-templates'],
+    queryFn: async () => {
+      const res = await api.get('/invoice-templates');
+      return res.data;
+    },
+  });
+
+  const activeTemplate = (invoiceTemplates as any[]).find(
+    (t: any) => t.code === selectedTemplateId || t.id === selectedTemplateId
+  );
+
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -455,6 +469,61 @@ export default function NewInvoicePage() {
                     );
                   })}
                 </div>
+              </div>
+            </div>
+
+            
+            {/* Template Design Selector Card */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-sm space-y-3">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center space-x-2">
+                  <FileCheck className="w-4 h-4 text-blue-600" />
+                  <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                    Mẫu Thiết Kế Hóa Đơn A4
+                  </h2>
+                </div>
+                <Link
+                  href="/templates"
+                  target="_blank"
+                  className="text-xs text-blue-600 hover:text-blue-700 hover:underline flex items-center space-x-1 font-medium"
+                >
+                  <span>Tùy chỉnh & Thiết kế mẫu</span>
+                  <ExternalLink className="w-3 h-3" />
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {(invoiceTemplates.length > 0 ? invoiceTemplates : [
+                  { id: 'standard-classic', code: 'standard-classic', name: 'Mẫu Chuẩn Doanh Nghiệp', primaryColor: '#1e3a8a', fontFamily: 'serif' },
+                  { id: 'modern-minimalist', code: 'modern-minimalist', name: 'Mẫu Tối Giản Hiện Đại', primaryColor: '#0f172a', fontFamily: 'sans' },
+                  { id: 'tech-emerald', code: 'tech-emerald', name: 'Mẫu Xanh Lục Bảo AI', primaryColor: '#059669', fontFamily: 'sans' },
+                  { id: 'formal-administrative', code: 'formal-administrative', name: 'Mẫu Hành Chính (Có Chữ Ký)', primaryColor: '#831843', fontFamily: 'serif', showSignatures: true },
+                ]).map((tpl: any) => {
+                  const isSelected = selectedTemplateId === tpl.code || selectedTemplateId === tpl.id;
+                  const pc = tpl.primaryColor || '#1e3a8a';
+                  return (
+                    <button
+                      key={tpl.id || tpl.code}
+                      type="button"
+                      onClick={() => setValue('templateId', tpl.code || tpl.id)}
+                      className={`p-3 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
+                        isSelected
+                          ? 'border-blue-600 bg-blue-50/50 ring-2 ring-blue-600/20 shadow-xs'
+                          : 'border-slate-200 hover:border-slate-300 bg-slate-50/40'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2 mb-1.5">
+                        <span className="w-3 h-3 rounded-full flex-shrink-0 shadow-xs" style={{ backgroundColor: pc }} />
+                        <span className={`text-xs font-bold truncate ${isSelected ? 'text-blue-700' : 'text-slate-900'}`}>
+                          {tpl.name}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-500">
+                        {tpl.showSignatures ? '✍️ Có chữ ký' : '🚫 Ẩn chữ ký'} • {tpl.fontFamily === 'sans' ? 'Sans' : 'Serif'}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -1054,6 +1123,7 @@ export default function NewInvoicePage() {
                   }}
                   settings={settings}
                   overrideTemplateId={selectedTemplateId}
+                    designConfig={activeTemplate}
                 />
               </div>
             </div>

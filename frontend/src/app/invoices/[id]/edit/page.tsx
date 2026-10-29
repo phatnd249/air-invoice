@@ -26,6 +26,7 @@ import {
   FileCheck,
   Building2,
   CheckCircle2,
+  ExternalLink,
   Save,
   Pencil,
 } from 'lucide-react';
@@ -279,6 +280,19 @@ export default function EditInvoicePage() {
   }
 
   const selectedTemplateId = watchedValues.templateId || invoice.templateId || 'standard-classic';
+  // Lấy danh sách mẫu thiết kế hóa đơn
+  const { data: invoiceTemplates = [] } = useQuery<any[]>({
+    queryKey: ['invoice-templates'],
+    queryFn: async () => {
+      const res = await api.get('/invoice-templates');
+      return res.data;
+    },
+  });
+
+  const activeTemplate = (invoiceTemplates as any[]).find(
+    (t: any) => t.code === selectedTemplateId || t.id === selectedTemplateId
+  );
+
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -829,6 +843,7 @@ export default function EditInvoicePage() {
                 }}
                 settings={settings}
                 overrideTemplateId={selectedTemplateId}
+                  designConfig={activeTemplate}
               />
             </div>
           </div>
@@ -837,3 +852,4 @@ export default function EditInvoicePage() {
     </div>
   );
 }
+

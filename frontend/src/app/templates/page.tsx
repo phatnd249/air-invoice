@@ -27,7 +27,11 @@ import {
   ChevronDown,
   Info,
 } from 'lucide-react';
-import InvoiceTemplateRenderer, { TEMPLATES_CONFIG } from '@/components/InvoiceTemplateRenderer';
+import InvoiceTemplateRenderer, {
+  TEMPLATES_CONFIG,
+  InvoiceDesignTemplate,
+} from '@/components/InvoiceTemplateRenderer';
+import InvoiceDesignerModal from '@/components/InvoiceDesignerModal';
 
 const SAMPLE_INVOICE = {
   invoiceNumber: 'HD-2026-0001',
@@ -67,6 +71,138 @@ const SAMPLE_SETTINGS = {
   phone: '0812305046',
   email: 'contact@airobotics.edu.vn',
 };
+
+const DEFAULT_PRESET_TEMPLATES: InvoiceDesignTemplate[] = [
+  {
+    id: 'standard-classic',
+    code: 'standard-classic',
+    name: 'Mẫu Chuẩn Doanh Nghiệp',
+    description: 'Mẫu hóa đơn GTGT trang trọng theo quy chuẩn doanh nghiệp Việt Nam, bố cục thanh lịch.',
+    primaryColor: '#1e3a8a',
+    headerBgColor: '#f8fafc',
+    textColor: '#1e293b',
+    fontFamily: 'serif',
+    showTaxCodeBadge: false,
+    showSellerInfo: false,
+    showBuyerInfo: true,
+    showBuyerCompany: true,
+    showBuyerAddress: true,
+    showBuyerPhone: true,
+    showBuyerEmail: true,
+    showDueDate: true,
+    showServiceUnit: true,
+    showMetaInfo: true,
+    showTotalInWords: true,
+    showQrCode: true,
+    showBankInfo: true,
+    qrLayout: 'side-by-side',
+    showSignatures: false,
+    customerSignTitle: 'ĐẠI DIỆN KHÁCH HÀNG',
+    customerSignSub: '(Ký và ghi rõ họ tên)',
+    sellerSignTitle: 'NGƯỜI LẬP HÓA ĐƠN',
+    sellerSignSub: '(Ký và ghi rõ họ tên)',
+    footerNote: '',
+    isDefault: true,
+    isActive: true,
+  },
+  {
+    id: 'modern-minimalist',
+    code: 'modern-minimalist',
+    name: 'Mẫu Tối Giản Hiện Đại',
+    description: 'Phong cách tối giản Clean & Sharp, phông chữ Sans-serif hiện đại, đường nét mỏng tinh tế.',
+    primaryColor: '#0f172a',
+    headerBgColor: '#f1f5f9',
+    textColor: '#0f172a',
+    fontFamily: 'sans',
+    showTaxCodeBadge: false,
+    showSellerInfo: false,
+    showBuyerInfo: true,
+    showBuyerCompany: true,
+    showBuyerAddress: true,
+    showBuyerPhone: true,
+    showBuyerEmail: true,
+    showDueDate: true,
+    showServiceUnit: true,
+    showMetaInfo: true,
+    showTotalInWords: true,
+    showQrCode: true,
+    showBankInfo: true,
+    qrLayout: 'side-by-side',
+    showSignatures: false,
+    customerSignTitle: 'ĐẠI DIỆN KHÁCH HÀNG',
+    customerSignSub: '(Ký và ghi rõ họ tên)',
+    sellerSignTitle: 'NGƯỜI LẬP HÓA ĐƠN',
+    sellerSignSub: '(Ký và ghi rõ họ tên)',
+    footerNote: 'Cảm ơn quý khách đã tin tưởng và đồng hành cùng chúng tôi!',
+    isDefault: false,
+    isActive: true,
+  },
+  {
+    id: 'tech-emerald',
+    code: 'tech-emerald',
+    name: 'Mẫu Xanh Lục Bảo Công Nghệ',
+    description: 'Tông màu xanh ngọc lục bảo trẻ trung năng động, hoàn hảo cho các dịch vụ SaaS, AI & Công nghệ.',
+    primaryColor: '#059669',
+    headerBgColor: '#ecfdf5',
+    textColor: '#064e3b',
+    fontFamily: 'sans',
+    showTaxCodeBadge: false,
+    showSellerInfo: false,
+    showBuyerInfo: true,
+    showBuyerCompany: true,
+    showBuyerAddress: true,
+    showBuyerPhone: true,
+    showBuyerEmail: true,
+    showDueDate: true,
+    showServiceUnit: true,
+    showMetaInfo: true,
+    showTotalInWords: true,
+    showQrCode: true,
+    showBankInfo: true,
+    qrLayout: 'side-by-side',
+    showSignatures: false,
+    customerSignTitle: 'ĐẠI DIỆN KHÁCH HÀNG',
+    customerSignSub: '(Ký và ghi rõ họ tên)',
+    sellerSignTitle: 'NGƯỜI LẬP HÓA ĐƠN',
+    sellerSignSub: '(Ký và ghi rõ họ tên)',
+    footerNote: 'Hóa đơn điện tử được khởi tạo và lưu trữ trên hệ thống AI Cloud.',
+    isDefault: false,
+    isActive: true,
+  },
+  {
+    id: 'formal-administrative',
+    code: 'formal-administrative',
+    name: 'Mẫu Hành Chính Đầy Đủ (Có Chữ Ký)',
+    description: 'Bố cục truyền thống đầy đủ khối chữ ký Đại diện khách hàng / Người lập hóa đơn và ghi chú thuế.',
+    primaryColor: '#831843',
+    headerBgColor: '#fdf2f8',
+    textColor: '#1e293b',
+    fontFamily: 'serif',
+    showTaxCodeBadge: true,
+    subtitle: '(Có mã của cơ quan thuế)',
+    showSellerInfo: true,
+    showBuyerInfo: true,
+    showBuyerCompany: true,
+    showBuyerAddress: true,
+    showBuyerPhone: true,
+    showBuyerEmail: true,
+    showDueDate: true,
+    showServiceUnit: true,
+    showMetaInfo: true,
+    showTotalInWords: true,
+    showQrCode: true,
+    showBankInfo: true,
+    qrLayout: 'stacked',
+    showSignatures: true,
+    customerSignTitle: 'ĐẠI DIỆN KHÁCH HÀNG',
+    customerSignSub: '(Ký và ghi rõ họ tên)',
+    sellerSignTitle: 'NGƯỜI LẬP HÓA ĐƠN',
+    sellerSignSub: '(Ký và ghi rõ họ tên)',
+    footerNote: '',
+    isDefault: false,
+    isActive: true,
+  },
+];
 
 interface AttachmentFile {
   id?: string;
@@ -117,6 +253,39 @@ const TEMPLATE_VARIABLES = [
 export default function TemplatesPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'a4' | 'zalo' | 'email'>('a4');
+
+  // Designer Modal for A4 Template
+  const [isDesignerModalOpen, setIsDesignerModalOpen] = useState<boolean>(false);
+  const [editingDesignTemplate, setEditingDesignTemplate] = useState<InvoiceDesignTemplate | null>(null);
+  const [previewDesignTemplate, setPreviewDesignTemplate] = useState<InvoiceDesignTemplate | null>(null);
+
+  // Fetch Invoice Design Templates
+  const { data: invoiceDesignTemplates = [], isLoading: isLoadingInvoiceTemplates } = useQuery<InvoiceDesignTemplate[]>({
+    queryKey: ['invoice-templates'],
+    queryFn: async () => {
+      const res = await api.get('/invoice-templates');
+      return res.data;
+    },
+  });
+
+  const setDefaultTemplateMutation = useMutation({
+    mutationFn: (id: string) => api.patch(`/invoice-templates/${id}/set-default`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoice-templates'] });
+    },
+  });
+
+  const deleteTemplateMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/invoice-templates/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoice-templates'] });
+    },
+    onError: (err: any) => {
+      alert('Không thể xóa mẫu: ' + (err.response?.data?.message || err.message));
+    },
+  });
+
+  const effectiveTemplates = invoiceDesignTemplates.length > 0 ? invoiceDesignTemplates : DEFAULT_PRESET_TEMPLATES;
 
   // Preview Modal for A4 Template
   const [selectedPreviewTemplate, setSelectedPreviewTemplate] = useState<string>('standard-classic');
@@ -405,13 +574,25 @@ export default function TemplatesPage() {
 
         <div className="flex items-center space-x-2">
           {activeTab === 'a4' ? (
-            <Link
-              href="/invoices/new"
-              className="inline-flex items-center justify-center space-x-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-xs transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Tạo Hóa Đơn Ngay</span>
-            </Link>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => {
+                  setEditingDesignTemplate(null);
+                  setIsDesignerModalOpen(true);
+                }}
+                className="inline-flex items-center justify-center space-x-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-xs transition-all"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>+ Thiết Kế Mẫu Mới</span>
+              </button>
+              <Link
+                href="/invoices/new"
+                className="inline-flex items-center justify-center space-x-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Tạo Hóa Đơn</span>
+              </Link>
+            </div>
           ) : (
             <button
               onClick={() => openCreateMsgModal(activeTab === 'zalo' ? 'ZALO' : 'EMAIL')}
@@ -472,82 +653,195 @@ export default function TemplatesPage() {
       {/* ================= TAB 1: MẪU HÓA ĐƠN A4 ================= */}
       {activeTab === 'a4' && (
         <div className="space-y-6">
+          <div className="flex items-center justify-between flex-wrap gap-3 bg-blue-50/60 border border-blue-100 p-4 rounded-2xl">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">
+                  Công Cụ Thiết Kế Mẫu Hóa Đơn Trực Quan
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Tùy chỉnh màu sắc thương hiệu, phông chữ, bật/tắt chữ ký Đại diện khách hàng / Người lập hóa đơn, phụ đề thuế theo nhu cầu.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                setEditingDesignTemplate(null);
+                setIsDesignerModalOpen(true);
+              }}
+              className="inline-flex items-center space-x-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Thiết Kế Mẫu Mới</span>
+            </button>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {TEMPLATES_CONFIG.map((tpl) => {
-              const isDefault = tpl.id === 'standard-classic';
+            {effectiveTemplates.map((tpl) => {
+              const isDefault = tpl.isDefault;
+              const pc = tpl.primaryColor || '#1e3a8a';
+
               return (
                 <div
-                  key={tpl.id}
+                  key={tpl.id || tpl.code}
                   className={`bg-white rounded-2xl border-2 transition-all duration-300 shadow-xs hover:shadow-md p-6 flex flex-col justify-between relative overflow-hidden ${
                     isDefault ? 'border-blue-600 ring-1 ring-blue-600/20' : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-3">
-                      <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-xs"
-                        style={{ backgroundColor: tpl.primaryColor }}
-                      >
-                        <LayoutTemplate className="w-5 h-5" />
+                  <div>
+                    {/* Header card */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-xs flex-shrink-0"
+                          style={{ backgroundColor: pc }}
+                        >
+                          <LayoutTemplate className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-slate-900 text-base flex items-center space-x-2">
+                            <span>{tpl.name}</span>
+                          </h3>
+                          <div className="flex items-center space-x-2 mt-1">
+                            <span
+                              className="w-2.5 h-2.5 rounded-full inline-block"
+                              style={{ backgroundColor: pc }}
+                            />
+                            <span className="font-mono text-[11px] text-slate-500 uppercase">{pc}</span>
+                            <span className="text-slate-300">•</span>
+                            <span className="text-[11px] text-slate-500 font-medium">
+                              {tpl.fontFamily === 'sans' ? 'Phông Sans' : tpl.fontFamily === 'mono' ? 'Phông Mono' : 'Phông Serif'}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-bold text-slate-900 text-base">
-                          <span>{tpl.name}</span>
-                        </h3>
-                      </div>
+
+                      {isDefault && (
+                        <span className="bg-blue-600 text-white text-[11px] px-2.5 py-1 rounded-full font-semibold flex items-center space-x-1 shadow-xs flex-shrink-0">
+                          <Check className="w-3 h-3" />
+                          <span>Mặc định</span>
+                        </span>
+                      )}
                     </div>
 
-                    {isDefault && (
-                      <span className="bg-blue-600 text-white text-xs px-2.5 py-1 rounded-full font-semibold flex items-center space-x-1 shadow-xs">
-                        <Check className="w-3 h-3" />
-                        <span>Mặc định</span>
+                    <p className="text-xs text-slate-600 mb-4 leading-relaxed line-clamp-2">
+                      {tpl.description}
+                    </p>
+
+                    {/* Features Badges */}
+                    <div className="flex flex-wrap gap-1.5 mb-4">
+                      <span className={`text-[10.5px] px-2 py-0.5 rounded-md font-medium border ${
+                        tpl.showSignatures
+                          ? 'bg-amber-50 text-amber-800 border-amber-200'
+                          : 'bg-slate-50 text-slate-500 border-slate-200'
+                      }`}>
+                        {tpl.showSignatures ? '✍️ Có Khối Chữ Ký' : '🚫 Không Chữ Ký'}
                       </span>
-                    )}
-                  </div>
 
-                  <p className="text-xs text-slate-600 mb-6 leading-relaxed">
-                    {tpl.description}
-                  </p>
+                      <span className={`text-[10.5px] px-2 py-0.5 rounded-md font-medium border ${
+                        tpl.showTaxCodeBadge
+                          ? 'bg-blue-50 text-blue-700 border-blue-200'
+                          : 'bg-slate-50 text-slate-500 border-slate-200'
+                      }`}>
+                        {tpl.showTaxCodeBadge ? '🏛️ Phụ Đề Thuế' : 'Tối Giản Thuế'}
+                      </span>
 
-                  <div
-                    onClick={() => {
-                      setSelectedPreviewTemplate(tpl.id);
-                      setIsPreviewModalOpen(true);
-                    }}
-                    className="cursor-pointer border border-slate-200/90 rounded-xl p-4 mb-4 bg-slate-50/50 hover:bg-slate-50 transition-all flex flex-col items-center justify-center min-h-[160px] group"
-                  >
-                    <FileText className="w-10 h-10 text-slate-400 group-hover:text-blue-600 transition-colors mb-2" />
-                    <span className="text-xs font-semibold text-slate-700 group-hover:text-blue-600">
-                      Bấm để xem trước mẫu đầy đủ
-                    </span>
-                    <span className="text-[11px] text-slate-400 mt-1">Đã bỏ chữ ký &amp; phụ đề thuế theo yêu cầu</span>
-                  </div>
-
-                  <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
-                    <div className="flex items-center space-x-3 text-[11px] text-slate-500">
-                      <span className="bg-slate-100 px-2 py-0.5 rounded font-mono">Khổ A4</span>
-                      <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-medium">VietQR Ready</span>
+                      <span className="text-[10.5px] px-2 py-0.5 rounded-md font-medium border bg-slate-50 text-slate-600 border-slate-200">
+                        {tpl.qrLayout === 'stacked' ? 'QR Xếp Tầng' : 'QR Cạnh Nhau'}
+                      </span>
                     </div>
 
-                    <div className="flex items-center space-x-2">
+                    {/* Interactive Preview Box */}
+                    <div
+                      onClick={() => setPreviewDesignTemplate(tpl)}
+                      className="cursor-pointer border border-slate-200/90 rounded-xl p-4 mb-4 bg-slate-50/50 hover:bg-slate-50 transition-all flex flex-col items-center justify-center min-h-[140px] group"
+                    >
+                      <FileText className="w-8 h-8 text-slate-400 group-hover:text-blue-600 transition-colors mb-2" />
+                      <span className="text-xs font-semibold text-slate-700 group-hover:text-blue-600">
+                        Bấm để xem trước toàn bộ mẫu A4
+                      </span>
+                      <span className="text-[11px] text-slate-400 mt-1">
+                        {tpl.showSignatures ? 'Hiển thị đủ 2 chữ ký & ghi chú' : 'Đã tinh gọn chữ ký & phụ đề thuế'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Actions Footer */}
+                  <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <div className="flex items-center space-x-1.5">
                       <button
-                        onClick={() => {
-                          setSelectedPreviewTemplate(tpl.id);
-                          setIsPreviewModalOpen(true);
-                        }}
+                        onClick={() => setPreviewDesignTemplate(tpl)}
                         className="p-2 text-slate-600 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 rounded-lg text-xs font-medium transition-all"
                         title="Xem mẫu đầy đủ"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
 
-                      <Link
-                        href="/invoices/new"
-                        className="inline-flex items-center space-x-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-all"
+                      <button
+                        onClick={() => {
+                          setEditingDesignTemplate(tpl);
+                          setIsDesignerModalOpen(true);
+                        }}
+                        className="inline-flex items-center space-x-1 px-2.5 py-1.5 text-slate-700 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 rounded-lg text-xs font-semibold transition-all"
+                        title="Chỉnh sửa thiết kế này"
                       >
-                        <span>Dùng mẫu</span>
-                      </Link>
+                        <Pencil className="w-3.5 h-3.5" />
+                        <span>Sửa Thiết Kế</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setEditingDesignTemplate({
+                            ...tpl,
+                            id: undefined,
+                            isDefault: false,
+                            name: `${tpl.name} (Bản sao)`,
+                            code: undefined,
+                          });
+                          setIsDesignerModalOpen(true);
+                        }}
+                        className="p-2 text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs transition-all"
+                        title="Nhân bản mẫu này"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+
+                      {!isDefault && tpl.id && (
+                        <button
+                          onClick={() => setDefaultTemplateMutation.mutate(tpl.id!)}
+                          disabled={setDefaultTemplateMutation.isPending}
+                          className="p-2 text-slate-500 hover:text-emerald-600 bg-slate-100 hover:bg-emerald-50 rounded-lg text-xs transition-all"
+                          title="Đặt làm mặc định"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      {!isDefault && tpl.id && tpl.code !== 'standard-classic' && (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Bạn có chắc chắn muốn xóa mẫu thiết kế "${tpl.name}"?`)) {
+                              deleteTemplateMutation.mutate(tpl.id!);
+                            }
+                          }}
+                          className="p-2 text-slate-400 hover:text-rose-600 bg-slate-100 hover:bg-rose-50 rounded-lg text-xs transition-all"
+                          title="Xóa mẫu"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
+
+                    <Link
+                      href={`/invoices/new?templateId=${tpl.code || tpl.id}`}
+                      className="inline-flex items-center space-x-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-all whitespace-nowrap"
+                    >
+                      <span>Dùng mẫu</span>
+                    </Link>
                   </div>
                 </div>
               );
@@ -1219,25 +1513,27 @@ export default function TemplatesPage() {
       )}
 
       {/* ================= MODAL XEM TRƯỚC MẪU HÓA ĐƠN A4 ================= */}
-      {isPreviewModalOpen && (
+      {previewDesignTemplate && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-xs"
+                  style={{ backgroundColor: previewDesignTemplate.primaryColor || '#1e3a8a' }}
+                >
                   <LayoutTemplate className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 text-base">
-                    Xem Trước Mẫu:{' '}
-                    {TEMPLATES_CONFIG.find((t) => t.id === selectedPreviewTemplate)?.name}
+                    Xem Trước Mẫu: {previewDesignTemplate.name}
                   </h3>
-                  <p className="text-xs text-slate-500">Mô phỏng dữ liệu hóa đơn chuẩn</p>
+                  <p className="text-xs text-slate-500">Mô phỏng đầy đủ dữ liệu thực tế</p>
                 </div>
               </div>
 
               <button
-                onClick={() => setIsPreviewModalOpen(false)}
+                onClick={() => setPreviewDesignTemplate(null)}
                 className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-200 transition-all text-sm font-bold"
               >
                 ✕
@@ -1249,7 +1545,7 @@ export default function TemplatesPage() {
                 <InvoiceTemplateRenderer
                   invoice={SAMPLE_INVOICE}
                   settings={SAMPLE_SETTINGS}
-                  overrideTemplateId={selectedPreviewTemplate}
+                  designConfig={previewDesignTemplate}
                 />
               </div>
             </div>
@@ -1258,13 +1554,23 @@ export default function TemplatesPage() {
               <span className="text-xs text-slate-500">Chuẩn in ấn A4 &amp; xuất Playwright PDF</span>
               <div className="flex items-center space-x-3">
                 <button
-                  onClick={() => setIsPreviewModalOpen(false)}
+                  onClick={() => {
+                    setEditingDesignTemplate(previewDesignTemplate);
+                    setPreviewDesignTemplate(null);
+                    setIsDesignerModalOpen(true);
+                  }}
+                  className="px-4 py-2 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-all"
+                >
+                  Chỉnh Sửa Thiết Kế
+                </button>
+                <button
+                  onClick={() => setPreviewDesignTemplate(null)}
                   className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-all"
                 >
                   Đóng
                 </button>
                 <Link
-                  href="/invoices/new"
+                  href={`/invoices/new?templateId=${previewDesignTemplate.code || previewDesignTemplate.id}`}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-all"
                 >
                   Tạo Hóa Đơn Với Mẫu Này
@@ -1274,6 +1580,16 @@ export default function TemplatesPage() {
           </div>
         </div>
       )}
+
+      {/* ================= MODAL THIẾT KẾ MẪU TRỰC QUAN ================= */}
+      <InvoiceDesignerModal
+        isOpen={isDesignerModalOpen}
+        onClose={() => setIsDesignerModalOpen(false)}
+        initialTemplate={editingDesignTemplate}
+        onSaved={() => {
+          queryClient.invalidateQueries({ queryKey: ['invoice-templates'] });
+        }}
+      />
     </div>
   );
 }

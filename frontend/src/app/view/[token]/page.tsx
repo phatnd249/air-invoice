@@ -45,7 +45,7 @@ export default function PublicInvoiceViewPage() {
     );
   }
 
-  const { invoice, settings } = data;
+  const { invoice, settings, template } = data;
 
   const handleDownloadPdf = () => {
     window.open(getExportPdfUrl(invoice.id), '_blank');
@@ -91,6 +91,7 @@ export default function PublicInvoiceViewPage() {
           invoice={invoice}
           settings={settings}
           overrideTemplateId={invoice.templateId}
+          designConfig={template}
         />
       </div>
     </div>
