@@ -168,65 +168,87 @@ export class DeliveryService {
       </div>
     `;
 
-    // 4. Gửi qua Resend API hoặc SMTP
+    // 4. Gửi qua Resend API hoặc fallback sang SMTP
     try {
-      if (process.env.RESEND_API_KEY) {
-        // Gửi qua Resend REST API (HTTPS cổng 443 — hoạt động 100% trên Render Free)
-        let fromEmail = (process.env.SMTP_FROM || '').trim().replace(/^["']|["']$/g, '');
-        // Tự động dùng domain đã verified trên Resend: invoice.share4happy.com
-        if (!fromEmail || fromEmail.includes('onboarding@resend.dev') || fromEmail.includes('your-email') || !fromEmail.includes('@invoice.share4happy.com')) {
-          fromEmail = `"${brandName}" <billing@invoice.share4happy.com>`;
-        } else if (!fromEmail.includes('<') && fromEmail.includes('@')) {
-          fromEmail = `"${brandName}" <${fromEmail}>`;
-        }
+      let emailSent = false;
+      let emailError: string | null = null;
 
-        const resendRes = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${process.env.RESEND_API_KEY.trim()}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from: fromEmail,
-            to: [recipientEmail],
+      if (process.env.RESEND_API_KEY) {
+        try {
+          // Gửi qua Resend REST API (HTTPS cổng 443 — hoạt động 100% trên Render Free)
+          let fromEmail = (process.env.SMTP_FROM || '').trim().replace(/^["']|["']$/g, '');
+          // Tự động dùng domain đã verified trên Resend: invoice.share4happy.com
+          if (!fromEmail || fromEmail.includes('onboarding@resend.dev') || fromEmail.includes('your-email') || !fromEmail.includes('@invoice.share4happy.com')) {
+            fromEmail = `"${brandName}" <billing@invoice.share4happy.com>`;
+          } else if (!fromEmail.includes('<') && fromEmail.includes('@')) {
+            fromEmail = `"${brandName}" <${fromEmail}>`;
+          }
+
+          const resendRes = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${process.env.RESEND_API_KEY.trim()}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: fromEmail,
+              to: [recipientEmail],
+              subject: emailSubject,
+              html: htmlBody,
+              attachments: [
+                {
+                  filename: `HD_${invoice.invoiceNumber}.pdf`,
+                  content: pdfBuffer.toString('base64'),
+                },
+              ],
+            }),
+          });
+
+          const resendData = await resendRes.json().catch(() => ({}));
+          if (resendRes.ok) {
+            emailSent = true;
+          } else {
+            emailError = `Resend API HTTP ${resendRes.status}: ${resendData?.message || JSON.stringify(resendData)}`;
+            console.warn(`[Delivery] Gửi qua Resend API chưa thành công: ${emailError}. Đang chuyển sang SMTP fallback...`);
+          }
+        } catch (resendErr: any) {
+          emailError = resendErr?.message;
+          console.warn(`[Delivery] Lỗi gọi Resend API: ${resendErr?.message}. Đang chuyển sang SMTP fallback...`);
+        }
+      }
+
+      // 4.2. Fallback sang SMTP nếu Resend chưa gửi được hoặc không cấu hình
+      if (!emailSent && process.env.SMTP_USER && process.env.SMTP_PASS) {
+        try {
+          const user = (process.env.SMTP_USER || '').trim().replace(/^["']|["']$/g, '');
+          let fromAddress = (process.env.SMTP_FROM || '').trim().replace(/^["']|["']$/g, '');
+          if (!fromAddress || fromAddress.includes('your-email@gmail.com') || fromAddress.includes('no-reply@invoice-air.com') || fromAddress.includes('YOUR_EMAIL_HERE')) {
+            fromAddress = `"${settings?.companyName || 'Invoice-AIR'}" <${user}>`;
+          }
+
+          const transporter = this.getTransporter();
+          await transporter.sendMail({
+            from: fromAddress,
+            to: recipientEmail,
             subject: emailSubject,
             html: htmlBody,
             attachments: [
               {
                 filename: `HD_${invoice.invoiceNumber}.pdf`,
-                content: pdfBuffer.toString('base64'),
+                content: pdfBuffer,
+                contentType: 'application/pdf',
               },
             ],
-          }),
-        });
-
-        const resendData = await resendRes.json().catch(() => ({}));
-        if (!resendRes.ok) {
-          throw new Error(`Resend API HTTP ${resendRes.status}: ${resendData?.message || JSON.stringify(resendData)}`);
+          });
+          emailSent = true;
+        } catch (smtpErr: any) {
+          emailError = smtpErr?.message;
+          console.error(`[Delivery] Lỗi gửi qua SMTP: ${smtpErr?.message}`);
         }
-      } else if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-        const user = (process.env.SMTP_USER || '').trim().replace(/^["']|["']$/g, '');
-        let fromAddress = (process.env.SMTP_FROM || '').trim().replace(/^["']|["']$/g, '');
-        if (!fromAddress || fromAddress.includes('your-email@gmail.com') || fromAddress.includes('no-reply@invoice-air.com')) {
-          fromAddress = `"${settings?.companyName || 'Invoice-AIR'}" <${user}>`;
-        }
+      }
 
-        const transporter = this.getTransporter();
-        await transporter.sendMail({
-          from: fromAddress,
-          to: recipientEmail,
-          subject: `[${settings?.companyName || 'Invoice-AIR'}] Thông báo hóa đơn & Nhắc lịch thanh toán dịch vụ - ${invoice.invoiceNumber}`,
-          html: htmlBody,
-          attachments: [
-            {
-              filename: `HD_${invoice.invoiceNumber}.pdf`,
-              content: pdfBuffer,
-              contentType: 'application/pdf',
-            },
-          ],
-        });
-      } else {
-        throw new Error('Chưa cấu hình thông tin gửi Email (Cần SMTP_USER + SMTP_PASS trên Render)');
+      if (!emailSent) {
+        throw new Error(emailError || 'Chưa cấu hình thông tin gửi Email hợp lệ (Resend API hoặc SMTP)');
       }
 
       // 5. Cập nhật trạng thái hóa đơn sang SENT
@@ -381,63 +403,85 @@ export class DeliveryService {
       </div>
     `;
 
-    // 4. Gửi qua Resend API hoặc SMTP
+    // 4. Gửi qua Resend API hoặc fallback sang SMTP
     try {
-      if (process.env.RESEND_API_KEY) {
-        let fromEmail = (process.env.SMTP_FROM || '').trim().replace(/^["']|["']$/g, '');
-        if (!fromEmail || fromEmail.includes('onboarding@resend.dev') || fromEmail.includes('your-email') || !fromEmail.includes('@invoice.share4happy.com')) {
-          fromEmail = `"${brandName}" <billing@invoice.share4happy.com>`;
-        } else if (!fromEmail.includes('<') && fromEmail.includes('@')) {
-          fromEmail = `"${brandName}" <${fromEmail}>`;
-        }
+      let emailSent = false;
+      let emailError: string | null = null;
 
-        const resendRes = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${process.env.RESEND_API_KEY.trim()}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from: fromEmail,
-            to: [recipientEmail],
+      if (process.env.RESEND_API_KEY) {
+        try {
+          let fromEmail = (process.env.SMTP_FROM || '').trim().replace(/^["']|["']$/g, '');
+          if (!fromEmail || fromEmail.includes('onboarding@resend.dev') || fromEmail.includes('your-email') || !fromEmail.includes('@invoice.share4happy.com')) {
+            fromEmail = `"${brandName}" <billing@invoice.share4happy.com>`;
+          } else if (!fromEmail.includes('<') && fromEmail.includes('@')) {
+            fromEmail = `"${brandName}" <${fromEmail}>`;
+          }
+
+          const resendRes = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${process.env.RESEND_API_KEY.trim()}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: fromEmail,
+              to: [recipientEmail],
+              subject: emailSubject,
+              html: htmlBody,
+              attachments: [
+                {
+                  filename: `Bien_Lai_HD_${invoice.invoiceNumber}.pdf`,
+                  content: pdfBuffer.toString('base64'),
+                },
+              ],
+            }),
+          });
+
+          const resendData = await resendRes.json().catch(() => ({}));
+          if (resendRes.ok) {
+            emailSent = true;
+          } else {
+            emailError = `Resend API HTTP ${resendRes.status}: ${resendData?.message || JSON.stringify(resendData)}`;
+            console.warn(`[Delivery] Gửi biên lai qua Resend chưa thành công: ${emailError}. Đang chuyển sang SMTP fallback...`);
+          }
+        } catch (resendErr: any) {
+          emailError = resendErr?.message;
+          console.warn(`[Delivery] Lỗi gọi Resend API biên lai: ${resendErr?.message}. Đang chuyển sang SMTP fallback...`);
+        }
+      }
+
+      // 4.2. Fallback sang SMTP nếu Resend chưa gửi được hoặc không cấu hình
+      if (!emailSent && process.env.SMTP_USER && process.env.SMTP_PASS) {
+        try {
+          const user = (process.env.SMTP_USER || '').trim().replace(/^["']|["']$/g, '');
+          let fromAddress = (process.env.SMTP_FROM || '').trim().replace(/^["']|["']$/g, '');
+          if (!fromAddress || fromAddress.includes('your-email@gmail.com') || fromAddress.includes('no-reply@invoice-air.com') || fromAddress.includes('YOUR_EMAIL_HERE')) {
+            fromAddress = `"${brandName}" <${user}>`;
+          }
+
+          const transporter = this.getTransporter();
+          await transporter.sendMail({
+            from: fromAddress,
+            to: recipientEmail,
             subject: emailSubject,
             html: htmlBody,
             attachments: [
               {
                 filename: `Bien_Lai_HD_${invoice.invoiceNumber}.pdf`,
-                content: pdfBuffer.toString('base64'),
+                content: pdfBuffer,
+                contentType: 'application/pdf',
               },
             ],
-          }),
-        });
-
-        const resendData = await resendRes.json().catch(() => ({}));
-        if (!resendRes.ok) {
-          throw new Error(`Resend API HTTP ${resendRes.status}: ${resendData?.message || JSON.stringify(resendData)}`);
+          });
+          emailSent = true;
+        } catch (smtpErr: any) {
+          emailError = smtpErr?.message;
+          console.error(`[Delivery] Lỗi gửi biên lai qua SMTP: ${smtpErr?.message}`);
         }
-      } else if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-        const user = (process.env.SMTP_USER || '').trim().replace(/^["']|["']$/g, '');
-        let fromAddress = (process.env.SMTP_FROM || '').trim().replace(/^["']|["']$/g, '');
-        if (!fromAddress || fromAddress.includes('your-email@gmail.com') || fromAddress.includes('no-reply@invoice-air.com')) {
-          fromAddress = `"${brandName}" <${user}>`;
-        }
+      }
 
-        const transporter = this.getTransporter();
-        await transporter.sendMail({
-          from: fromAddress,
-          to: recipientEmail,
-          subject: emailSubject,
-          html: htmlBody,
-          attachments: [
-            {
-              filename: `Bien_Lai_HD_${invoice.invoiceNumber}.pdf`,
-              content: pdfBuffer,
-              contentType: 'application/pdf',
-            },
-          ],
-        });
-      } else {
-        throw new Error('Chưa cấu hình thông tin gửi Email (Cần RESEND_API_KEY hoặc SMTP_USER/PASS)');
+      if (!emailSent) {
+        throw new Error(emailError || 'Chưa cấu hình thông tin gửi Email hợp lệ (Resend API hoặc SMTP)');
       }
 
       // 5. Ghi lịch sử hóa đơn
