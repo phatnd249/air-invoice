@@ -26,12 +26,15 @@ import {
   Layers,
   ChevronDown,
   Info,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import InvoiceTemplateRenderer, {
   TEMPLATES_CONFIG,
   InvoiceDesignTemplate,
 } from '@/components/InvoiceTemplateRenderer';
 import InvoiceDesignerModal from '@/components/InvoiceDesignerModal';
+import EmailVisualEditor from '@/components/EmailVisualEditor';
 
 const SAMPLE_INVOICE = {
   invoiceNumber: 'HD-2026-0001',
@@ -296,6 +299,7 @@ export default function TemplatesPage() {
 
   // Message Template Modal state
   const [isMsgModalOpen, setIsMsgModalOpen] = useState(false);
+  const [isMsgModalFullscreen, setIsMsgModalFullscreen] = useState(false);
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [msgFormData, setMsgFormData] = useState<{
     name: string;
@@ -412,6 +416,7 @@ export default function TemplatesPage() {
 
   const closeMsgModal = () => {
     setIsMsgModalOpen(false);
+    setIsMsgModalFullscreen(false);
     setEditingMsgId(null);
     setShowAddUrlBox(false);
   };
@@ -653,33 +658,6 @@ export default function TemplatesPage() {
       {/* ================= TAB 1: MẪU HÓA ĐƠN A4 ================= */}
       {activeTab === 'a4' && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between flex-wrap gap-3 bg-blue-50/60 border border-blue-100 p-4 rounded-2xl">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-900 text-sm">
-                  Công Cụ Thiết Kế Mẫu Hóa Đơn Trực Quan
-                </h3>
-                <p className="text-xs text-slate-600 mt-0.5">
-                  Tùy chỉnh màu sắc thương hiệu, phông chữ, bật/tắt chữ ký Đại diện khách hàng / Người lập hóa đơn, phụ đề thuế theo nhu cầu.
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => {
-                setEditingDesignTemplate(null);
-                setIsDesignerModalOpen(true);
-              }}
-              className="inline-flex items-center space-x-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>Thiết Kế Mẫu Mới</span>
-            </button>
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {effectiveTemplates.map((tpl) => {
               const isDefault = tpl.isDefault;
@@ -1085,9 +1063,15 @@ export default function TemplatesPage() {
 
       {/* ================= MODAL TẠO / SỬA MẪU TIN NHẮN (ZALO / EMAIL) ================= */}
       {isMsgModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div
+            className={`bg-white shadow-2xl transition-all duration-200 flex flex-col overflow-hidden ${
+              isMsgModalFullscreen
+                ? 'fixed inset-0 rounded-none w-full h-full p-4 sm:p-6'
+                : 'rounded-2xl max-w-5xl w-full max-h-[94vh] p-5 sm:p-6 animate-in fade-in zoom-in-95 duration-150'
+            }`}
+          >
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-200">
               <div className="flex items-center space-x-2.5">
                 <div
                   className={`p-2 rounded-xl text-white ${
@@ -1095,18 +1079,42 @@ export default function TemplatesPage() {
                   }`}
                 >
                   {msgFormData.channel === 'ZALO' ? (
-                    <MessageSquare className="w-4 h-4" />
+                    <MessageSquare className="w-5 h-5" />
                   ) : (
-                    <Mail className="w-4 h-4" />
+                    <Mail className="w-5 h-5" />
                   )}
                 </div>
-                <h3 className="font-bold text-slate-900 text-base sm:text-lg">
-                  {editingMsgId ? 'Chỉnh Sửa Mẫu Tin Nhắn' : 'Tạo Mẫu Tin Nhắn Mới'}
-                </h3>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base sm:text-lg">
+                    {editingMsgId ? 'Chỉnh Sửa Mẫu Tin Nhắn' : 'Tạo Mẫu Tin Nhắn Mới'}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {msgFormData.channel === 'EMAIL'
+                      ? 'Tùy chỉnh tiêu đề, giao diện trực quan hoặc mã HTML cho email khách hàng'
+                      : 'Nội dung tin nhắn tự động gửi qua Zalo Bot'}
+                  </p>
+                </div>
               </div>
-              <button onClick={closeMsgModal} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
-                ✕
-              </button>
+
+              <div className="flex items-center space-x-1.5">
+                {msgFormData.channel === 'EMAIL' && (
+                  <button
+                    type="button"
+                    onClick={() => setIsMsgModalFullscreen(!isMsgModalFullscreen)}
+                    className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                    title={isMsgModalFullscreen ? 'Thu nhỏ giao diện' : 'Mở rộng toàn màn hình'}
+                  >
+                    {isMsgModalFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={closeMsgModal}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleMsgSubmit} className="mt-4 space-y-4 overflow-y-auto flex-1 pr-1">
@@ -1159,43 +1167,54 @@ export default function TemplatesPage() {
                 </div>
               )}
 
-              {/* Tags chèn nhanh */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Nội Dung Tin Nhắn *
+              {/* Bộ Soạn Thảo Nội Dung: Email Trực Quan hoặc Zalo */}
+              {msgFormData.channel === 'EMAIL' ? (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Nội Dung Email &amp; Giao Diện *
                   </label>
-                  <span className="text-[11px] text-slate-400">Bấm vào tag bên dưới để chèn nhanh</span>
+                  <EmailVisualEditor
+                    content={msgFormData.content}
+                    onChange={(newContent) => setMsgFormData({ ...msgFormData, content: newContent })}
+                    triggerType={msgFormData.triggerType}
+                    variables={TEMPLATE_VARIABLES}
+                    isFullscreen={isMsgModalFullscreen}
+                  />
                 </div>
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Nội Dung Tin Nhắn Zalo *
+                    </label>
+                    <span className="text-[11px] text-slate-400">Bấm vào tag bên dưới để chèn nhanh</span>
+                  </div>
 
-                <div className="flex flex-wrap gap-1.5 mb-2 p-2 bg-slate-50 border border-slate-200 rounded-xl">
-                  {TEMPLATE_VARIABLES.map((v) => (
-                    <button
-                      key={v.tag}
-                      type="button"
-                      onClick={() => insertTag(v.tag)}
-                      className="px-2 py-0.5 bg-white hover:bg-blue-50 hover:text-blue-600 text-slate-700 border border-slate-200 rounded text-xs font-mono transition-colors shadow-2xs"
-                      title={v.desc}
-                    >
-                      {v.tag}
-                    </button>
-                  ))}
+                  <div className="flex flex-wrap gap-1.5 mb-2 p-2 bg-slate-50 border border-slate-200 rounded-xl">
+                    {TEMPLATE_VARIABLES.map((v) => (
+                      <button
+                        key={v.tag}
+                        type="button"
+                        onClick={() => insertTag(v.tag)}
+                        className="px-2 py-0.5 bg-white hover:bg-blue-50 hover:text-blue-600 text-slate-700 border border-slate-200 rounded text-xs font-mono transition-colors shadow-2xs"
+                        title={v.desc}
+                      >
+                        {v.tag}
+                      </button>
+                    ))}
+                  </div>
+
+                  <textarea
+                    ref={textareaRef}
+                    rows={8}
+                    required
+                    placeholder="Nhập nội dung tin nhắn Zalo gửi tới khách hàng..."
+                    value={msgFormData.content}
+                    onChange={(e) => setMsgFormData({ ...msgFormData, content: e.target.value })}
+                    className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none font-sans"
+                  />
                 </div>
-
-                <textarea
-                  ref={textareaRef}
-                  rows={msgFormData.channel === 'EMAIL' ? 7 : 6}
-                  required
-                  placeholder={
-                    msgFormData.channel === 'ZALO'
-                      ? 'Nhập nội dung tin nhắn Zalo gửi tới khách hàng...'
-                      : 'Nhập nội dung HTML hoặc văn bản gửi email...'
-                  }
-                  value={msgFormData.content}
-                  onChange={(e) => setMsgFormData({ ...msgFormData, content: e.target.value })}
-                  className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none font-sans"
-                />
-              </div>
+              )}
 
               {/* Áp dụng cho gói nào */}
               <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3">
