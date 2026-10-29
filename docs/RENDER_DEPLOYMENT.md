@@ -54,14 +54,14 @@ postgresql://postgres.wuczeifawuadgjfzisyw:[YOUR-PASSWORD]@db.wuczeifawuadgjfzis
 ```bash
 git add render.yaml
 git commit -m "chore: add Render deployment config"
-git push origin main
+git push origin develop
 ```
 
 2. **Tạo Web Service trong Render:**
    - Vào https://dashboard.render.com
    - Click **"New +"** → **"Blueprint"**
    - Connect repo: `phatnd249/air-invoice`
-   - Branch: `main`
+   - Branch: `develop`
    - Click **"Apply"**
 
 3. **Render sẽ hỏi các biến môi trường:**
@@ -78,7 +78,7 @@ git push origin main
 |---------|-------|
 | **Name** | `invoice-air-backend` |
 | **Region** | `Singapore` |
-| **Branch** | `main` |
+| **Branch** | `develop` |
 | **Root Directory** | *(để trống)* |
 | **Runtime** | `Docker` |
 | **Dockerfile Path** | `./Dockerfile` |
@@ -218,8 +218,13 @@ Value: https://invoice-air-backend.onrender.com/api
 
 ### 7.2. Redeploy Frontend
 
+> ⚠️ **Quan trọng:** production deploy từ branch `develop`, không phải `main`.
+> Vercel Dashboard → Project → **Settings → Git → Production Branch** = `develop`.
+> Nếu để `main`, code mới push lên `develop` sẽ chỉ tạo Preview Deployment và
+> domain chính (invoice.share4happy.com) vẫn chạy bản cũ.
+
 ```bash
-# Vercel sẽ tự động redeploy, hoặc force redeploy:
+# Vercel sẽ tự động redeploy khi push develop, hoặc force redeploy:
 vercel --prod
 ```
 

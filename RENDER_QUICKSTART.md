@@ -29,7 +29,7 @@ Render Dashboard → New → Web Service:
 | Setting | Value |
 |---------|-------|
 | Runtime | Docker |
-| Branch | main |
+| Branch | develop |
 | Dockerfile | `./Dockerfile` |
 | **Plan** | **Starter ($7/mo)** ⚠️ |
 | Region | Singapore |

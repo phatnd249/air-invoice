@@ -5,9 +5,11 @@
 # Environment variables: docs/RENDER_ENV_VARIABLES.txt
 #
 # Cách deploy:
-#   1. Push file này lên branch `main`
+#   1. Push file này lên branch `develop`
 #   2. Render Dashboard → New → Blueprint → chọn repo → Apply
 #   3. Render sẽ hỏi các biến có `sync: false`
+#
+# ⚠️ Production deploy từ branch `develop` (main chỉ là nhánh lưu trữ)
 #
 # ⚠️ LƯU Ý:
 #   - KHÔNG dùng Free plan - Chromium sẽ crash
@@ -20,7 +22,7 @@ services:
     runtime: docker
 
     # Repository configuration
-    branch: main
+    branch: develop
     region: singapore
     
     # ⚠️ QUAN TRỌNG: Phải dùng Starter plan
