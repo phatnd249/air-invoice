@@ -56,3 +56,44 @@ Trân trọng,
 ## 2. Thiết Kế Giao Diện Email HTML Responsive
 
 Trong hệ thống, email sẽ được gửi dưới dạng **HTML Email** sang trọng với nút bấm **"XEM HÓA ĐƠN TRỰC TUYẾN"** nổi bật và đính kèm file **PDF hóa đơn chính thức**.
+
+---
+
+## 3. Mẫu Email "Thanh Toán Thành Công + Bộ Tài Liệu & Hướng Dẫn"
+
+- **File template:** `docs/email-templates/payment-success-documents.html`
+- **Dùng cho:** `sendPaymentSuccessEmail()` trong `backend/src/delivery/delivery.service.ts`
+- **Cấu trúc:** Header thương hiệu → Hero xác nhận thành công → Khối chi tiết thanh toán →
+  Danh sách 3 tài liệu (hóa đơn PDF, biên lai, hướng dẫn) → Nút CTA mở bộ tài liệu →
+  4 bước "Cách sử dụng" → Khối hỗ trợ → Footer.
+
+### 3.1. Bảng placeholder
+
+| Placeholder | Ý nghĩa | Ví dụ |
+|---|---|---|
+| `{{customerName}}` | Tên khách hàng | Nguyễn Văn An |
+| `{{brandName}}` | Tên đơn vị / thương hiệu | Tetrasco |
+| `{{invoiceNumber}}` | Mã hóa đơn | HD-000045 |
+| `{{packageName}}` | Gói dịch vụ | Gói Hosting Business 1 năm |
+| `{{grandTotal}}` | Số tiền đã thanh toán (đã format) | 1.500.000 ₫ |
+| `{{paidAt}}` | Thời điểm thanh toán | 29/10/2026 10:20 |
+| `{{documentsUrl}}` | **Link bộ tài liệu** (dùng chung cho mọi nút) | https://.../tai-lieu/HD-000045 |
+| `{{supportZalo}}` | Số Zalo hỗ trợ | 0812305046 |
+| `{{supportPhone}}` | Hotline | 0812305046 |
+| `{{supportEmail}}` | Email hỗ trợ | billing@invoice.share4happy.com |
+| `{{website}}` | Website | https://invoice.share4happy.com |
+
+### 3.2. Quy ước thiết kế
+
+- Toàn bộ CSS **inline**, layout bằng `<table>` → tương thích Gmail, Outlook, Apple Mail.
+- Nút bấm dùng `<table>` + `padding` (không dùng `<button>`), kèm link dự phòng dạng text
+  vì một số client chặn nút.
+- Không dùng `flex`, `grid`, `position`, gradient → tránh lỗi hiển thị trên Outlook.
+- Có preheader ẩn (phần tóm tắt hiển thị cạnh tiêu đề trong hộp thư).
+- Media query `max-width: 600px` để giảm padding trên điện thoại.
+
+### 3.3. Tích hợp vào code
+
+Khi có link tài liệu thật, chỉ cần thay giá trị `htmlBody` trong `sendPaymentSuccessEmail()`
+bằng nội dung file template và truyền các biến tương ứng; PDF biên lai vẫn đính kèm qua
+`attachments` như hiện tại.

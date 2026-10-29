@@ -1,0 +1,338 @@
+<!--
+  ============================================================================
+  EMAIL: XÁC NHẬN THANH TOÁN THÀNH CÔNG + GỬI BỘ TÀI LIỆU & HƯỚNG DẪN SỬ DỤNG
+  ============================================================================
+  Dùng cho: sendPaymentSuccessEmail() trong backend/src/delivery/delivery.service.ts
+  Chuẩn: HTML email inline-CSS, table layout (tương thích Gmail / Outlook / Apple Mail)
+
+  PLACEHOLDER — thay bằng dữ liệu thật khi render:
+    {{customerName}}   Tên khách hàng            (vd: Nguyễn Văn A)
+    {{brandName}}      Tên đơn vị / thương hiệu  (vd: Tetrasco)
+    {{invoiceNumber}}  Mã hóa đơn                (vd: HD-000045)
+    {{packageName}}    Tên gói dịch vụ           (vd: Gói Hosting Business 1 năm)
+    {{grandTotal}}     Số tiền đã thanh toán     (đã format: 1.500.000 ₫)
+    {{paidAt}}         Thời điểm thanh toán      (vd: 29/10/2026 10:20)
+    {{documentsUrl}}   LINK BỘ TÀI LIỆU  ← bạn thêm sau, dùng chung cho mọi nút
+    {{supportZalo}}    Số Zalo hỗ trợ            (vd: 0812305046)
+    {{supportPhone}}   Hotline                   (vd: 0812305046)
+    {{supportEmail}}   Email hỗ trợ              (vd: billing@invoice.share4happy.com)
+    {{website}}        Website                    (vd: https://invoice.share4happy.com)
+
+  Lưu ý:
+    - KHÔNG dùng flex/grid/position — nhiều email client không hỗ trợ.
+    - Nút bấm dùng <table> + padding, không dùng <button>.
+    - Nếu đổi màu, giữ tỉ lệ tương phản ≥ 4.5:1 để dễ đọc.
+  ============================================================================
+-->
+<!DOCTYPE html>
+<html lang="vi" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="x-apple-disable-message-reformatting" />
+  <meta name="color-scheme" content="light" />
+  <title>Xác nhận thanh toán thành công</title>
+  <style>
+    /* Chỉ áp dụng cho client hỗ trợ <style>; mọi layout chính vẫn dùng inline CSS */
+    body { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+    table { border-collapse: collapse; }
+    a { text-decoration: none; }
+    @media only screen and (max-width: 600px) {
+      .container { width: 100% !important; }
+      .px { padding-left: 18px !important; padding-right: 18px !important; }
+      .h1 { font-size: 20px !important; line-height: 27px !important; }
+      .doc-desc { display: block !important; padding-top: 2px !important; }
+      .hide-sm { display: none !important; }
+    }
+  </style>
+</head>
+<body style="margin:0; padding:0; background-color:#eef2f7;">
+
+  <!-- Preheader: hiển thị phần tóm tắt cạnh tiêu đề trong hộp thư -->
+  <div style="display:none; font-size:1px; color:#eef2f7; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden;">
+    Thanh toán hóa đơn #{{invoiceNumber}} đã hoàn tất. Bộ tài liệu và hướng dẫn sử dụng của bạn đã sẵn sàng.
+  </div>
+
+  <!-- ================= WRAPPER ================= -->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#eef2f7;">
+    <tr>
+      <td align="center" style="padding:28px 12px;">
+
+        <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0"
+               style="width:600px; max-width:600px; background-color:#ffffff; border-radius:14px; overflow:hidden; border:1px solid #e2e8f0;">
+
+          <!-- ---------- HEADER ---------- -->
+          <tr>
+            <td style="background-color:#0f172a; padding:22px 28px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="left" style="font-family:-apple-system,'Segoe UI',Arial,sans-serif;">
+                    <div style="font-size:19px; font-weight:800; letter-spacing:1px; color:#ffffff;">
+                      INVOICE<span style="color:#3b82f6;">-AIR</span>
+                    </div>
+                    <div style="font-size:10px; color:#94a3b8; letter-spacing:1.1px; margin-top:4px; text-transform:uppercase;">
+                      Hệ thống tạo &amp; quản lý hóa đơn tự động
+                    </div>
+                  </td>
+                  <td align="right" class="hide-sm" style="font-family:-apple-system,'Segoe UI',Arial,sans-serif; font-size:10px; color:#94a3b8; letter-spacing:1.1px; text-transform:uppercase;">
+                    Biên lai điện tử
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- ---------- HERO: THÀNH CÔNG ---------- -->
+          <tr>
+            <td align="center" class="px" style="background-color:#ecfdf5; padding:32px 28px 26px; border-bottom:1px solid #d1fae5;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" width="56" height="56"
+                      style="width:56px; height:56px; background-color:#059669; border-radius:28px; color:#ffffff; font-family:Arial,sans-serif; font-size:28px; line-height:56px; font-weight:bold;">
+                    ✓
+                  </td>
+                </tr>
+              </table>
+              <h1 class="h1" style="margin:16px 0 6px; font-family:-apple-system,'Segoe UI',Arial,sans-serif; font-size:23px; line-height:31px; font-weight:800; color:#065f46;">
+                Thanh toán thành công
+              </h1>
+              <p style="margin:0; font-family:-apple-system,'Segoe UI',Arial,sans-serif; font-size:14px; line-height:22px; color:#047857;">
+                Cảm ơn Quý khách đã tin tưởng <strong>{{brandName}}</strong>. Dịch vụ của bạn đã được kích hoạt.
+              </p>
+            </td>
+          </tr>
+
+          <!-- ---------- BODY ---------- -->
+          <tr>
+            <td class="px" style="padding:28px; font-family:-apple-system,'Segoe UI',Arial,sans-serif;">
+
+              <p style="margin:0 0 6px; font-size:15px; line-height:24px; color:#0f172a;">
+                Kính gửi Quý khách hàng <strong>{{customerName}}</strong>,
+              </p>
+              <p style="margin:0 0 22px; font-size:14px; line-height:23px; color:#475569;">
+                Hệ thống đã ghi nhận khoản thanh toán cho hóa đơn <strong style="color:#0f172a;">#{{invoiceNumber}}</strong>.
+                Dưới đây là thông tin thanh toán và bộ tài liệu Quý khách cần cho việc lưu trữ &amp; sử dụng dịch vụ.
+              </p>
+
+              <!-- === KHỐI THÔNG TIN THANH TOÁN === -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                     style="background-color:#f8fafc; border:1px solid #e2e8f0; border-radius:10px;">
+                <tr>
+                  <td style="padding:16px 18px 4px;">
+                    <div style="font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#64748b;">
+                      Chi tiết thanh toán
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 18px 16px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:-apple-system,'Segoe UI',Arial,sans-serif; font-size:13px;">
+                      <tr>
+                        <td width="42%" style="padding:7px 0; color:#64748b;">Mã hóa đơn</td>
+                        <td style="padding:7px 0; text-align:right; font-weight:700; color:#0f172a;">#{{invoiceNumber}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:7px 0; color:#64748b; border-top:1px dashed #e2e8f0;">Gói dịch vụ</td>
+                        <td style="padding:7px 0; text-align:right; font-weight:600; color:#0f172a; border-top:1px dashed #e2e8f0;">{{packageName}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:7px 0; color:#64748b; border-top:1px dashed #e2e8f0;">Số tiền đã thanh toán</td>
+                        <td style="padding:7px 0; text-align:right; font-size:17px; font-weight:800; color:#059669; border-top:1px dashed #e2e8f0;">{{grandTotal}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:7px 0; color:#64748b; border-top:1px dashed #e2e8f0;">Thời gian thanh toán</td>
+                        <td style="padding:7px 0; text-align:right; color:#334155; border-top:1px dashed #e2e8f0;">{{paidAt}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:7px 0; color:#64748b; border-top:1px dashed #e2e8f0;">Trạng thái</td>
+                        <td style="padding:7px 0; text-align:right; border-top:1px dashed #e2e8f0;">
+                          <span style="display:inline-block; background-color:#dcfce7; color:#166534; font-size:11px; font-weight:700; padding:4px 10px; border-radius:20px;">
+                            ✓ Đã thanh toán
+                          </span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- === BỘ TÀI LIỆU === -->
+              <h2 style="margin:28px 0 4px; font-size:16px; line-height:24px; font-weight:800; color:#0f172a;">
+                📂 Bộ tài liệu của bạn
+              </h2>
+              <p style="margin:0 0 14px; font-size:13px; line-height:20px; color:#64748b;">
+                Tất cả tài liệu được tổng hợp tại một đường dẫn duy nhất, có thể tải về và lưu trữ.
+              </p>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                     style="border:1px solid #e2e8f0; border-radius:10px; overflow:hidden;">
+
+                <!-- Tài liệu 1 -->
+                <tr>
+                  <td width="56" valign="top" style="padding:14px 0 14px 14px;">
+                    <div style="width:40px; height:40px; background-color:#eff6ff; border-radius:10px; text-align:center; font-size:18px; line-height:40px;">🧾</div>
+                  </td>
+                  <td valign="middle" style="padding:14px 8px; font-family:-apple-system,'Segoe UI',Arial,sans-serif;">
+                    <div style="font-size:13.5px; font-weight:700; color:#0f172a; line-height:20px;">Hóa đơn điện tử (PDF)</div>
+                    <div class="doc-desc" style="font-size:12px; color:#64748b; line-height:18px;">Bản thể hiện đầy đủ thông tin hóa đơn</div>
+                  </td>
+                  <td valign="middle" align="right" style="padding:14px 14px 14px 0; font-family:-apple-system,'Segoe UI',Arial,sans-serif;">
+                    <a href="{{documentsUrl}}" style="font-size:12.5px; font-weight:700; color:#2563eb;">Mở →</a>
+                  </td>
+                </tr>
+
+                <!-- Tài liệu 2 -->
+                <tr>
+                  <td width="56" valign="top" style="padding:14px 0 14px 14px; border-top:1px solid #f1f5f9;">
+                    <div style="width:40px; height:40px; background-color:#ecfdf5; border-radius:10px; text-align:center; font-size:18px; line-height:40px;">✅</div>
+                  </td>
+                  <td valign="middle" style="padding:14px 8px; border-top:1px solid #f1f5f9; font-family:-apple-system,'Segoe UI',Arial,sans-serif;">
+                    <div style="font-size:13.5px; font-weight:700; color:#0f172a; line-height:20px;">Biên lai thanh toán</div>
+                    <div class="doc-desc" style="font-size:12px; color:#64748b; line-height:18px;">Xác nhận đã thanh toán &amp; kích hoạt dịch vụ</div>
+                  </td>
+                  <td valign="middle" align="right" style="padding:14px 14px 14px 0; border-top:1px solid #f1f5f9; font-family:-apple-system,'Segoe UI',Arial,sans-serif;">
+                    <a href="{{documentsUrl}}" style="font-size:12.5px; font-weight:700; color:#2563eb;">Mở →</a>
+                  </td>
+                </tr>
+
+                <!-- Tài liệu 3 -->
+                <tr>
+                  <td width="56" valign="top" style="padding:14px 0 14px 14px; border-top:1px solid #f1f5f9;">
+                    <div style="width:40px; height:40px; background-color:#fffbeb; border-radius:10px; text-align:center; font-size:18px; line-height:40px;">📘</div>
+                  </td>
+                  <td valign="middle" style="padding:14px 8px; border-top:1px solid #f1f5f9; font-family:-apple-system,'Segoe UI',Arial,sans-serif;">
+                    <div style="font-size:13.5px; font-weight:700; color:#0f172a; line-height:20px;">Hướng dẫn sử dụng</div>
+                    <div class="doc-desc" style="font-size:12px; color:#64748b; line-height:18px;">Thiết lập &amp; bắt đầu sử dụng dịch vụ</div>
+                  </td>
+                  <td valign="middle" align="right" style="padding:14px 14px 14px 0; border-top:1px solid #f1f5f9; font-family:-apple-system,'Segoe UI',Arial,sans-serif;">
+                    <a href="{{documentsUrl}}" style="font-size:12.5px; font-weight:700; color:#2563eb;">Mở →</a>
+                  </td>
+                </tr>
+
+              </table>
+
+              <!-- === NÚT CTA CHÍNH === -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px;">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td align="center" bgcolor="#059669" style="border-radius:8px;">
+                          <a href="{{documentsUrl}}"
+                             style="display:inline-block; padding:14px 32px; font-family:-apple-system,'Segoe UI',Arial,sans-serif; font-size:14px; font-weight:700; color:#ffffff; border-radius:8px;">
+                            📂 Mở bộ tài liệu &amp; Hướng dẫn
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Fallback link (một số client chặn nút bấm) -->
+              <p style="margin:14px 0 0; font-size:11.5px; line-height:18px; color:#94a3b8; text-align:center; word-break:break-all;">
+                Nếu nút trên không hoạt động, sao chép đường dẫn sau vào trình duyệt:<br />
+                <a href="{{documentsUrl}}" style="color:#2563eb; word-break:break-all;">{{documentsUrl}}</a>
+              </p>
+
+              <!-- === CÁCH SỬ DỤNG === -->
+              <h2 style="margin:30px 0 14px; font-size:16px; line-height:24px; font-weight:800; color:#0f172a;">
+                🚀 Cách sử dụng sau khi thanh toán
+              </h2>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:-apple-system,'Segoe UI',Arial,sans-serif;">
+
+                <tr>
+                  <td width="34" valign="top" style="padding:0 0 14px;">
+                    <div style="width:24px; height:24px; background-color:#eff6ff; color:#1d4ed8; border-radius:12px; text-align:center; font-size:12px; font-weight:800; line-height:24px;">1</div>
+                  </td>
+                  <td valign="top" style="padding:0 0 14px; font-size:13.5px; line-height:21px; color:#334155;">
+                    <strong style="color:#0f172a;">Mở bộ tài liệu</strong> và tải về hóa đơn, biên lai để lưu trữ (phục vụ kế toán/đối soát).
+                  </td>
+                </tr>
+
+                <tr>
+                  <td width="34" valign="top" style="padding:0 0 14px;">
+                    <div style="width:24px; height:24px; background-color:#eff6ff; color:#1d4ed8; border-radius:12px; text-align:center; font-size:12px; font-weight:800; line-height:24px;">2</div>
+                  </td>
+                  <td valign="top" style="padding:0 0 14px; font-size:13.5px; line-height:21px; color:#334155;">
+                    <strong style="color:#0f172a;">Đăng nhập hệ thống</strong> bằng chính email nhận thông báo này để xem lại giao dịch.
+                  </td>
+                </tr>
+
+                <tr>
+                  <td width="34" valign="top" style="padding:0 0 14px;">
+                    <div style="width:24px; height:24px; background-color:#eff6ff; color:#1d4ed8; border-radius:12px; text-align:center; font-size:12px; font-weight:800; line-height:24px;">3</div>
+                  </td>
+                  <td valign="top" style="padding:0 0 14px; font-size:13.5px; line-height:21px; color:#334155;">
+                    <strong style="color:#0f172a;">Làm theo hướng dẫn</strong> trong tài liệu để thiết lập và bắt đầu sử dụng dịch vụ <strong>{{packageName}}</strong>.
+                  </td>
+                </tr>
+
+                <tr>
+                  <td width="34" valign="top" style="padding:0 0 4px;">
+                    <div style="width:24px; height:24px; background-color:#eff6ff; color:#1d4ed8; border-radius:12px; text-align:center; font-size:12px; font-weight:800; line-height:24px;">4</div>
+                  </td>
+                  <td valign="top" style="padding:0 0 4px; font-size:13.5px; line-height:21px; color:#334155;">
+                    <strong style="color:#0f172a;">Lưu lại email này</strong> làm xác nhận thanh toán. Cần xuất lại hóa đơn, hãy liên hệ bộ phận hỗ trợ.
+                  </td>
+                </tr>
+
+              </table>
+
+              <!-- === HỖ TRỢ === -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                     style="margin-top:24px; background-color:#eff6ff; border-left:4px solid #3b82f6; border-radius:6px;">
+                <tr>
+                  <td style="padding:14px 16px; font-family:-apple-system,'Segoe UI',Arial,sans-serif;">
+                    <div style="font-size:13px; font-weight:800; color:#1e3a8a; margin-bottom:6px;">Cần hỗ trợ?</div>
+                    <div style="font-size:12.5px; line-height:21px; color:#1e40af;">
+                      💬 Zalo: <strong>{{supportZalo}}</strong> &nbsp;•&nbsp; 📞 Hotline: <strong>{{supportPhone}}</strong><br />
+                      ✉️ Email: <a href="mailto:{{supportEmail}}" style="color:#2563eb;">{{supportEmail}}</a>
+                      &nbsp;•&nbsp; 🌐 <a href="{{website}}" style="color:#2563eb;">{{website}}</a>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:22px 0 0; font-size:13.5px; line-height:22px; color:#475569;">
+                Trân trọng cảm ơn Quý khách,<br />
+                <strong style="color:#0f172a;">Ban Quản Trị {{brandName}}</strong>
+              </p>
+
+            </td>
+          </tr>
+
+          <!-- ---------- FOOTER ---------- -->
+          <tr>
+            <td class="px" style="background-color:#0f172a; padding:20px 28px; font-family:-apple-system,'Segoe UI',Arial,sans-serif;">
+              <p style="margin:0 0 6px; font-size:12px; line-height:19px; color:#cbd5e1;">
+                <strong style="color:#ffffff;">{{brandName}}</strong> — Hệ thống hóa đơn &amp; dịch vụ tự động
+              </p>
+              <p style="margin:0 0 6px; font-size:11px; line-height:18px; color:#94a3b8;">
+                Email này được gửi tự động tới <strong style="color:#cbd5e1;">{{customerName}}</strong> sau khi thanh toán thành công.
+                Vui lòng không trả lời trực tiếp email này.
+              </p>
+              <p style="margin:0; font-size:11px; line-height:18px; color:#64748b;">
+                © 2026 {{brandName}}. Mọi quyền được bảo lưu.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+
+        <!-- Ghi chú bảo mật dưới card -->
+        <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px;">
+          <tr>
+            <td align="center" style="padding:14px 20px 0; font-family:-apple-system,'Segoe UI',Arial,sans-serif; font-size:11px; line-height:17px; color:#94a3b8;">
+              Nếu Quý khách không thực hiện giao dịch này, vui lòng liên hệ ngay <strong>{{supportPhone}}</strong> để được hỗ trợ.
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
