@@ -52,6 +52,7 @@ export default function NewInvoicePage() {
   const [selectedBankId, setSelectedBankId] = useState<string>('');
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [catalogSearch, setCatalogSearch] = useState('');
+  const [autoSaveToCatalog, setAutoSaveToCatalog] = useState(true);
 
   // Lấy danh mục dịch vụ từ catalog
   const { data: catalogServices = [] } = useQuery<CatalogService[]>({
@@ -246,6 +247,7 @@ export default function NewInvoicePage() {
     createMutation.mutate({
       ...formData,
       status: 'ISSUED',
+      autoSaveItemsToCatalog: autoSaveToCatalog,
       sellerName: activeCompany?.name || settings?.companyName,
       sellerTaxCode: activeCompany?.taxCode || settings?.taxCode,
       sellerAddress: activeCompany?.address || settings?.address,
@@ -665,6 +667,22 @@ export default function NewInvoicePage() {
                     </div>
                   );
                 })}
+              </div>
+
+              {/* Auto Save to Catalog Option */}
+              <div className="p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl flex items-center justify-between text-xs mt-3">
+                <label className="flex items-center space-x-2.5 cursor-pointer text-slate-800 font-semibold select-none">
+                  <input
+                    type="checkbox"
+                    checked={autoSaveToCatalog}
+                    onChange={(e) => setAutoSaveToCatalog(e.target.checked)}
+                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+                  />
+                  <span>⚡ Tự động lưu các gói dịch vụ mới trong hóa đơn này vào Danh mục hệ thống</span>
+                </label>
+                <span className="text-[11px] text-blue-600 font-medium hidden sm:inline">
+                  Giúp tái sử dụng nhanh cho các hóa đơn sau
+                </span>
               </div>
             </div>
 

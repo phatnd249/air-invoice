@@ -10,6 +10,7 @@ import {
   Send,
   Download,
   History,
+  Layers,
   FilePlus,
   Edit3,
   Mail,
@@ -146,6 +147,17 @@ export default function InvoiceDetailPage() {
     },
     onError: (err: any) => {
       alert('Lỗi khi hủy hóa đơn: ' + (err.response?.data?.message || err.message));
+    },
+  });
+
+
+  const saveToCatalogMutation = useMutation({
+    mutationFn: () => api.post(`/invoices/${id}/save-to-catalog`),
+    onSuccess: (res) => {
+      alert(`Đã lưu các gói từ hóa đơn này vào Danh mục hệ thống thành công!`);
+    },
+    onError: (err: any) => {
+      alert('Lỗi lưu gói: ' + (err.response?.data?.message || err.message));
     },
   });
 
@@ -355,6 +367,21 @@ export default function InvoiceDetailPage() {
           >
             <MessageSquare className="w-4 h-4" />
             <span>{isSendingZalo ? 'Đang gửi...' : invoice.status === 'PAID' ? 'Gửi Lại Zalo Kích Hoạt' : 'Gửi Zalo'}</span>
+          </button>
+
+
+          <button
+            onClick={() => {
+              if (confirm('Lưu tất cả các gói dịch vụ từ hóa đơn này vào Danh mục hệ thống?')) {
+                saveToCatalogMutation.mutate();
+              }
+            }}
+            disabled={saveToCatalogMutation.isPending}
+            className="inline-flex items-center px-3.5 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 text-sm font-semibold rounded-lg shadow-sm space-x-1.5 transition-all"
+            title="Lưu các gói từ hóa đơn này vào Danh mục hệ thống"
+          >
+            <Layers className="w-4 h-4 text-blue-600" />
+            <span>{saveToCatalogMutation.isPending ? 'Đang lưu...' : 'Lưu Gói Vào Hệ Thống'}</span>
           </button>
 
           {invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && (

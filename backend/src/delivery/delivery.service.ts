@@ -2,14 +2,54 @@ import { Injectable } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { PdfService } from '../document/pdf.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { MessageTemplatesService } from '../message-templates/message-templates.service';
+import * as path from 'path';
+import * as fs from 'fs';
 
 @Injectable()
 export class DeliveryService {
   private transporter: nodemailer.Transporter;
 
+  
+  /**
+   * Tải nội dung các file đính kèm từ URL hoặc đường dẫn cục bộ
+   */
+  private async resolveAttachmentBuffers(attachments: any[]): Promise<Array<{ filename: string; content: Buffer; contentType?: string }>> {
+    const result: Array<{ filename: string; content: Buffer; contentType?: string }> = [];
+    if (!Array.isArray(attachments)) return result;
+
+    for (const att of attachments) {
+      try {
+        if (!att?.url) continue;
+        const name = att.name || 'document';
+        if (att.url.startsWith('http://') || att.url.startsWith('https://')) {
+          const res = await fetch(att.url);
+          if (res.ok) {
+            const arr = await res.arrayBuffer();
+            result.push({
+              filename: name,
+              content: Buffer.from(arr),
+              contentType: att.type || res.headers.get('content-type') || 'application/octet-stream',
+            });
+          }
+        } else if (fs.existsSync(att.url)) {
+          result.push({
+            filename: name,
+            content: fs.readFileSync(att.url),
+            contentType: att.type || 'application/octet-stream',
+          });
+        }
+      } catch (err: any) {
+        console.warn(`[Delivery] Không thể tải file đính kèm ${att.name}: ${err.message}`);
+      }
+    }
+    return result;
+  }
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly pdfService: PdfService,
+    private readonly messageTemplatesService: MessageTemplatesService,
   ) {
     this.transporter = this.getTransporter();
   }
@@ -121,12 +161,43 @@ export class DeliveryService {
       ? 'XÁC NHẬN ĐĂNG KÝ GÓI DỊCH VỤ & THÔNG BÁO HÓA ĐƠN'
       : 'THÔNG BÁO HÓA ĐƠN & NHẮC LỊCH THANH TOÁN';
 
-    const emailSubject =
+    let emailSubject =
       options?.subject ||
       `[${brandName}] Xác nhận đăng ký ${packageName} & Hóa đơn thanh toán - #${invoice.invoiceNumber}`;
 
-    // 3. Nội dung Email theo chuẩn thương hiệu
-    const htmlBody = `
+    let customAttachments: any[] = [];
+
+    // Tra cứu mẫu Email được cấu hình riêng cho gói này
+    const itemIds = invoice.items.map((it: any) => it.id);
+    const itemNames = invoice.items.map((it: any) => it.name);
+    const matchedEmailTpl = await this.messageTemplatesService.findMatchingTemplate(
+      'EMAIL',
+      'INVOICE_CREATED',
+      itemIds,
+      itemNames,
+    );
+
+    let htmlBody = '';
+    if (matchedEmailTpl) {
+      const rendered = this.messageTemplatesService.renderTemplateContent(matchedEmailTpl, {
+        customerName: invoice.buyerName,
+        invoiceNumber: invoice.invoiceNumber,
+        grandTotal: invoice.grandTotal,
+        packageName,
+        viewUrl: shareUrl,
+        dueDate: dueDateStr,
+        paymentCode: invoice.paymentCode || '',
+        brandName,
+        companyName: settings?.companyName || brandName,
+        phone: settings?.phone || '0812305046',
+        email: settings?.email || '',
+        notes: invoice.notes || '',
+      });
+      if (rendered.subject) emailSubject = rendered.subject;
+      htmlBody = rendered.content;
+      customAttachments = rendered.attachments || [];
+    } else {
+      htmlBody = `
       <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333; max-width: 650px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
         <h2 style="color: #2c3e50; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">${emailHeaderTitle}</h2>
         
@@ -167,6 +238,9 @@ export class DeliveryService {
         </p>
       </div>
     `;
+    }
+
+    const extraAttachmentBuffers = await this.resolveAttachmentBuffers(customAttachments);
 
     // 4. Gửi qua Resend API hoặc fallback sang SMTP
     try {
@@ -200,6 +274,10 @@ export class DeliveryService {
                   filename: `HD_${invoice.invoiceNumber}.pdf`,
                   content: pdfBuffer.toString('base64'),
                 },
+                ...extraAttachmentBuffers.map((att) => ({
+                  filename: att.filename,
+                  content: att.content.toString('base64'),
+                })),
               ],
             }),
           });
@@ -238,6 +316,11 @@ export class DeliveryService {
                 content: pdfBuffer,
                 contentType: 'application/pdf',
               },
+              ...extraAttachmentBuffers.map((att) => ({
+                filename: att.filename,
+                content: att.content,
+                contentType: att.contentType,
+              })),
             ],
           });
           emailSent = true;
@@ -311,12 +394,40 @@ export class DeliveryService {
     const shareUrl = `${appUrl}/view/${invoice.shareToken}`;
     const formattedPaidTime = new Date().toLocaleString('vi-VN');
 
-    const emailSubject =
+    let emailSubject =
       options?.subject ||
       `[${brandName}] Xác nhận thanh toán thành công & Biên lai điện tử - #${invoice.invoiceNumber}`;
 
-    // 3. Nội dung Email Biên Lai Thanh Toán Sang Trọng & Chuyên Nghiệp
-    const htmlBody = `
+    let customPaymentAttachments: any[] = [];
+    const payItemIds = invoice.items.map((it: any) => it.id);
+    const payItemNames = invoice.items.map((it: any) => it.name);
+    const matchedPayTpl = await this.messageTemplatesService.findMatchingTemplate(
+      'EMAIL',
+      'PAYMENT_SUCCESS',
+      payItemIds,
+      payItemNames,
+    );
+
+    let htmlBody = '';
+    if (matchedPayTpl) {
+      const rendered = this.messageTemplatesService.renderTemplateContent(matchedPayTpl, {
+        customerName: invoice.buyerName,
+        invoiceNumber: invoice.invoiceNumber,
+        grandTotal: invoice.grandTotal,
+        packageName,
+        viewUrl: shareUrl,
+        paymentCode: invoice.paymentCode || '',
+        brandName,
+        companyName: settings?.companyName || brandName,
+        phone: settings?.phone || '0812305046',
+        email: settings?.email || '',
+        notes: options?.note || invoice.notes || '',
+      });
+      if (rendered.subject) emailSubject = rendered.subject;
+      htmlBody = rendered.content;
+      customPaymentAttachments = rendered.attachments || [];
+    } else {
+      htmlBody = `
       <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333; max-width: 650px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); padding: 26px 20px; text-align: center; border-radius: 8px 8px 0 0; color: #ffffff;">
@@ -402,6 +513,9 @@ export class DeliveryService {
         </div>
       </div>
     `;
+    }
+
+    const extraPaymentBuffers = await this.resolveAttachmentBuffers(customPaymentAttachments);
 
     // 4. Gửi qua Resend API hoặc fallback sang SMTP
     try {
@@ -433,6 +547,10 @@ export class DeliveryService {
                   filename: `Bien_Lai_HD_${invoice.invoiceNumber}.pdf`,
                   content: pdfBuffer.toString('base64'),
                 },
+                ...extraPaymentBuffers.map((att) => ({
+                  filename: att.filename,
+                  content: att.content.toString('base64'),
+                })),
               ],
             }),
           });
@@ -471,6 +589,11 @@ export class DeliveryService {
                 content: pdfBuffer,
                 contentType: 'application/pdf',
               },
+              ...extraPaymentBuffers.map((att) => ({
+                filename: att.filename,
+                content: att.content,
+                contentType: att.contentType,
+              })),
             ],
           });
           emailSent = true;

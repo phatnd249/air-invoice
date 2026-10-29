@@ -171,14 +171,59 @@ model InvoiceHistory {
 }
 
 model ServiceCatalog {
-  id          String   @id @default(uuid())
+  id          String        @id @default(uuid())
   name        String
   description String?
   metaInfo    String? // VD: 1 Năm, 25/06/2026 - 25/06/2027
-  unit        String   @default("gói")
-  unitPrice   Float    @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  unit        String        @default("gói")
+  unitPrice   Float         @default(0)
+  groupId     String?
+  group       ServiceGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  sortOrder   Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model ServiceGroup {
+  id          String           @id @default(uuid())
+  name        String           // Tên nhóm (VD: "AI Writer (Web 1)", "AI Tools Khóa Học")
+  code        String?          // Mã định danh ngắn (VD: "ai-writer", "edu-landing")
+  website     String?          // Website quản lý / domain (VD: "https://aiwriter.ntcore.io.vn")
+  description String?
+  color       String?          @default("#2563eb") // Màu nhận diện thẻ nhóm
+  sortOrder   Int              @default(0)
+  services    ServiceCatalog[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+enum MessageChannel {
+  ZALO
+  EMAIL
+}
+
+enum MessageTriggerType {
+  INVOICE_CREATED
+  PAYMENT_SUCCESS
+  SUBSCRIPTION_ALERT
+  CUSTOM
+}
+
+model MessageTemplate {
+  id          String             @id @default(uuid())
+  name        String             // Tên gợi nhớ mẫu tin nhắn
+  channel     MessageChannel     @default(ZALO)
+  triggerType MessageTriggerType @default(INVOICE_CREATED)
+  subject     String?            // Tiêu đề (với Email)
+  content     String             // Nội dung tin nhắn / HTML
+  serviceIds  String?            // JSON string array các ID gói dịch vụ áp dụng: string[]
+  attachments String?            // JSON string: Array<{ id?: string, name: string, url: string, size?: number, type?: string }>
+  isDefault   Boolean            @default(false)
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([channel, triggerType])
 }
 
 enum SubscriptionStatus {

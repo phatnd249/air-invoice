@@ -198,6 +198,16 @@ export class InvoicesController {
     return this.invoicesService.getAllHistories(action, search);
   }
 
+
+  @Post(':id/save-to-catalog')
+  async saveToCatalog(
+    @Param('id') id: string,
+    @Body('itemId') itemId?: string,
+    @Body('groupId') groupId?: string,
+  ) {
+    return this.invoicesService.saveInvoiceItemsToCatalog(id, itemId, groupId);
+  }
+
   @Get(':id')
   async getInvoiceById(@Param('id') id: string) {
     return this.invoicesService.getInvoiceById(id);

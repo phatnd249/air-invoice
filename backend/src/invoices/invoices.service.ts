@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
+import { ServicesCatalogService } from '../services-catalog/services-catalog.service';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -8,6 +9,7 @@ export class InvoicesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly settingsService: SettingsService,
+    private readonly servicesCatalogService: ServicesCatalogService,
   ) {}
 
   // Sinh mã token chia sẻ ngẫu nhiên an toàn chuẩn mã hóa (32 ký tự hex)
@@ -435,6 +437,36 @@ export class InvoicesService {
       orderBy: { createdAt: 'desc' },
       take: 200,
     });
+  }
+
+
+  /**
+   * Lưu 1 dòng dịch vụ hoặc toàn bộ dịch vụ từ hóa đơn vào danh mục hệ thống
+   */
+  async saveInvoiceItemsToCatalog(invoiceId: string, itemId?: string, groupId?: string) {
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: { items: true },
+    });
+    if (!invoice) throw new Error('Hóa đơn không tồn tại');
+
+    const itemsToSave = itemId
+      ? invoice.items.filter((it: any) => it.id === itemId)
+      : invoice.items;
+
+    const results = [];
+    for (const it of itemsToSave) {
+      const res = await this.servicesCatalogService.findOrCreateService({
+        name: it.name,
+        description: it.description || undefined,
+        metaInfo: it.metaInfo || undefined,
+        unit: it.unit || 'gói',
+        unitPrice: it.unitPrice || 0,
+        groupId,
+      });
+      results.push(res);
+    }
+    return results;
   }
 
   async deleteInvoice(id: string) {

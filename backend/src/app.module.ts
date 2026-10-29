@@ -8,6 +8,8 @@ import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { DeliveryModule } from './delivery/delivery.module';
 import { ServicesCatalogModule } from './services-catalog/services-catalog.module';
+import { MessageTemplatesModule } from './message-templates/message-templates.module';
+import { UploadModule } from './upload/upload.module';
 import { UsersModule } from './users/users.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { HealthModule } from './health/health.module';
@@ -27,6 +29,8 @@ import { RequestLoggerMiddleware } from './common/logger.middleware';
     DeliveryModule,
     QueueModule,
     ServicesCatalogModule,
+    MessageTemplatesModule,
+    UploadModule,
     UsersModule,
     SubscriptionsModule,
   ],

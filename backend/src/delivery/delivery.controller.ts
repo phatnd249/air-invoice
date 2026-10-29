@@ -5,6 +5,7 @@ import { ZaloService } from './zalo.service';
 import { PdfService } from '../document/pdf.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { Public } from '../auth/decorators/public.decorator';
+import { MessageTemplatesService } from '../message-templates/message-templates.service';
 
 // 🔒 Protected by global JwtAuthGuard in app.module.ts
 @Controller('delivery')
@@ -14,6 +15,7 @@ export class DeliveryController {
     private readonly zaloService: ZaloService,
     private readonly pdfService: PdfService,
     private readonly prisma: PrismaService,
+    private readonly messageTemplatesService: MessageTemplatesService,
   ) {}
 
   @Post('send-email/:id')
@@ -48,17 +50,53 @@ export class DeliveryController {
       const backendUrl = (process.env.BACKEND_URL || 'https://invoice-backend-5tbi.onrender.com').replace(/\/+$/, '');
       const viewUrl = `${appUrl}/view/${invoice.shareToken}`;
       const pdfUrl = `${backendUrl}/api/delivery/public/${invoice.shareToken}/pdf`;
+      const packageName = invoice.items?.[0]?.name || 'Gói Dịch Vụ';
+      const itemIds = invoice.items.map((it) => it.id);
+      const itemNames = invoice.items.map((it) => it.name);
 
-      if (invoice.status === 'PAID') {
+      // Tra cứu mẫu tin nhắn Zalo được cấu hình cho gói này
+      const isPaid = invoice.status === 'PAID';
+      const triggerType = isPaid ? 'PAYMENT_SUCCESS' : 'INVOICE_CREATED';
+      const matchTpl = await this.messageTemplatesService.findMatchingTemplate(
+        'ZALO',
+        triggerType as any,
+        itemIds,
+        itemNames,
+      );
+
+      let customMessage: string | undefined = undefined;
+      if (matchTpl) {
+        const rendered = this.messageTemplatesService.renderTemplateContent(matchTpl, {
+          customerName: invoice.buyerName,
+          invoiceNumber: invoice.invoiceNumber,
+          grandTotal: invoice.grandTotal,
+          packageName,
+          viewUrl,
+          pdfUrl,
+          paymentCode: invoice.paymentCode || '',
+          brandName: 'AI WRITER',
+          notes: invoice.notes || '',
+        });
+        customMessage = rendered.content;
+        if (rendered.attachments && rendered.attachments.length > 0) {
+          customMessage += '\n\n📎 Tài liệu & File đính kèm:';
+          rendered.attachments.forEach((att) => {
+            customMessage += `\n• ${att.name}: ${att.url}`;
+          });
+        }
+      }
+
+      if (isPaid) {
         const res = await this.zaloService.sendPaymentSuccessZalo({
           phone: invoice.buyerPhone,
           customerName: invoice.buyerName,
           invoiceNumber: invoice.invoiceNumber,
           grandTotal: invoice.grandTotal,
-          packageName: invoice.items?.[0]?.name,
+          packageName,
           brandName: 'AI WRITER',
           viewUrl,
           pdfUrl,
+          customMessage,
         });
         if (!res.success) throw new BadRequestException(res.error || 'Gửi tin nhắn Zalo không thành công');
         return res;
@@ -71,6 +109,7 @@ export class DeliveryController {
         grandTotal: invoice.grandTotal,
         viewUrl,
         pdfUrl,
+        customMessage,
       });
 
       if (!res.success) {
@@ -95,17 +134,50 @@ export class DeliveryController {
 
       const appUrl = (process.env.APP_URL || 'https://invoice.share4happy.com').replace(/\/+$/, '');
       const backendUrl = (process.env.BACKEND_URL || 'https://invoice-backend-5tbi.onrender.com').replace(/\/+$/, '');
+      const packageName = invoice.items?.[0]?.name || 'Gói Dịch Vụ AI WRITER';
+      const itemIds = invoice.items.map((it) => it.id);
+      const itemNames = invoice.items.map((it) => it.name);
+
+      const matchTpl = await this.messageTemplatesService.findMatchingTemplate(
+        'ZALO',
+        'PAYMENT_SUCCESS',
+        itemIds,
+        itemNames,
+      );
+
+      let customMessage: string | undefined = undefined;
+      if (matchTpl) {
+        const rendered = this.messageTemplatesService.renderTemplateContent(matchTpl, {
+          customerName: invoice.buyerName,
+          invoiceNumber: invoice.invoiceNumber,
+          grandTotal: invoice.grandTotal,
+          packageName,
+          viewUrl: `${appUrl}/view/${invoice.shareToken}`,
+          pdfUrl: `${backendUrl}/api/delivery/public/${invoice.shareToken}/pdf`,
+          paymentCode: invoice.paymentCode || '',
+          brandName: 'AI WRITER',
+          notes: note || invoice.notes || '',
+        });
+        customMessage = rendered.content;
+        if (rendered.attachments && rendered.attachments.length > 0) {
+          customMessage += '\n\n📎 Tài liệu & File đính kèm:';
+          rendered.attachments.forEach((att) => {
+            customMessage += `\n• ${att.name}: ${att.url}`;
+          });
+        }
+      }
 
       const res = await this.zaloService.sendPaymentSuccessZalo({
         phone: invoice.buyerPhone,
         customerName: invoice.buyerName,
         invoiceNumber: invoice.invoiceNumber,
         grandTotal: invoice.grandTotal,
-        packageName: invoice.items?.[0]?.name,
+        packageName,
         brandName: 'AI WRITER',
         viewUrl: `${appUrl}/view/${invoice.shareToken}`,
         pdfUrl: `${backendUrl}/api/delivery/public/${invoice.shareToken}/pdf`,
         note,
+        customMessage,
       });
 
       if (!res.success) {
@@ -127,13 +199,13 @@ export class DeliveryController {
     }
   }
 
-  @Public()  // 🌐 Link chia sẻ công khai cho khách xem hoá đơn — không cần đăng nhập
+  @Public() // 🌐 Link chia sẻ công khai cho khách xem hoá đơn — không cần đăng nhập
   @Get('public/:token')
   async getPublicInvoice(@Param('token') token: string) {
     return this.deliveryService.getPublicInvoiceByToken(token);
   }
 
-  @Public()  // 🌐 Link tải PDF công khai theo shareToken cho khách trên Landing Page / Zalo
+  @Public() // 🌐 Link tải PDF công khai theo shareToken cho khách trên Landing Page / Zalo
   @Get('public/:token/pdf')
   async exportPublicPdf(@Param('token') token: string, @Res() res: Response) {
     const invoice = await this.prisma.invoice.findFirst({
@@ -154,7 +226,7 @@ export class DeliveryController {
     return res.end(buffer);
   }
 
-  @Public()  // 🌐 Link tải PDF theo ID hoá đơn
+  @Public() // 🌐 Link tải PDF theo ID hoá đơn
   @Get('export-pdf/:id')
   async exportPdf(@Param('id') id: string, @Res() res: Response) {
     const invoice = await this.prisma.invoice.findUnique({
