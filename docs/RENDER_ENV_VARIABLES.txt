@@ -33,9 +33,10 @@ PASSWORD_RESET_TTL_MINUTES=60
 # Ví dụ: https://invoice-air.vercel.app
 APP_URL=https://your-app.vercel.app
 
-# CORS Origins - UPDATE SAU KHI DEPLOY VERCEL
-# Có thể nhiều domain, ngăn cách bằng dấu phẩy
-CORS_ORIGINS=https://your-app.vercel.app
+# CORS Origins
+# '*' = PUBLIC API: mọi website gọi được (mặc định, không cần thêm domain)
+# Hoặc danh sách domain ngăn cách bằng dấu phẩy, hỗ trợ wildcard: https://*.vercel.app
+CORS_ORIGINS=*
 
 # PDF/Chromium Configuration
 # Đóng Chromium sau 60 giây không dùng để giải phóng RAM

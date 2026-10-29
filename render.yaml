@@ -67,7 +67,7 @@ services:
       - key: APP_URL
         sync: false
       - key: CORS_ORIGINS
-        sync: false
+        value: "*"
 
       # PDF/Chromium Optimization
       - key: PDF_BROWSER_IDLE_TIMEOUT_MS

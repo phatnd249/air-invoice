@@ -1328,7 +1328,7 @@ Trân trọng!`}
             <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-3.5 text-xs text-blue-800 flex items-start gap-2">
               <Info className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
               <span>
-                <strong>CORS Policy:</strong> Máy chủ cho phép gọi API trực tiếp từ Landing Page client-side JavaScript thuộc các domain <code>*.share4happy.com</code>, <code>*.vercel.app</code> và <code>localhost</code> mà không bị chặn trình duyệt.
+                <strong>CORS Policy:</strong> API đang ở chế độ <strong>public</strong> — mọi website (landing page, CRM, n8n...) đều gọi được trực tiếp từ browser. Có thể giới hạn lại bằng biến môi trường <code>CORS_ORIGINS</code> (mặc định <code>*</code>).
               </span>
             </div>
           </section>

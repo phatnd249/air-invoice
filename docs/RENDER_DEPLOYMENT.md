@@ -110,9 +110,10 @@ REFRESH_TOKEN_SECRET=your-128-char-secret-from-step-1.1
 REFRESH_TOKEN_EXPIRES_IN=7d
 PASSWORD_RESET_TTL_MINUTES=60
 
-# Frontend URLs - SẼ UPDATE SAU KHI DEPLOY VERCEL
+# Frontend URLs
 APP_URL=https://your-app.vercel.app
-CORS_ORIGINS=https://your-app.vercel.app
+# '*' = PUBLIC API (mọi website gọi được) | hoặc danh sách domain cách nhau bởi dấu phẩy
+CORS_ORIGINS=*
 
 # PDF/Chromium Settings
 PDF_BROWSER_IDLE_TIMEOUT_MS=60000
@@ -224,14 +225,18 @@ vercel --prod
 
 ---
 
-## 🔄 Bước 8: Update CORS trên Render
+## 🔄 Bước 8: Cấu hình CORS trên Render
 
-Sau khi frontend deploy xong Vercel (ví dụ: `https://invoice-air.vercel.app`):
+Mặc định API đang **public** (`CORS_ORIGINS=*`) — mọi landing page/CRM/n8n đều gọi được, **không cần thêm từng domain vào code**.
 
 1. Vào Render Dashboard → Service → Environment
-2. Update biến `CORS_ORIGINS`:
+2. Biến `CORS_ORIGINS`:
 ```
-CORS_ORIGINS=https://invoice-air.vercel.app
+# Mở public (khuyến nghị cho tích hợp landing page)
+CORS_ORIGINS=*
+
+# Hoặc chỉ giới hạn các domain được phép (hỗ trợ wildcard)
+CORS_ORIGINS=https://invoice-air.vercel.app,https://*.share4happy.com
 ```
 3. Update biến `APP_URL`:
 ```
