@@ -70,9 +70,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isAdminOnlyRoute = pathname?.startsWith('/users');
   if (isAdminOnlyRoute && !isAdmin) {
     return (
-      <div className="flex min-h-screen bg-slate-50">
+      <div className="flex h-screen overflow-hidden bg-slate-50">
         <Sidebar />
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
           <TopBar />
           <main className="flex-1 overflow-y-auto bg-slate-50/50 flex items-center justify-center p-6">
             <div className="max-w-md w-full bg-white rounded-2xl border border-slate-200 p-8 text-center shadow-sm">
@@ -99,9 +99,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // Giao diện chính sau khi đăng nhập với TopBar
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans antialiased">
+    <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-900 font-sans antialiased">
       <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <TopBar />
         <main className="flex-1 overflow-y-auto bg-slate-50/70">
           {children}

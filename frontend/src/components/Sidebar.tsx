@@ -16,6 +16,7 @@ import {
   Sparkles,
   Receipt,
   Clock,
+  Code2,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
@@ -49,6 +50,12 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    groupName: 'Tích Hợp & API',
+    items: [
+      { name: 'API & Tích Hợp', href: '/integrations', icon: Code2 },
+    ],
+  },
+  {
     groupName: 'Hệ Thống & Quản Trị',
     items: [
       { name: 'Quản trị Người dùng', href: '/users', icon: Users, adminOnly: true },
@@ -62,9 +69,9 @@ export function Sidebar() {
   const { user, logout, isAdmin } = useAuth();
 
   return (
-    <aside className="w-64 bg-slate-900 text-slate-200 min-h-screen flex flex-col border-r border-slate-800 shrink-0 select-none">
-      {/* Workspace / Brand Header */}
-      <div className="h-16 px-5 border-b border-slate-800 flex items-center justify-between">
+    <aside className="w-64 h-screen bg-slate-900 text-slate-200 flex flex-col border-r border-slate-800 shrink-0 select-none">
+      {/* Workspace / Brand Header (cố định) */}
+      <div className="h-16 shrink-0 px-5 border-b border-slate-800 flex items-center justify-between">
         <Link href="/invoices" className="flex items-center space-x-3 group">
           <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs group-hover:bg-blue-500 transition-colors">
             <FileText className="w-5 h-5" />
@@ -128,8 +135,8 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* User Info & Quick Logout Footer */}
-      <div className="p-3.5 border-t border-slate-800 bg-slate-950/50 space-y-3">
+      {/* User Info & Quick Logout Footer (cố định) */}
+      <div className="p-3.5 shrink-0 border-t border-slate-800 bg-slate-950/50 space-y-3">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center space-x-2.5 min-w-0">
             <div className="w-8 h-8 rounded-full bg-blue-600/30 border border-blue-500/30 flex items-center justify-center text-blue-300 font-bold text-xs shrink-0">

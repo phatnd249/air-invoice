@@ -21,9 +21,11 @@ const ROUTE_LABELS: Record<string, { title: string; parent?: string }> = {
   '/invoices': { title: 'Quản lý Hóa đơn', parent: 'Nghiệp vụ' },
   '/invoices/new': { title: 'Lập Hóa đơn Mới', parent: 'Quản lý Hóa đơn' },
   '/subscriptions': { title: 'Khách hàng & Dịch vụ Gia hạn', parent: 'Nghiệp vụ' },
+  '/queue': { title: 'Hàng Chờ Request', parent: 'Nghiệp vụ' },
   '/history': { title: 'Nhật ký Lịch sử Giao dịch', parent: 'Nghiệp vụ' },
   '/services': { title: 'Danh mục Dịch vụ', parent: 'Cấu hình' },
   '/templates': { title: 'Mẫu Giao diện Hóa đơn A4', parent: 'Cấu hình' },
+  '/integrations': { title: 'API & Tích Hợp', parent: 'Tích hợp' },
   '/users': { title: 'Quản trị Người dùng', parent: 'Hệ thống' },
   '/settings': { title: 'Cài đặt Hệ thống', parent: 'Hệ thống' },
 };
@@ -52,7 +54,7 @@ export function TopBar() {
   const currentRoute = getBreadcrumb();
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200/80 sticky top-0 z-30 flex items-center justify-between px-6 lg:px-8 select-none transition-all">
+    <header className="h-16 shrink-0 bg-white border-b border-slate-200/80 z-30 flex items-center justify-between px-6 lg:px-8 select-none transition-all">
       {/* Left: Breadcrumbs */}
       <div className="flex items-center space-x-2 text-xs">
         {currentRoute.parent && (
