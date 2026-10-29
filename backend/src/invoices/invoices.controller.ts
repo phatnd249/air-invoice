@@ -5,6 +5,7 @@ import { ZaloService } from '../delivery/zalo.service';
 import { QueueService } from '../queue/queue.service';
 import { Public } from '../auth/decorators/public.decorator';
 import { QueueType } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 
 // 🔒 Protected by global JwtAuthGuard in app.module.ts
 @Controller('invoices')
@@ -14,6 +15,7 @@ export class InvoicesController {
     private readonly deliveryService: DeliveryService,
     private readonly zaloService: ZaloService,
     private readonly queueService: QueueService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Public() // 🌐 Endpoint dành riêng cho Landing Page (gọi tạo hoá đơn & sinh PDF trực tiếp)
@@ -46,6 +48,26 @@ export class InvoicesController {
       };
     } else {
       dto = body;
+    }
+
+    // Tự động đối chiếu đơn giá & mô tả từ Danh mục dịch vụ nếu chưa có
+    if (dto.items && Array.isArray(dto.items)) {
+      for (const item of dto.items) {
+        if (!item.unitPrice || item.unitPrice === 0) {
+          try {
+            const matchedService = await this.prisma.serviceCatalog.findFirst({
+              where: {
+                name: { equals: item.name, mode: 'insensitive' },
+              },
+            });
+            if (matchedService) {
+              item.unitPrice = matchedService.unitPrice;
+              if (!item.description) item.description = matchedService.description || '';
+              if (matchedService.unit) item.unit = matchedService.unit;
+            }
+          } catch {}
+        }
+      }
     }
 
     // 2. Tạo hóa đơn trong Database
