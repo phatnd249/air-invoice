@@ -13,6 +13,7 @@ import {
   Layers,
   FilePlus,
   Edit3,
+  Pencil,
   Mail,
   ShieldCheck,
   Ban,
@@ -300,6 +301,17 @@ export default function InvoiceDetailPage() {
             <Download className="w-4 h-4" />
             <span>Tải PDF</span>
           </button>
+
+          
+          {/* Nút Chỉnh Sửa Hóa Đơn */}
+          <Link
+            href={`/invoices/${invoice.id}/edit`}
+            className="inline-flex items-center px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-lg shadow-sm space-x-1.5 transition-all"
+            title="Chỉnh sửa chi tiết hóa đơn"
+          >
+            <Pencil className="w-4 h-4" />
+            <span>Chỉnh Sửa</span>
+          </Link>
 
           <button
             onClick={() => cloneMutation.mutate()}

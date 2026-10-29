@@ -42,3 +42,4 @@ export class MessageTemplatesController {
     return this.messageTemplatesService.renderTemplateContent(template, sampleData || {});
   }
 }
+

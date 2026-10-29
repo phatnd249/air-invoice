@@ -10,3 +10,4 @@ import { PrismaModule } from '../prisma/prisma.module';
   exports: [MessageTemplatesService],
 })
 export class MessageTemplatesModule {}
+

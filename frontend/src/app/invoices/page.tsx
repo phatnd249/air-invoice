@@ -10,6 +10,7 @@ import {
   Search,
   FileText,
   Copy,
+  Pencil,
   Trash2,
   RefreshCw,
   CheckCircle2,
@@ -626,6 +627,16 @@ export default function InvoicesPage() {
                             <Eye className="w-3.5 h-3.5 text-slate-400" />
                             <span>Xem chi tiết</span>
                           </Link>
+
+                          <Link
+                            href={`/invoices/${inv.id}/edit`}
+                            onClick={() => { setOpenMenuRow(null); setMenuPos(null); }}
+                            className="flex items-center space-x-2.5 px-3.5 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 transition-colors"
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Chỉnh sửa hóa đơn</span>
+                          </Link>
+
                           <a
                             href={getExportPdfUrl(inv.id)}
                             target="_blank"
