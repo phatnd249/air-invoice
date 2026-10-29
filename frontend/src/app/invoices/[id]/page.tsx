@@ -138,6 +138,14 @@ export default function InvoiceDetailPage() {
     },
   });
 
+  const { data: invoiceTemplates = [] } = useQuery<any[]>({
+    queryKey: ['invoice-templates'],
+    queryFn: async () => {
+      const res = await api.get('/invoice-templates');
+      return res.data;
+    },
+  });
+
   const cancelMutation = useMutation({
     mutationFn: async () => {
       return api.post(`/invoices/${id}/cancel`);
@@ -248,14 +256,6 @@ export default function InvoiceDetailPage() {
   const editCount = histories.filter((h) => h.action === 'UPDATED').length;
   const sendCount = histories.filter((h) => h.action === 'SENT').length;
   const activeTemplate = invoice.templateId || 'standard-classic';
-
-  const { data: invoiceTemplates = [] } = useQuery<any[]>({
-    queryKey: ['invoice-templates'],
-    queryFn: async () => {
-      const res = await api.get('/invoice-templates');
-      return res.data;
-    },
-  });
 
   const activeTemplateConfig = (invoiceTemplates as any[]).find(
     (t: any) => t.code === activeTemplate || t.id === activeTemplate

@@ -87,6 +87,15 @@ export default function EditInvoicePage() {
     },
   });
 
+  // Fetch danh sách mẫu thiết kế hóa đơn
+  const { data: invoiceTemplates = [] } = useQuery<any[]>({
+    queryKey: ['invoice-templates'],
+    queryFn: async () => {
+      const res = await api.get('/invoice-templates');
+      return res.data;
+    },
+  });
+
   const companies: Array<any> =
     settings?.companies && Array.isArray(settings.companies) && settings.companies.length > 0
       ? settings.companies
@@ -280,15 +289,6 @@ export default function EditInvoicePage() {
   }
 
   const selectedTemplateId = watchedValues.templateId || invoice.templateId || 'standard-classic';
-  // Lấy danh sách mẫu thiết kế hóa đơn
-  const { data: invoiceTemplates = [] } = useQuery<any[]>({
-    queryKey: ['invoice-templates'],
-    queryFn: async () => {
-      const res = await api.get('/invoice-templates');
-      return res.data;
-    },
-  });
-
   const activeTemplate = (invoiceTemplates as any[]).find(
     (t: any) => t.code === selectedTemplateId || t.id === selectedTemplateId
   );
