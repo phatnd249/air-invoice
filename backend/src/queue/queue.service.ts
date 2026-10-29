@@ -28,6 +28,7 @@ const NON_RETRYABLE_PATTERNS: RegExp[] = [
   /Invalid `?to`? field/i,
   /domain thử nghiệm/i,
   /Không thể resolve bất kỳ recipient nào/i,
+  /không thể tìm thấy hoặc gửi tin tới số/i,
   /không có địa chỉ email/i,
   /Số điện thoại không hợp lệ/i,
   /Hóa đơn không tồn tại/i,
