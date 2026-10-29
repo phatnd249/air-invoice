@@ -130,7 +130,12 @@ export class ZaloService {
     }
 
     try {
-      // 1. Gọi API Gửi tin nhắn Batch (≤5 recipients là đồng bộ)
+      let isSuccess = false;
+      let finalResult: any = null;
+      let resolvedUid: string | null = null;
+      let lastError = '';
+
+      // Bước 1: Thử gửi tin nhắn trực tiếp qua số điện thoại (nếu khách đã từng chat / là bạn bè)
       const messageEndpoint = `${baseUrl}/bots/${botId}/messages/send-batch`;
       const messagePayload = {
         recipients: [{ phone: cleanPhone }],
@@ -141,39 +146,48 @@ export class ZaloService {
         mode: 'safe',
       };
 
-      const response = await fetch(messageEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-        },
-        body: JSON.stringify(messagePayload),
-      });
+      try {
+        const response = await fetch(messageEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+          },
+          body: JSON.stringify(messagePayload),
+        });
 
-      const result = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        const errorDetail = result?.error || result?.message || `HTTP ${response.status}: ${response.statusText}`;
-        this.logger.error(`Zalo API error HTTP ${response.status}: ${JSON.stringify(result)}`);
-        return { success: false, error: `Lỗi Zalo Gateway (${response.status}): ${errorDetail}`, data: result };
+        const result = await response.json().catch(() => ({}));
+        if (response.ok && result?.success !== false) {
+          isSuccess = true;
+          finalResult = result;
+          this.logger.log(`Đã gửi tin nhắn Zalo trực tiếp thành công tới ${cleanPhone}`);
+        } else {
+          lastError = result?.error || result?.message || `HTTP ${response.status}`;
+          this.logger.warn(
+            `Gửi tin nhắn trực tiếp qua số ${cleanPhone} chưa được: ${lastError}. Đang kích hoạt cơ chế giải quyết người nhận...`,
+          );
+        }
+      } catch (err: any) {
+        lastError = err?.message;
+        this.logger.warn(`Lỗi gửi tin nhắn trực tiếp tới ${cleanPhone}: ${err?.message}`);
       }
 
-      this.logger.log(`Đã gửi tin nhắn Zalo thành công tới ${cleanPhone}: ${JSON.stringify(result)}`);
-
-      // 2. Gửi lời mời kết bạn nếu được bật
-      if (autoFriend) {
+      // Bước 2: Nếu chưa gửi được (do khách hàng mới, chưa kết bạn), gọi API kết bạn để Resolve UID và gửi kèm thông tin hóa đơn
+      if (!isSuccess) {
         try {
           const friendEndpoint = `${baseUrl}/bots/${botId}/friends/requests/send-batch`;
+          const friendMessage = `[${buyerName}] Hóa đơn #${invoiceNum} (${totalStr}): ${viewUrl || ''}`.slice(0, 150);
           const friendPayload = {
             recipients: [
               {
                 phone: cleanPhone,
                 alias: `${aliasPrefix}${buyerName}`.slice(0, 50),
+                message: friendMessage,
               },
             ],
           };
 
-          await fetch(friendEndpoint, {
+          const friendResponse = await fetch(friendEndpoint, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -181,12 +195,61 @@ export class ZaloService {
             },
             body: JSON.stringify(friendPayload),
           });
+
+          const friendResult = await friendResponse.json().catch(() => ({}));
+          if (friendResponse.ok && friendResult?.success) {
+            this.logger.log(`Đã gửi lời mời kết bạn Zalo kèm hóa đơn thành công tới ${cleanPhone}`);
+            const firstResult = friendResult.results?.[0];
+            if (firstResult?.uid) {
+              resolvedUid = String(firstResult.uid);
+            }
+          } else {
+            this.logger.warn(`Gửi lời mời kết bạn tới ${cleanPhone} thất bại: ${JSON.stringify(friendResult)}`);
+          }
         } catch (friendErr: any) {
           this.logger.warn(`Không thể gửi lời mời kết bạn Zalo: ${friendErr?.message}`);
         }
       }
 
-      return { success: true, data: result };
+      // Bước 3: Nếu đã giải quyết được UID từ bước 2, gửi tin nhắn đầy đủ trực tiếp qua UID
+      if (!isSuccess && resolvedUid) {
+        try {
+          const retryUidResponse = await fetch(messageEndpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': apiKey,
+            },
+            body: JSON.stringify({
+              recipients: [{ uid: resolvedUid }],
+              content: {
+                type: 'text',
+                data: { text: messageText },
+              },
+              mode: 'safe',
+            }),
+          });
+
+          const retryResult = await retryUidResponse.json().catch(() => ({}));
+          if (retryUidResponse.ok && retryResult?.success !== false) {
+            isSuccess = true;
+            finalResult = retryResult;
+            this.logger.log(`Đã gửi tin nhắn Zalo thành công qua UID ${resolvedUid} tới ${cleanPhone}`);
+          }
+        } catch (retryErr: any) {
+          this.logger.warn(`Gửi tin nhắn Zalo qua UID ${resolvedUid} thất bại: ${retryErr?.message}`);
+        }
+      }
+
+      // Bước 4: Kiểm tra kết quả
+      if (isSuccess || resolvedUid) {
+        return { success: true, data: finalResult || { resolvedUid } };
+      }
+
+      return {
+        success: false,
+        error: `Lỗi Zalo Gateway: Không thể tìm thấy hoặc gửi tin tới số ${cleanPhone} (${lastError || 'Số chưa đăng ký Zalo hoặc chặn tin nhắn'})`,
+      };
     } catch (error: any) {
       this.logger.error(`Lỗi kết nối tới Zalo Bot API: ${error?.message}`);
       return { success: false, error: error?.message };

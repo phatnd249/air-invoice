@@ -37,6 +37,44 @@ export class DeliveryService {
     } as any);
   }
 
+  /**
+   * Kiểm tra email người nhận trước khi gửi.
+   * Resend luôn từ chối các domain dành cho tài liệu/thử nghiệm (example.com, test.com...),
+   * nên chặn sớm để không phải sinh PDF và gọi API vô ích.
+   */
+  private resolveRecipientEmail(email?: string | null): string {
+    const value = (email || '').trim();
+    if (!value) throw new Error('Hóa đơn chưa có địa chỉ email người nhận');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)) {
+      throw new Error(`Email người nhận không hợp lệ: ${value}`);
+    }
+
+    const domain = (value.split('@')[1] || '').toLowerCase();
+    const blockedDomains = [
+      'example.com',
+      'example.org',
+      'example.net',
+      'test.com',
+      'test.local',
+      'localhost',
+      'local',
+      'invalid',
+    ];
+
+    if (
+      blockedDomains.includes(domain) ||
+      domain.endsWith('.invalid') ||
+      domain.endsWith('.local') ||
+      domain.endsWith('.example')
+    ) {
+      throw new Error(
+        `Email "${value}" dùng domain thử nghiệm nên Resend từ chối gửi. Vui lòng dùng email thật của khách hàng.`,
+      );
+    }
+
+    return value;
+  }
+
   async sendInvoiceEmail(
     invoiceId: string,
     options?: {
@@ -53,7 +91,7 @@ export class DeliveryService {
     });
 
     if (!invoice) throw new Error('Hóa đơn không tồn tại');
-    if (!invoice.buyerEmail) throw new Error('Hóa đơn chưa có địa chỉ email người nhận');
+    const recipientEmail = this.resolveRecipientEmail(invoice.buyerEmail);
 
     // Nếu hóa đơn đã thanh toán (PAID), tự động chuyển sang gửi email biên lai thanh toán thành công
     if (invoice.status === 'PAID') {
@@ -150,7 +188,7 @@ export class DeliveryService {
           },
           body: JSON.stringify({
             from: fromEmail,
-            to: [invoice.buyerEmail],
+            to: [recipientEmail],
             subject: emailSubject,
             html: htmlBody,
             attachments: [
@@ -176,7 +214,7 @@ export class DeliveryService {
         const transporter = this.getTransporter();
         await transporter.sendMail({
           from: fromAddress,
-          to: invoice.buyerEmail,
+          to: recipientEmail,
           subject: `[${settings?.companyName || 'Invoice-AIR'}] Thông báo hóa đơn & Nhắc lịch thanh toán dịch vụ - ${invoice.invoiceNumber}`,
           html: htmlBody,
           attachments: [
@@ -199,13 +237,13 @@ export class DeliveryService {
           histories: {
             create: {
               action: 'SENT',
-              note: `Đã gửi email thông báo kèm file PDF tới ${invoice.buyerEmail}`,
+              note: `Đã gửi email thông báo kèm file PDF tới ${recipientEmail}`,
             },
           },
         },
       });
 
-      return { success: true, message: `Đã gửi email thành công tới ${invoice.buyerEmail}` };
+      return { success: true, message: `Đã gửi email thành công tới ${recipientEmail}` };
     } catch (error: any) {
       console.error('Lỗi gửi email:', error);
       const cleanMsg = (error.message || '').replace(/^Lỗi gửi mail:\s*/, '');
@@ -232,7 +270,7 @@ export class DeliveryService {
     });
 
     if (!invoice) throw new Error('Hóa đơn không tồn tại');
-    if (!invoice.buyerEmail) throw new Error('Hóa đơn chưa có địa chỉ email người nhận');
+    const recipientEmail = this.resolveRecipientEmail(invoice.buyerEmail);
 
     const settings = await this.prisma.setting.findUnique({ where: { id: 'default' } });
 
@@ -361,7 +399,7 @@ export class DeliveryService {
           },
           body: JSON.stringify({
             from: fromEmail,
-            to: [invoice.buyerEmail],
+            to: [recipientEmail],
             subject: emailSubject,
             html: htmlBody,
             attachments: [
@@ -387,7 +425,7 @@ export class DeliveryService {
         const transporter = this.getTransporter();
         await transporter.sendMail({
           from: fromAddress,
-          to: invoice.buyerEmail,
+          to: recipientEmail,
           subject: emailSubject,
           html: htmlBody,
           attachments: [
@@ -407,11 +445,11 @@ export class DeliveryService {
         data: {
           invoiceId: invoice.id,
           action: 'SENT',
-          note: `Đã gửi email biên lai thanh toán thành công kèm PDF tới ${invoice.buyerEmail}`,
+          note: `Đã gửi email biên lai thanh toán thành công kèm PDF tới ${recipientEmail}`,
         },
       });
 
-      return { success: true, message: `Đã gửi email biên lai thanh toán tới ${invoice.buyerEmail}` };
+      return { success: true, message: `Đã gửi email biên lai thanh toán tới ${recipientEmail}` };
     } catch (error: any) {
       console.error('Lỗi gửi email thanh toán thành công:', error);
       const cleanMsg = (error.message || '').replace(/^Lỗi gửi mail:\s*/, '');

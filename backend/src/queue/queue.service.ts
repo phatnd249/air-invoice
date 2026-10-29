@@ -18,6 +18,26 @@ export interface EnqueueOptions {
 // Bảng thời gian thử lại sau vài phút khi có lỗi: 2 phút, 5 phút, 10 phút, 15 phút, 30 phút
 const RETRY_DELAYS_MINUTES = [2, 5, 10, 15, 30];
 
+/**
+ * Lỗi "vĩnh viễn": thử lại 5 lần cũng không thể thành công
+ * (email/số điện thoại sai, domain thử nghiệm bị Resend chặn, số chưa có Zalo...).
+ * Gặp các lỗi này thì dừng ngay, tránh spam log và giữ job trong hàng chờ vô ích.
+ */
+const NON_RETRYABLE_PATTERNS: RegExp[] = [
+  /Resend API HTTP 4(?!08|29)\d\d/i, // 4xx trừ 408 timeout / 429 rate limit
+  /Invalid `?to`? field/i,
+  /domain thử nghiệm/i,
+  /Không thể resolve bất kỳ recipient nào/i,
+  /không có địa chỉ email/i,
+  /Số điện thoại không hợp lệ/i,
+  /Hóa đơn không tồn tại/i,
+];
+
+function isNonRetryableError(message: string): boolean {
+  return NON_RETRYABLE_PATTERNS.some((pattern) => pattern.test(message));
+}
+
+
 @Injectable()
 export class QueueService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(QueueService.name);
@@ -156,8 +176,9 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
     } catch (err: any) {
       const errorMsg = err?.message || String(err);
       const nextRetryCount = job.retryCount + 1;
+      const permanent = isNonRetryableError(errorMsg);
 
-      if (nextRetryCount < job.maxRetries) {
+      if (!permanent && nextRetryCount < job.maxRetries) {
         // Gửi sau vài phút: lần 1 (2p), lần 2 (5p), lần 3 (10p), lần 4 (15p), lần 5 (30p)
         const delayMinutes =
           RETRY_DELAYS_MINUTES[Math.min(nextRetryCount - 1, RETRY_DELAYS_MINUTES.length - 1)] || 5;
@@ -179,19 +200,25 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
           }: ${errorMsg}. Sẽ tự động thử lại sau ${delayMinutes} phút.`,
         );
       } else {
-        // Sau nhiều lần gửi thử vẫn không được thì DỪNG, NHƯNG VẪN ĐỂ ĐÓ trong hệ thống để quản trị viên kiểm tra
+        // Hết lượt thử lại HOẶC lỗi không thể khắc phục -> DỪNG, nhưng vẫn giữ bản ghi để quản trị viên kiểm tra
+        const reason = permanent
+          ? `[Lỗi không thể khắc phục - dừng ngay, không thử lại]: ${errorMsg}`
+          : `[Đã dừng thử lại sau ${nextRetryCount} lần thất bại]: ${errorMsg}`;
+
         await this.prisma.requestQueue.update({
           where: { id: job.id },
           data: {
             status: QueueStatus.FAILED,
             retryCount: nextRetryCount,
-            errorMessage: `[Đã dừng thử lại sau ${nextRetryCount} lần thất bại]: ${errorMsg}`,
+            errorMessage: reason,
             processedAt: new Date(),
           },
         });
 
         this.logger.error(
-          `❌ [Queue] Job ${job.id} (${job.title || job.type}) ĐÃ DỪNG THỬ LẠI sau ${nextRetryCount} lần: ${errorMsg}. Bản ghi vẫn được lưu trong hàng chờ.`,
+          permanent
+            ? `❌ [Queue] Job ${job.id} (${job.title || job.type}) gặp lỗi không thể khắc phục, dừng ngay (lần ${nextRetryCount}): ${errorMsg}`
+            : `❌ [Queue] Job ${job.id} (${job.title || job.type}) ĐÃ DỪNG THỬ LẠI sau ${nextRetryCount} lần: ${errorMsg}. Bản ghi vẫn được lưu trong hàng chờ.`,
         );
       }
     }
