@@ -52,3 +52,4 @@ export class InvoiceTemplatesController {
     return this.invoiceTemplatesService.delete(id);
   }
 }
+

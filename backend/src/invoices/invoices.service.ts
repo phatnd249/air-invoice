@@ -360,9 +360,31 @@ export class InvoicesService {
   }
 
   async payInvoice(id: string, note?: string) {
-    const existing = await this.prisma.invoice.findUnique({ where: { id } });
+    const existing = await this.prisma.invoice.findUnique({
+      where: { id },
+      include: { items: true, histories: { orderBy: { createdAt: 'desc' } } },
+    });
     if (!existing) throw new Error('Hóa đơn không tồn tại');
-    if (existing.status === 'PAID') throw new Error('Hóa đơn này đã được xác nhận thanh toán trước đó');
+
+    // Nếu hóa đơn đã ở trạng thái PAID: cập nhật ghi chú bổ sung (nếu có) và trả về hóa đơn hiện tại (idempotent)
+    if (existing.status === 'PAID') {
+      if (note && note !== existing.notes) {
+        return this.prisma.invoice.update({
+          where: { id },
+          data: {
+            notes: note,
+            histories: {
+              create: {
+                action: 'PAID',
+                note: `Cập nhật ghi chú xác nhận thanh toán: ${note}`,
+              },
+            },
+          },
+          include: { items: true, histories: { orderBy: { createdAt: 'desc' } } },
+        });
+      }
+      return existing;
+    }
 
     return this.prisma.invoice.update({
       where: { id },

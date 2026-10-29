@@ -383,10 +383,23 @@ export class MessageTemplatesService implements OnModuleInit {
       content = content.replace(reg, val);
     }
 
+    let attachments: AttachmentFile[] = [];
+    if (template.attachments) {
+      if (Array.isArray(template.attachments)) {
+        attachments = template.attachments;
+      } else if (typeof template.attachments === 'string') {
+        try {
+          attachments = JSON.parse(template.attachments);
+        } catch {
+          attachments = [];
+        }
+      }
+    }
+
     return {
       subject,
       content,
-      attachments: Array.isArray(template.attachments) ? template.attachments : [],
+      attachments,
     };
   }
 

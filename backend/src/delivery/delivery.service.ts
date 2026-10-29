@@ -12,38 +12,178 @@ export class DeliveryService {
 
   
   /**
-   * Tải nội dung các file đính kèm từ URL hoặc đường dẫn cục bộ
+   * Đảm bảo tên file luôn có phần mở rộng (.pdf, .zip, .png, ...)
+   * Resend API và các mail client từ chối attachment không có file extension.
    */
-  private async resolveAttachmentBuffers(attachments: any[]): Promise<Array<{ filename: string; content: Buffer; contentType?: string }>> {
-    const result: Array<{ filename: string; content: Buffer; contentType?: string }> = [];
-    if (!Array.isArray(attachments)) return result;
+  private ensureFilenameExtension(name: string, urlOrPath?: string, contentType?: string): string {
+    let cleanName = (name || 'document').replace(/[\r\n\t]/g, '').trim();
+
+    // Kiểm tra xem đã có extension hợp lệ chưa (.xyz từ 2-5 ký tự)
+    if (/\.[a-zA-Z0-9]{2,5}$/.test(cleanName)) {
+      return cleanName;
+    }
+
+    // Thử lấy extension từ URL hoặc đường dẫn file
+    if (urlOrPath) {
+      try {
+        const parsed = urlOrPath.startsWith('http') ? new URL(urlOrPath).pathname : urlOrPath;
+        const extFromUrl = path.extname(parsed);
+        if (extFromUrl && /\.[a-zA-Z0-9]{2,5}$/.test(extFromUrl)) {
+          return `${cleanName}${extFromUrl}`;
+        }
+      } catch {}
+    }
+
+    // Thử map từ Content-Type
+    if (contentType) {
+      const mime = contentType.toLowerCase();
+      if (mime.includes('pdf')) return `${cleanName}.pdf`;
+      if (mime.includes('zip')) return `${cleanName}.zip`;
+      if (mime.includes('png')) return `${cleanName}.png`;
+      if (mime.includes('jpeg') || mime.includes('jpg')) return `${cleanName}.jpg`;
+      if (mime.includes('msword')) return `${cleanName}.doc`;
+      if (mime.includes('wordprocessingml')) return `${cleanName}.docx`;
+      if (mime.includes('spreadsheetml')) return `${cleanName}.xlsx`;
+      if (mime.includes('plain')) return `${cleanName}.txt`;
+    }
+
+    // Mặc định an toàn cho tài liệu
+    return `${cleanName}.pdf`;
+  }
+
+  /**
+   * Phân loại và xử lý file đính kèm:
+   * - linkAttachments: Các đường link (Google Drive, Dropbox, liên kết web, trang HTML) -> nhúng vào nội dung email
+   * - binaryAttachments: Các file nhị phân có thể tải về (PDF, Zip, Image, Doc...) -> gửi dưới dạng file đính kèm
+   */
+  private async processAttachments(attachments: any[]): Promise<{
+    linkAttachments: Array<{ name: string; url: string }>;
+    binaryAttachments: Array<{ filename: string; content: Buffer; contentType?: string }>;
+  }> {
+    const linkAttachments: Array<{ name: string; url: string }> = [];
+    const binaryAttachments: Array<{ filename: string; content: Buffer; contentType?: string }> = [];
+
+    if (!Array.isArray(attachments)) {
+      return { linkAttachments, binaryAttachments };
+    }
 
     for (const att of attachments) {
       try {
         if (!att?.url) continue;
-        const name = att.name || 'document';
-        if (att.url.startsWith('http://') || att.url.startsWith('https://')) {
-          const res = await fetch(att.url);
-          if (res.ok) {
-            const arr = await res.arrayBuffer();
-            result.push({
-              filename: name,
-              content: Buffer.from(arr),
-              contentType: att.type || res.headers.get('content-type') || 'application/octet-stream',
-            });
+        const name = (att.name || 'Tài liệu').trim();
+        const url = String(att.url).trim();
+
+        // 1. Kiểm tra các liên kết dịch vụ đám mây / xem trực tuyến -> chuyển thành Link Attachment
+        const isCloudOrWebLink =
+          /drive\.google\.com|docs\.google\.com|dropbox\.com|onedrive|1drv\.ms|sharepoint\.com|box\.com|notion\.so|figma\.com/i.test(
+            url,
+          );
+
+        if (isCloudOrWebLink) {
+          linkAttachments.push({ name, url });
+          continue;
+        }
+
+        // 2. Xử lý tải file qua HTTP/HTTPS
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+          const res = await fetch(url, { headers: { 'User-Agent': 'Invoice-AIR/1.0' } });
+          if (!res.ok) {
+            console.warn(`[Delivery] Tải file đính kèm thất bại (${res.status}): ${url}`);
+            linkAttachments.push({ name, url });
+            continue;
           }
-        } else if (fs.existsSync(att.url)) {
-          result.push({
-            filename: name,
-            content: fs.readFileSync(att.url),
+
+          const rawContentType = (res.headers.get('content-type') || '').toLowerCase();
+
+          // Nếu trả về text/html (trang web, trang đăng nhập, thư mục chia sẻ...) -> không attach binary, chuyển thành link
+          if (rawContentType.includes('text/html') || rawContentType.includes('application/xhtml+xml')) {
+            linkAttachments.push({ name, url });
+            continue;
+          }
+
+          const arr = await res.arrayBuffer();
+          const buffer = Buffer.from(arr);
+
+          // Chuẩn hóa tên file: bắt buộc có phần mở rộng hợp lệ để Resend và mail client chấp nhận
+          const filename = this.ensureFilenameExtension(name, url, rawContentType);
+
+          binaryAttachments.push({
+            filename,
+            content: buffer,
+            contentType: att.type || rawContentType || 'application/octet-stream',
+          });
+        } else if (fs.existsSync(url)) {
+          // File cục bộ trên máy chủ
+          const filename = this.ensureFilenameExtension(name, url);
+          binaryAttachments.push({
+            filename,
+            content: fs.readFileSync(url),
             contentType: att.type || 'application/octet-stream',
           });
+        } else {
+          // URL không xác định -> lưu dưới dạng link
+          linkAttachments.push({ name, url });
         }
       } catch (err: any) {
-        console.warn(`[Delivery] Không thể tải file đính kèm ${att.name}: ${err.message}`);
+        console.warn(`[Delivery] Lỗi xử lý đính kèm ${att?.name}: ${err?.message}`);
+        if (att?.url) {
+          linkAttachments.push({ name: att.name || 'Tài liệu', url: att.url });
+        }
       }
     }
-    return result;
+
+    return { linkAttachments, binaryAttachments };
+  }
+
+  /**
+   * Tương thích ngược: tải danh sách buffer
+   */
+  private async resolveAttachmentBuffers(
+    attachments: any[],
+  ): Promise<Array<{ filename: string; content: Buffer; contentType?: string }>> {
+    const { binaryAttachments } = await this.processAttachments(attachments);
+    return binaryAttachments;
+  }
+
+  /**
+   * Nhúng danh sách tài liệu & liên kết đính kèm vào nội dung email
+   */
+  private injectAttachmentLinks(htmlBody: string, linkAttachments: Array<{ name: string; url: string }>): string {
+    if (!linkAttachments || linkAttachments.length === 0) return htmlBody;
+
+    const linksListHtml = linkAttachments
+      .map(
+        (att) => `
+        <tr style="border-bottom: 1px solid #f1f5f9;">
+          <td style="padding: 10px 14px; font-size: 13.5px; color: #1e293b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+            <div style="font-weight: 600; margin-bottom: 4px;">📂 ${att.name || 'Tài liệu hướng dẫn &amp; File tài nguyên'}</div>
+            <a href="${att.url}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: underline; font-size: 13px; word-break: break-all;">
+              👉 Nhấn vào đây để mở và tải về
+            </a>
+          </td>
+        </tr>`,
+      )
+      .join('');
+
+    const attachmentBox = `
+      <!-- Khối tài liệu & Liên kết đính kèm đính kèm theo mẫu tin nhắn -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 22px 0; background-color: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; overflow: hidden;">
+        <tr>
+          <td style="background-color: #f1f5f9; padding: 10px 16px; border-bottom: 1.5px solid #cbd5e1; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+            <strong style="color: #0f172a; font-size: 13.5px;">📎 TÀI LIỆU &amp; FILE ĐÍNH KÈM THEO GÓI DỊCH VỤ:</strong>
+          </td>
+        </tr>
+        ${linksListHtml}
+      </table>
+    `;
+
+    // Nếu email có thẻ đóng </body>, chèn vào trước </body>
+    if (htmlBody.includes('</body>')) {
+      return htmlBody.replace('</body>', `${attachmentBox}</body>`);
+    }
+
+    // Nếu không, nối vào cuối HTML
+    return `${htmlBody}${attachmentBox}`;
   }
 
   constructor(
@@ -240,12 +380,18 @@ export class DeliveryService {
     `;
     }
 
-    const extraAttachmentBuffers = await this.resolveAttachmentBuffers(customAttachments);
+    const { linkAttachments, binaryAttachments } = await this.processAttachments(customAttachments);
+    htmlBody = this.injectAttachmentLinks(htmlBody, linkAttachments);
 
     // 4. Gửi qua Resend API hoặc fallback sang SMTP
     try {
       let emailSent = false;
       let emailError: string | null = null;
+
+      const primaryPdfAttachment = {
+        filename: `HD_${invoice.invoiceNumber}.pdf`,
+        content: pdfBuffer,
+      };
 
       if (process.env.RESEND_API_KEY) {
         try {
@@ -258,7 +404,18 @@ export class DeliveryService {
             fromEmail = `"${brandName}" <${fromEmail}>`;
           }
 
-          const resendRes = await fetch('https://api.resend.com/emails', {
+          const resendAttachments = [
+            {
+              filename: primaryPdfAttachment.filename,
+              content: primaryPdfAttachment.content.toString('base64'),
+            },
+            ...binaryAttachments.map((att) => ({
+              filename: att.filename,
+              content: att.content.toString('base64'),
+            })),
+          ];
+
+          let resendRes = await fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: {
               Authorization: `Bearer ${process.env.RESEND_API_KEY.trim()}`,
@@ -269,20 +426,39 @@ export class DeliveryService {
               to: [recipientEmail],
               subject: emailSubject,
               html: htmlBody,
-              attachments: [
-                {
-                  filename: `HD_${invoice.invoiceNumber}.pdf`,
-                  content: pdfBuffer.toString('base64'),
-                },
-                ...extraAttachmentBuffers.map((att) => ({
-                  filename: att.filename,
-                  content: att.content.toString('base64'),
-                })),
-              ],
+              attachments: resendAttachments,
             }),
           });
 
-          const resendData = await resendRes.json().catch(() => ({}));
+          let resendData = await resendRes.json().catch(() => ({}));
+
+          // Nếu có đính kèm phụ và Resend từ chối (400 validation), tự động thử lại với chỉ file PDF hóa đơn chính
+          if (!resendRes.ok && binaryAttachments.length > 0) {
+            console.warn(
+              `[Delivery] Resend API từ chối attachment phụ (${resendData?.message || JSON.stringify(resendData)}). Đang thử gửi lại với chỉ file PDF hóa đơn...`,
+            );
+            resendRes = await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${process.env.RESEND_API_KEY.trim()}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                from: fromEmail,
+                to: [recipientEmail],
+                subject: emailSubject,
+                html: htmlBody,
+                attachments: [
+                  {
+                    filename: primaryPdfAttachment.filename,
+                    content: primaryPdfAttachment.content.toString('base64'),
+                  },
+                ],
+              }),
+            });
+            resendData = await resendRes.json().catch(() => ({}));
+          }
+
           if (resendRes.ok) {
             emailSent = true;
           } else {
@@ -305,25 +481,49 @@ export class DeliveryService {
           }
 
           const transporter = this.getTransporter();
-          await transporter.sendMail({
-            from: fromAddress,
-            to: recipientEmail,
-            subject: emailSubject,
-            html: htmlBody,
-            attachments: [
-              {
-                filename: `HD_${invoice.invoiceNumber}.pdf`,
-                content: pdfBuffer,
-                contentType: 'application/pdf',
-              },
-              ...extraAttachmentBuffers.map((att) => ({
-                filename: att.filename,
-                content: att.content,
-                contentType: att.contentType,
-              })),
-            ],
-          });
-          emailSent = true;
+          const smtpAttachments = [
+            {
+              filename: primaryPdfAttachment.filename,
+              content: primaryPdfAttachment.content,
+              contentType: 'application/pdf',
+            },
+            ...binaryAttachments.map((att) => ({
+              filename: att.filename,
+              content: att.content,
+              contentType: att.contentType,
+            })),
+          ];
+
+          try {
+            await transporter.sendMail({
+              from: fromAddress,
+              to: recipientEmail,
+              subject: emailSubject,
+              html: htmlBody,
+              attachments: smtpAttachments,
+            });
+            emailSent = true;
+          } catch (smtpWithAttErr: any) {
+            if (binaryAttachments.length > 0) {
+              console.warn(`[Delivery] Lỗi gửi SMTP kèm phụ kiện (${smtpWithAttErr.message}), thử lại chỉ với PDF hóa đơn...`);
+              await transporter.sendMail({
+                from: fromAddress,
+                to: recipientEmail,
+                subject: emailSubject,
+                html: htmlBody,
+                attachments: [
+                  {
+                    filename: primaryPdfAttachment.filename,
+                    content: primaryPdfAttachment.content,
+                    contentType: 'application/pdf',
+                  },
+                ],
+              });
+              emailSent = true;
+            } else {
+              throw smtpWithAttErr;
+            }
+          }
         } catch (smtpErr: any) {
           emailError = smtpErr?.message;
           console.error(`[Delivery] Lỗi gửi qua SMTP: ${smtpErr?.message}`);
@@ -515,12 +715,18 @@ export class DeliveryService {
     `;
     }
 
-    const extraPaymentBuffers = await this.resolveAttachmentBuffers(customPaymentAttachments);
+    const { linkAttachments, binaryAttachments } = await this.processAttachments(customPaymentAttachments);
+    htmlBody = this.injectAttachmentLinks(htmlBody, linkAttachments);
 
     // 4. Gửi qua Resend API hoặc fallback sang SMTP
     try {
       let emailSent = false;
       let emailError: string | null = null;
+
+      const primaryPdfAttachment = {
+        filename: `Bien_Lai_HD_${invoice.invoiceNumber}.pdf`,
+        content: pdfBuffer,
+      };
 
       if (process.env.RESEND_API_KEY) {
         try {
@@ -531,7 +737,18 @@ export class DeliveryService {
             fromEmail = `"${brandName}" <${fromEmail}>`;
           }
 
-          const resendRes = await fetch('https://api.resend.com/emails', {
+          const resendAttachments = [
+            {
+              filename: primaryPdfAttachment.filename,
+              content: primaryPdfAttachment.content.toString('base64'),
+            },
+            ...binaryAttachments.map((att) => ({
+              filename: att.filename,
+              content: att.content.toString('base64'),
+            })),
+          ];
+
+          let resendRes = await fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: {
               Authorization: `Bearer ${process.env.RESEND_API_KEY.trim()}`,
@@ -542,20 +759,39 @@ export class DeliveryService {
               to: [recipientEmail],
               subject: emailSubject,
               html: htmlBody,
-              attachments: [
-                {
-                  filename: `Bien_Lai_HD_${invoice.invoiceNumber}.pdf`,
-                  content: pdfBuffer.toString('base64'),
-                },
-                ...extraPaymentBuffers.map((att) => ({
-                  filename: att.filename,
-                  content: att.content.toString('base64'),
-                })),
-              ],
+              attachments: resendAttachments,
             }),
           });
 
-          const resendData = await resendRes.json().catch(() => ({}));
+          let resendData = await resendRes.json().catch(() => ({}));
+
+          // Nếu có đính kèm phụ và Resend từ chối (400 validation), tự động thử lại với chỉ file PDF biên lai gốc
+          if (!resendRes.ok && binaryAttachments.length > 0) {
+            console.warn(
+              `[Delivery] Resend API từ chối attachment phụ biên lai (${resendData?.message || JSON.stringify(resendData)}). Đang thử gửi lại với chỉ file PDF biên lai...`,
+            );
+            resendRes = await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${process.env.RESEND_API_KEY.trim()}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                from: fromEmail,
+                to: [recipientEmail],
+                subject: emailSubject,
+                html: htmlBody,
+                attachments: [
+                  {
+                    filename: primaryPdfAttachment.filename,
+                    content: primaryPdfAttachment.content.toString('base64'),
+                  },
+                ],
+              }),
+            });
+            resendData = await resendRes.json().catch(() => ({}));
+          }
+
           if (resendRes.ok) {
             emailSent = true;
           } else {
@@ -578,25 +814,49 @@ export class DeliveryService {
           }
 
           const transporter = this.getTransporter();
-          await transporter.sendMail({
-            from: fromAddress,
-            to: recipientEmail,
-            subject: emailSubject,
-            html: htmlBody,
-            attachments: [
-              {
-                filename: `Bien_Lai_HD_${invoice.invoiceNumber}.pdf`,
-                content: pdfBuffer,
-                contentType: 'application/pdf',
-              },
-              ...extraPaymentBuffers.map((att) => ({
-                filename: att.filename,
-                content: att.content,
-                contentType: att.contentType,
-              })),
-            ],
-          });
-          emailSent = true;
+          const smtpAttachments = [
+            {
+              filename: primaryPdfAttachment.filename,
+              content: primaryPdfAttachment.content,
+              contentType: 'application/pdf',
+            },
+            ...binaryAttachments.map((att) => ({
+              filename: att.filename,
+              content: att.content,
+              contentType: att.contentType,
+            })),
+          ];
+
+          try {
+            await transporter.sendMail({
+              from: fromAddress,
+              to: recipientEmail,
+              subject: emailSubject,
+              html: htmlBody,
+              attachments: smtpAttachments,
+            });
+            emailSent = true;
+          } catch (smtpWithAttErr: any) {
+            if (binaryAttachments.length > 0) {
+              console.warn(`[Delivery] Lỗi gửi SMTP biên lai kèm phụ kiện (${smtpWithAttErr.message}), thử lại chỉ với PDF biên lai...`);
+              await transporter.sendMail({
+                from: fromAddress,
+                to: recipientEmail,
+                subject: emailSubject,
+                html: htmlBody,
+                attachments: [
+                  {
+                    filename: primaryPdfAttachment.filename,
+                    content: primaryPdfAttachment.content,
+                    contentType: 'application/pdf',
+                  },
+                ],
+              });
+              emailSent = true;
+            } else {
+              throw smtpWithAttErr;
+            }
+          }
         } catch (smtpErr: any) {
           emailError = smtpErr?.message;
           console.error(`[Delivery] Lỗi gửi biên lai qua SMTP: ${smtpErr?.message}`);
