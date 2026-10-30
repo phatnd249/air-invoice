@@ -70,6 +70,56 @@ export class InvoicesController {
       }
     }
 
+    // 1.5. Chống trùng lặp (Deduplication): Nếu khách hàng đã có hóa đơn hợp lệ cho gói này
+    if (!body.forceNew && (dto.buyerEmail || dto.buyerPhone)) {
+      const searchConditions: any[] = [];
+      if (dto.buyerEmail) {
+        searchConditions.push({ buyerEmail: { equals: dto.buyerEmail, mode: 'insensitive' } });
+      }
+      if (dto.buyerPhone) {
+        searchConditions.push({ buyerPhone: dto.buyerPhone });
+      }
+
+      const firstItemName = dto.items?.[0]?.name;
+      const existing = await this.prisma.invoice.findFirst({
+        where: {
+          AND: [
+            { OR: searchConditions },
+            firstItemName
+              ? {
+                  items: {
+                    some: {
+                      name: { equals: firstItemName, mode: 'insensitive' },
+                    },
+                  },
+                }
+              : {},
+            { status: { notIn: ['CANCELLED'] } },
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+        include: { items: true },
+      });
+
+      if (existing) {
+        const appUrl = (process.env.APP_URL || 'https://invoice.share4happy.com').replace(/\/+$/, '');
+        const backendUrl = (process.env.BACKEND_URL || 'https://invoice-backend-5tbi.onrender.com').replace(/\/+$/, '');
+        const viewUrl = `${appUrl}/view/${existing.shareToken}`;
+        const pdfUrl = `${backendUrl}/api/delivery/public/${existing.shareToken}/pdf`;
+
+        return {
+          success: true,
+          isExisting: true,
+          message: `Hóa đơn đã tồn tại cho khách hàng (#${existing.invoiceNumber})`,
+          ...existing,
+          invoice: existing,
+          viewUrl,
+          pdfUrl,
+          downloadPdfUrl: `${backendUrl}/api/delivery/export-pdf/${existing.id}`,
+        };
+      }
+    }
+
     // 2. Tạo hóa đơn trong Database
     const created = await this.invoicesService.createInvoice(dto);
 

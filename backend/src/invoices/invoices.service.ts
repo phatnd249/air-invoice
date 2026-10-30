@@ -61,8 +61,14 @@ export class InvoicesService {
   }
 
   async getInvoiceById(id: string) {
-    return this.prisma.invoice.findUnique({
-      where: { id },
+    return this.prisma.invoice.findFirst({
+      where: {
+        OR: [
+          { id },
+          { invoiceNumber: id },
+          { paymentCode: id },
+        ],
+      },
       include: { items: { orderBy: { sortOrder: 'asc' } }, histories: { orderBy: { createdAt: 'desc' } } },
     });
   }
@@ -360,8 +366,14 @@ export class InvoicesService {
   }
 
   async payInvoice(id: string, note?: string) {
-    const existing = await this.prisma.invoice.findUnique({
-      where: { id },
+    const existing = await this.prisma.invoice.findFirst({
+      where: {
+        OR: [
+          { id },
+          { invoiceNumber: id },
+          { paymentCode: id },
+        ],
+      },
       include: { items: true, histories: { orderBy: { createdAt: 'desc' } } },
     });
     if (!existing) throw new Error('Hóa đơn không tồn tại');
@@ -370,7 +382,7 @@ export class InvoicesService {
     if (existing.status === 'PAID') {
       if (note && note !== existing.notes) {
         return this.prisma.invoice.update({
-          where: { id },
+          where: { id: existing.id },
           data: {
             notes: note,
             histories: {
@@ -387,7 +399,7 @@ export class InvoicesService {
     }
 
     return this.prisma.invoice.update({
-      where: { id },
+      where: { id: existing.id },
       data: {
         status: 'PAID',
         histories: {
@@ -402,12 +414,20 @@ export class InvoicesService {
   }
 
   async cancelInvoice(id: string) {
-    const existing = await this.prisma.invoice.findUnique({ where: { id } });
+    const existing = await this.prisma.invoice.findFirst({
+      where: {
+        OR: [
+          { id },
+          { invoiceNumber: id },
+          { paymentCode: id },
+        ],
+      },
+    });
     if (!existing) throw new Error('Hóa đơn không tồn tại');
     if (existing.status === 'CANCELLED') throw new Error('Hóa đơn này đã bị hủy trước đó');
 
     return this.prisma.invoice.update({
-      where: { id },
+      where: { id: existing.id },
       data: {
         status: 'CANCELLED',
         histories: {
