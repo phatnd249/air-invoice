@@ -1039,7 +1039,7 @@ export class DeliveryService {
       where: { shareToken },
       include: { items: { orderBy: { sortOrder: 'asc' } } },
     });
-    if (!invoice) throw new Error('Hóa đơn không tồn tại hoặc liên kết đã hết hạn');
+    if (!invoice || invoice.deletedAt) throw new Error('Hóa đơn không tồn tại hoặc đã bị gỡ bỏ');
     const settings = await this.prisma.setting.findUnique({ where: { id: 'default' } });
     let template = null;
     if (invoice.templateId) {

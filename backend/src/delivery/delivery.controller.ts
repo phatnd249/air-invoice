@@ -209,10 +209,10 @@ export class DeliveryController {
   @Get('public/:token/pdf')
   async exportPublicPdf(@Param('token') token: string, @Res() res: Response) {
     const invoice = await this.prisma.invoice.findFirst({
-      where: { shareToken: token },
+      where: { shareToken: token, deletedAt: null },
       include: { items: true },
     });
-    if (!invoice) return res.status(404).send('Không tìm thấy hóa đơn');
+    if (!invoice) return res.status(404).send('Không tìm thấy hóa đơn hoặc hóa đơn đã bị gỡ bỏ');
 
     const settings = await this.prisma.setting.findUnique({ where: { id: 'default' } });
     const buffer = await this.pdfService.generatePdfBuffer(invoice, settings);
@@ -229,11 +229,11 @@ export class DeliveryController {
   @Public() // 🌐 Link tải PDF theo ID hoá đơn
   @Get('export-pdf/:id')
   async exportPdf(@Param('id') id: string, @Res() res: Response) {
-    const invoice = await this.prisma.invoice.findUnique({
-      where: { id },
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id, deletedAt: null },
       include: { items: true },
     });
-    if (!invoice) return res.status(404).send('Không tìm thấy hóa đơn');
+    if (!invoice) return res.status(404).send('Không tìm thấy hóa đơn hoặc hóa đơn đã bị gỡ bỏ');
 
     const settings = await this.prisma.setting.findUnique({ where: { id: 'default' } });
     const buffer = await this.pdfService.generatePdfBuffer(invoice, settings);
