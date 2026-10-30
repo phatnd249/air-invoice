@@ -1455,81 +1455,189 @@ export default function TemplatesPage() {
 
       {/* ================= MODAL XEM TRƯỚC TIN NHẮN (PREVIEW) ================= */}
       {previewMsgModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-200">
-              <div className="flex items-center space-x-2">
-                <Eye className="w-5 h-5 text-blue-600" />
-                <h3 className="font-bold text-slate-900 text-base">
-                  Xem Trước: {previewMsgModal.name}
-                </h3>
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-150">
+          <div
+            className={`bg-white rounded-3xl shadow-2xl w-full flex flex-col max-h-[92vh] border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-150 ${
+              previewMsgModal.channel === 'EMAIL' ? 'max-w-4xl lg:max-w-5xl' : 'max-w-xl'
+            }`}
+          >
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/90">
+              <div className="flex items-center space-x-3">
+                <div
+                  className={`p-2.5 rounded-2xl ${
+                    previewMsgModal.channel === 'EMAIL'
+                      ? 'bg-blue-100 text-blue-600'
+                      : 'bg-sky-100 text-sky-600'
+                  }`}
+                >
+                  {previewMsgModal.channel === 'EMAIL' ? (
+                    <Mail className="w-5 h-5" />
+                  ) : (
+                    <MessageSquare className="w-5 h-5" />
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-slate-900 text-base sm:text-lg">
+                      Xem Trước: {previewMsgModal.name}
+                    </h3>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide ${
+                        previewMsgModal.channel === 'EMAIL'
+                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                          : 'bg-sky-50 text-sky-700 border border-sky-200'
+                      }`}
+                    >
+                      {previewMsgModal.channel}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Sự kiện kích hoạt:{' '}
+                    <span className="font-semibold text-slate-700">
+                      {previewMsgModal.triggerType === 'PAYMENT_SUCCESS'
+                        ? 'Khi thanh toán thành công'
+                        : 'Khi tạo hóa đơn mới'}
+                    </span>
+                  </p>
+                </div>
               </div>
+
               <button
+                type="button"
                 onClick={() => setPreviewMsgModal(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-200/60 transition-colors cursor-pointer font-bold text-sm"
               >
                 ✕
               </button>
             </div>
 
-            <div className="mt-4 space-y-3">
-              {previewMsgModal.channel === 'EMAIL' && previewMsgModal.subject && (
-                <div className="p-3 bg-slate-100 rounded-xl text-xs">
-                  <span className="font-bold text-slate-600">Tiêu đề email:</span>{' '}
-                  <span className="font-semibold text-slate-900">
-                    {renderMockText(previewMsgModal.subject)}
-                  </span>
-                </div>
-              )}
+            {/* Modal Body */}
+            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
+              {previewMsgModal.channel === 'EMAIL' ? (
+                <>
+                  {/* Email Client Header Bar */}
+                  {previewMsgModal.subject && (
+                    <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
+                      <div className="flex items-start gap-2">
+                        <span className="font-semibold text-slate-500 shrink-0 mt-0.5">Tiêu đề:</span>
+                        <span className="font-bold text-slate-900 text-sm leading-snug">
+                          {renderMockText(previewMsgModal.subject)}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 pt-1.5 border-t border-slate-200/60">
+                        <span>
+                          <strong>Từ:</strong> Tetrasco &lt;contact@airobotics.edu.vn&gt;
+                        </span>
+                        <span>
+                          <strong>Tới:</strong> Nguyễn Thành Đạt &lt;datnt@example.com&gt;
+                        </span>
+                        <span className="text-slate-400">
+                          {new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })},{' '}
+                          {new Date().toLocaleDateString('vi-VN')}
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
-              {/* Mobile Phone Mockup for Zalo */}
-              {previewMsgModal.channel === 'ZALO' ? (
-                <div className="bg-slate-100 rounded-2xl p-4 border border-slate-200">
-                  <div className="text-[11px] text-slate-400 text-center mb-2 font-medium">
+                  {/* Email Body Frame (Spacious & Scaled) */}
+                  <div className="bg-slate-100/90 rounded-2xl p-4 sm:p-8 border border-slate-200/80 flex justify-center items-start min-h-[460px]">
+                    <div className="w-full max-w-[650px] bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                      <div
+                        dangerouslySetInnerHTML={{
+                          __html: renderMockText(previewMsgModal.content),
+                        }}
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                /* Zalo Mobile / Chat Interface Preview */
+                <div className="bg-slate-100/90 rounded-2xl p-4 sm:p-6 border border-slate-200/80 flex flex-col items-center">
+                  <div className="text-xs text-slate-400 text-center mb-3 font-medium">
                     Mô phỏng tin nhắn Zalo gửi tới khách hàng
                   </div>
-                  <div className="bg-white rounded-2xl p-4 shadow-xs border border-slate-200 text-xs text-slate-800 whitespace-pre-line leading-relaxed font-sans">
-                    {renderMockText(previewMsgModal.content)}
+
+                  <div className="w-full max-w-[420px] bg-white rounded-3xl shadow-md border border-slate-200 overflow-hidden flex flex-col">
+                    {/* Zalo App Bar */}
+                    <div className="bg-[#0068ff] text-white px-4 py-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-full bg-white/20 border border-white/30 flex items-center justify-center font-bold text-sm text-white">
+                          AI
+                        </div>
+                        <div>
+                          <div className="font-bold text-sm leading-tight flex items-center gap-1.5">
+                            <span>AI WRITER</span>
+                            <span className="w-3.5 h-3.5 rounded-full bg-white text-[#0068ff] text-[9px] flex items-center justify-center font-bold">
+                              ✓
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-white/80">Tài khoản doanh nghiệp xác thực</p>
+                        </div>
+                      </div>
+                      <span className="text-xs text-white/70">Zalo OA</span>
+                    </div>
+
+                    {/* Zalo Message Body */}
+                    <div className="bg-[#e5effa] p-4 min-h-[340px] max-h-[500px] overflow-y-auto space-y-3 flex flex-col justify-end">
+                      <div className="text-center">
+                        <span className="px-2.5 py-0.5 bg-black/10 text-slate-600 rounded-full text-[10px] font-medium">
+                          Hôm nay
+                        </span>
+                      </div>
+
+                      <div className="bg-white rounded-2xl rounded-tl-xs p-4 shadow-xs border border-slate-200/80 text-sm text-slate-800 whitespace-pre-line leading-relaxed font-sans max-w-[94%]">
+                        {renderMockText(previewMsgModal.content)}
+                        <div className="text-[10px] text-slate-400 text-right mt-2 font-mono">
+                          {new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} • Đã nhận
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="bg-white rounded-xl p-4 border border-slate-200 text-xs text-slate-800 leading-relaxed max-h-72 overflow-y-auto">
-                  <div
-                    dangerouslySetInnerHTML={{
-                      __html: renderMockText(previewMsgModal.content),
-                    }}
-                  />
                 </div>
               )}
 
+              {/* Attachments */}
               {previewMsgModal.attachments && previewMsgModal.attachments.length > 0 && (
-                <div className="pt-2 border-t border-slate-200">
-                  <span className="text-xs font-bold text-slate-700 block mb-1.5">
-                    File đính kèm kèm theo tin nhắn:
+                <div className="pt-3 border-t border-slate-200">
+                  <span className="text-xs font-bold text-slate-700 block mb-2">
+                    📎 File & tài liệu đính kèm kèm theo tin nhắn:
                   </span>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-2">
                     {previewMsgModal.attachments.map((att, idx) => (
-                      <span
+                      <a
                         key={idx}
-                        className="inline-flex items-center space-x-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-lg text-xs font-medium"
+                        href={att.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center space-x-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors shadow-2xs"
                       >
-                        <Paperclip className="w-3 h-3" />
+                        <Paperclip className="w-3.5 h-3.5 text-emerald-600" />
                         <span>{att.name}</span>
-                      </span>
+                        {att.size && (
+                          <span className="text-[10px] text-emerald-600 font-mono">
+                            ({(att.size / 1024).toFixed(1)} KB)
+                          </span>
+                        )}
+                      </a>
                     ))}
                   </div>
                 </div>
               )}
+            </div>
 
-              <div className="pt-3 border-t border-slate-200 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setPreviewMsgModal(null)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold"
-                >
-                  Đóng
-                </button>
-              </div>
+            {/* Modal Footer */}
+            <div className="px-6 py-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+              <span className="text-xs text-slate-500">
+                Hiển thị dữ liệu giả định để kiểm tra trực quan
+              </span>
+              <button
+                type="button"
+                onClick={() => setPreviewMsgModal(null)}
+                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer"
+              >
+                Đóng Xem Trước
+              </button>
             </div>
           </div>
         </div>

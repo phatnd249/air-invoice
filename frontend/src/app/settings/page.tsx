@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
@@ -29,6 +30,8 @@ import {
   AlertCircle,
   RefreshCw,
   Info,
+  Sparkles,
+  ExternalLink,
 } from 'lucide-react';
 import { CompanyProfile, BankAccountItem } from '@invoice/types';
 
@@ -1014,10 +1017,31 @@ export default function SettingsPage() {
 
             {/* Custom Template Box */}
             <div className="pt-2 border-t border-slate-100 space-y-3">
+              {/* Thông báo điều hướng sang Mẫu Tin Nhắn */}
+              <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-xl text-xs text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-2.5">
+                  <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Đã có trang quản lý Mẫu Tin Nhắn riêng:</span>{' '}
+                    <span>
+                      Hệ thống hiện đã hỗ trợ quản lý kịch bản Zalo &amp; Email theo từng gói dịch vụ, kèm xem trước và đính kèm file tại menu{' '}
+                      <strong>Mẫu Tin Nhắn</strong>. Khung bên dưới chỉ đóng vai trò dự phòng cơ bản nếu không tìm thấy mẫu nào.
+                    </span>
+                  </div>
+                </div>
+                <Link
+                  href="/templates"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold text-xs shrink-0 transition-colors shadow-2xs"
+                >
+                  <span>Mẫu Tin Nhắn</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    Mẫu Tin Nhắn Zalo Gửi Khách Hàng
+                    Mẫu Tin Nhắn Zalo Gửi Khách Hàng (Dự Phòng Fallback)
                   </h4>
                   <p className="text-xs text-slate-500">
                     Bấm vào các thẻ biến bên dưới để chèn vào nội dung tin nhắn. Để trống để sử dụng mẫu chuẩn mặc định.
