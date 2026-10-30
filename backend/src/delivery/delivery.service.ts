@@ -628,87 +628,117 @@ export class DeliveryService {
       customPaymentAttachments = rendered.attachments || [];
     } else {
       htmlBody = `
-      <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333; max-width: 650px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1e293b; max-width: 620px; margin: 0 auto; padding: 24px 20px; border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff;">
         <!-- Header -->
-        <div style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); padding: 26px 20px; text-align: center; border-radius: 8px 8px 0 0; color: #ffffff;">
-          <div style="font-size: 34px; line-height: 1; margin-bottom: 8px;">✅</div>
-          <h2 style="margin: 0; font-size: 20px; font-weight: bold; letter-spacing: 0.5px; text-transform: uppercase;">
-            XÁC NHẬN THANH TOÁN THÀNH CÔNG
-          </h2>
-          <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.95;">Biên lai thu tiền điện tử - Hệ thống ${brandName}</p>
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 16px; margin-bottom: 24px;">
+          <div style="font-size: 18px; font-weight: 700; color: #0f172a;">${brandName}</div>
+          <span style="padding: 4px 10px; font-size: 12px; font-weight: 600; color: #15803d; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 4px; text-transform: uppercase;">
+            Đã thanh toán
+          </span>
         </div>
 
-        <div style="padding: 24px 20px;">
-          <p style="font-size: 15px; margin-top: 0; color: #0f172a;">
-            Kính gửi Quý khách hàng <strong>${invoice.buyerName}</strong>,
+        <div>
+          <h1 style="margin: 0 0 12px; font-size: 20px; font-weight: 700; color: #0f172a;">
+            Xác nhận thanh toán thành công
+          </h1>
+          <p style="margin: 0 0 20px; font-size: 14px; line-height: 1.6; color: #475569;">
+            Kính gửi Quý khách <strong>${invoice.buyerName}</strong>,<br>
+            Hệ thống <strong>${brandName}</strong> xin trân trọng thông báo đã nhận đủ khoản thanh toán cho đơn hàng của Quý khách. Gói dịch vụ đã được kích hoạt thành công.
           </p>
-          
-          <p style="color: #475569;">
-            <strong>${brandName}</strong> xin trân trọng thông báo: Chúng tôi đã nhận được thanh toán đầy đủ cho đơn hàng của Quý khách. Gói dịch vụ đã được kích hoạt thành công trên hệ thống.
-          </p>
 
-          <!-- Receipt Card -->
-          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 18px 20px; margin: 20px 0;">
-            <div style="font-size: 12px; font-weight: bold; text-transform: uppercase; color: #166534; letter-spacing: 0.5px; margin-bottom: 12px; border-bottom: 1px dashed #86efac; padding-bottom: 6px;">
-              Chi tiết biên lai thanh toán
-            </div>
-            <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
-              <tr>
-                <td style="padding: 6px 0; color: #64748b; width: 40%;">Mã hóa đơn:</td>
-                <td style="padding: 6px 0; font-weight: bold; color: #0f172a;">#${invoice.invoiceNumber}</td>
-              </tr>
-              <tr>
-                <td style="padding: 6px 0; color: #64748b;">Gói dịch vụ:</td>
-                <td style="padding: 6px 0; font-weight: bold; color: #0f172a;">${packageName}</td>
-              </tr>
-              ${firstItem.description ? `<tr><td style="padding: 6px 0; color: #64748b;">Mô tả:</td><td style="padding: 6px 0; color: #334155;">${firstItem.description}</td></tr>` : ''}
-              <tr>
-                <td style="padding: 6px 0; color: #64748b;">Số tiền đã thanh toán:</td>
-                <td style="padding: 6px 0; font-size: 17px; font-weight: bold; color: #059669;">${formatCurrency(invoice.grandTotal)}</td>
-              </tr>
-              <tr>
-                <td style="padding: 6px 0; color: #64748b;">Trạng thái:</td>
-                <td style="padding: 6px 0; font-weight: bold; color: #059669;">✅ ĐÃ HOÀN TẤT (PAID IN FULL)</td>
-              </tr>
-              <tr>
-                <td style="padding: 6px 0; color: #64748b;">Thời gian xác nhận:</td>
-                <td style="padding: 6px 0; color: #334155;">${formattedPaidTime}</td>
-              </tr>
-              ${options?.note ? `
-              <tr>
-                <td style="padding: 6px 0; color: #64748b;">Ghi chú:</td>
-                <td style="padding: 6px 0; color: #334155; font-style: italic;">${options.note}</td>
-              </tr>` : ''}
-            </table>
-          </div>
+          <!-- Transaction Summary Box -->
+          <table style="width: 100%; margin-bottom: 24px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13.5px; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 10px 16px; color: #64748b; width: 40%; border-bottom: 1px solid #f1f5f9;">Mã hóa đơn:</td>
+              <td style="padding: 10px 16px; font-weight: 600; color: #0f172a; text-align: right; border-bottom: 1px solid #f1f5f9;">#${invoice.invoiceNumber}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Gói dịch vụ:</td>
+              <td style="padding: 10px 16px; font-weight: 600; color: #0f172a; text-align: right; border-bottom: 1px solid #f1f5f9;">${packageName}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Số tiền đã thanh toán:</td>
+              <td style="padding: 10px 16px; font-weight: 700; font-size: 15px; color: #0f172a; text-align: right; border-bottom: 1px solid #f1f5f9;">${formatCurrency(invoice.grandTotal)}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Trạng thái:</td>
+              <td style="padding: 10px 16px; font-weight: 600; color: #15803d; text-align: right; border-bottom: 1px solid #f1f5f9;">Hoàn tất (PAID)</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 16px; color: #64748b;">Thời gian xác nhận:</td>
+              <td style="padding: 10px 16px; color: #0f172a; text-align: right;">${formattedPaidTime}</td>
+            </tr>
+          </table>
 
-          <!-- Activation Notice -->
-          <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 15px 0; border-radius: 4px; font-size: 13px; color: #1e40af;">
-            🚀 <strong>Kích hoạt dịch vụ:</strong> Quý khách hiện đã có thể truy cập và sử dụng đầy đủ các tính năng của gói <strong>${packageName}</strong>.
-          </div>
-
-          <!-- CTA Button -->
-          <div style="text-align: center; margin: 28px 0 20px;">
-            <a href="${shareUrl}" target="_blank" style="background: #059669; color: #ffffff; padding: 13px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(5, 150, 105, 0.2);">
-              📄 Xem &amp; Tải Biên Lai Điện Tử Online
+          <!-- Button -->
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${shareUrl}" target="_blank" style="display: inline-block; padding: 11px 24px; font-size: 13.5px; font-weight: 600; color: #ffffff; background-color: #0f172a; text-decoration: none; border-radius: 6px;">
+              Xem &amp; Tải Biên Lai Điện Tử (PDF)
             </a>
           </div>
 
-          <p style="font-size: 12px; color: #64748b; text-align: center; margin-top: 10px;">
-            (File PDF biên lai chính thức có dấu xác nhận thanh toán đã được đính kèm trực tiếp trong email này)
+          <div style="height: 1px; background-color: #e2e8f0; margin: 28px 0;"></div>
+
+          <!-- Guide -->
+          <h2 style="margin: 0 0 8px; font-size: 16px; font-weight: 700; color: #0f172a;">
+            Tài liệu &amp; Hướng dẫn cài đặt Plugin vào WordPress
+          </h2>
+          <p style="margin: 0 0 16px; font-size: 13.5px; line-height: 1.6; color: #475569;">
+            Quý khách vui lòng thực hiện theo các bước dưới đây để cài đặt và kích hoạt plugin trên website WordPress:
           </p>
 
-          <!-- Support info -->
-          <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid #e2e8f0; font-size: 13px; color: #475569;">
-            <p style="margin: 4px 0;">Nếu Quý khách cần hỗ trợ thêm thông tin hoặc hướng dẫn sử dụng, vui lòng liên hệ:</p>
-            <p style="margin: 4px 0;">💬 <strong>Zalo Hỗ Trợ:</strong> ${settings?.phone || '0812305046'}</p>
-            <p style="margin: 4px 0;">📞 <strong>Hotline:</strong> ${settings?.phone || '0812305046'}</p>
-            <p style="margin: 4px 0;">🌐 <strong>Website:</strong> <a href="https://aiwriter.ntcore.io.vn" target="_blank" style="color: #2563eb; text-decoration: none;">aiwriter.ntcore.io.vn</a></p>
+          <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 16px 20px; margin-bottom: 20px;">
+            <div style="font-size: 13.5px; font-weight: 600; color: #166534; margin-bottom: 6px;">
+              Bước 1: Tải bộ cài đặt Plugin
+            </div>
+            <div style="font-size: 13px; color: #15803d; line-height: 1.5; margin-bottom: 12px;">
+              Truy cập thư mục Google Drive dưới đây để tải về tệp cài đặt plugin (định dạng <code>.zip</code>) và tài liệu đính kèm:
+            </div>
+            <div>
+              <a href="https://drive.google.com/drive/folders/1_zS7KPj21cbLWrkq_aM3C5rCIPaBbY6U?usp=drive_link" target="_blank" style="display: inline-block; padding: 9px 18px; font-size: 13px; font-weight: 600; color: #ffffff; background-color: #16a34a; text-decoration: none; border-radius: 5px;">
+                Mở Thư Mục Tải Plugin (Google Drive)
+              </a>
+            </div>
+            <div style="margin-top: 8px; font-size: 11.5px; color: #4b5563; word-break: break-all;">
+              Đường dẫn dự phòng: <a href="https://drive.google.com/drive/folders/1_zS7KPj21cbLWrkq_aM3C5rCIPaBbY6U?usp=drive_link" target="_blank" style="color: #2563eb; text-decoration: underline;">https://drive.google.com/drive/folders/1_zS7KPj21cbLWrkq_aM3C5rCIPaBbY6U?usp=drive_link</a>
+            </div>
           </div>
 
-          <p style="margin-top: 25px; border-top: 1px solid #f1f5f9; padding-top: 15px; color: #64748b; font-size: 13px;">
+          <table style="width: 100%; margin-bottom: 20px; border-collapse: collapse; font-size: 13.5px; line-height: 1.6;">
+            <tr>
+              <td style="width: 28px; vertical-align: top; padding-bottom: 12px;">
+                <span style="display: inline-block; width: 22px; height: 22px; background-color: #e2e8f0; color: #334155; border-radius: 50%; text-align: center; font-size: 11.5px; font-weight: 700; line-height: 22px;">2</span>
+              </td>
+              <td style="padding-bottom: 12px; color: #334155;">
+                <strong style="color: #0f172a;">Đăng nhập WordPress:</strong> Truy cập trang quản trị website của Quý khách theo đường dẫn <code>yourwebsite.com/wp-admin</code>.
+              </td>
+            </tr>
+            <tr>
+              <td style="width: 28px; vertical-align: top; padding-bottom: 12px;">
+                <span style="display: inline-block; width: 22px; height: 22px; background-color: #e2e8f0; color: #334155; border-radius: 50%; text-align: center; font-size: 11.5px; font-weight: 700; line-height: 22px;">3</span>
+              </td>
+              <td style="padding-bottom: 12px; color: #334155;">
+                <strong style="color: #0f172a;">Tải plugin lên:</strong> Tại menu bên trái, vào <strong>Gói mở rộng (Plugins)</strong> &rarr; chọn <strong>Cài mới (Add New Plugin)</strong> &rarr; nhấp nút <strong>Tải plugin lên (Upload Plugin)</strong> ở phía trên cùng.
+              </td>
+            </tr>
+            <tr>
+              <td style="width: 28px; vertical-align: top; padding-bottom: 12px;">
+                <span style="display: inline-block; width: 22px; height: 22px; background-color: #e2e8f0; color: #334155; border-radius: 50%; text-align: center; font-size: 11.5px; font-weight: 700; line-height: 22px;">4</span>
+              </td>
+              <td style="padding-bottom: 12px; color: #334155;">
+                <strong style="color: #0f172a;">Cài đặt &amp; Kích hoạt:</strong> Chọn tệp <code>.zip</code> vừa tải về từ Google Drive &rarr; nhấp <strong>Cài đặt ngay (Install Now)</strong>. Khi cài đặt xong, nhấp <strong>Kích hoạt plugin (Activate Plugin)</strong> để hoàn tất.
+              </td>
+            </tr>
+          </table>
+
+          <div style="background-color: #f8fafc; border-left: 3px solid #64748b; border-radius: 4px; padding: 12px 16px; font-size: 13px; color: #475569;">
+            <div style="font-weight: 600; color: #0f172a; margin-bottom: 2px;">Cần hỗ trợ kỹ thuật?</div>
+            Quý khách vui lòng liên hệ hotline/Zalo: <strong>${settings?.phone || '0812305046'}</strong> và cung cấp mã hóa đơn <strong>#${invoice.invoiceNumber}</strong> để được hỗ trợ nhanh nhất.
+          </div>
+
+          <p style="margin: 24px 0 0; font-size: 13.5px; line-height: 1.6; color: #475569;">
             Trân trọng cảm ơn Quý khách,<br />
-            <strong style="color: #0f172a;">Đội ngũ Chăm sóc khách hàng ${brandName}</strong>
+            <strong style="color: #0f172a;">Đội ngũ hỗ trợ ${brandName}</strong>
           </p>
         </div>
       </div>
