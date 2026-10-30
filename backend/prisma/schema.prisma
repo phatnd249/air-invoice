@@ -136,6 +136,8 @@ model Invoice {
   items     InvoiceItem[]
   histories InvoiceHistory[]
 
+  deletedAt DateTime? // Thoi diem dua vao thung rac (soft delete)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

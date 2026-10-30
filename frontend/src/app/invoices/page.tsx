@@ -19,6 +19,8 @@ import {
   TrendingUp,
   Eye,
   MoreVertical,
+  RotateCcw,
+  ArchiveRestore,
 } from 'lucide-react';
 import { INVOICE_TYPE_CONFIG, INVOICE_FORM_CONFIG, InvoiceType } from '@invoice/types';
 import { useAuth } from '@/context/AuthContext';
@@ -34,6 +36,8 @@ export default function InvoicesPage() {
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+
+  const isTrashView = selectedStatus === 'TRASH';
 
   // Phím tắt `/` để focus vào thanh tìm kiếm
   useEffect(() => {
@@ -70,15 +74,28 @@ export default function InvoicesPage() {
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, [openMenuRow]);
 
-  // Lấy danh sách hóa đơn
+  // Lấy danh sách hóa đơn (đang hoạt động hoặc trong thùng rác)
   const { data: invoices = [], isLoading, refetch, isFetching } = useQuery<any[]>({
-    queryKey: ['invoices'],
+    queryKey: ['invoices', isTrashView],
     queryFn: async () => {
-      const res = await api.get('/invoices');
+      const res = await api.get('/invoices', {
+        params: { trash: isTrashView ? 'true' : 'false' },
+      });
       return res.data;
     },
     enabled: !!user,
   });
+
+  // Lấy số lượng hóa đơn trong Thùng rác để hiển thị badge
+  const { data: trashInvoices = [] } = useQuery<any[]>({
+    queryKey: ['invoices-trash-count'],
+    queryFn: async () => {
+      const res = await api.get('/invoices', { params: { trash: 'true' } });
+      return res.data;
+    },
+    enabled: !!user,
+  });
+  const trashCount = trashInvoices.length;
 
   // Clone hóa đơn
   const cloneMutation = useMutation({
@@ -120,35 +137,135 @@ export default function InvoicesPage() {
     },
   });
 
-  // Xóa hóa đơn
+  // Xóa hóa đơn (Chuyển vào Thùng rác)
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       return api.delete(`/invoices/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      alert('Đã xóa hóa đơn thành công!');
+      queryClient.invalidateQueries({ queryKey: ['invoices-trash-count'] });
+      alert('Đã chuyển hóa đơn vào Thùng rác. Bạn có thể khôi phục lại bất kỳ lúc nào!');
     },
     onError: (err: any) => {
       alert('Lỗi xóa hóa đơn: ' + (err.response?.data?.message || err.message));
     },
   });
 
-  // Xóa nhiều hóa đơn đã chọn (Bulk Delete)
+  // Xóa nhiều hóa đơn (Chuyển vào Thùng rác)
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
       return api.post('/invoices/bulk-delete', { ids });
     },
     onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices-trash-count'] });
       const count = res?.data?.count || selectedIds.length;
       setSelectedIds([]);
-      alert(`Đã xóa thành công ${count} hóa đơn đã chọn!`);
+      alert(`Đã chuyển ${count} hóa đơn đã chọn vào Thùng rác!`);
     },
     onError: (err: any) => {
       alert('Lỗi xóa nhiều hóa đơn: ' + (err.response?.data?.message || err.message));
     },
   });
+
+  // Khôi phục hóa đơn từ Thùng rác
+  const restoreMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return api.post(`/invoices/${id}/restore`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices-trash-count'] });
+      alert('Đã khôi phục hóa đơn về danh sách chính thành công!');
+    },
+    onError: (err: any) => {
+      alert('Lỗi khôi phục hóa đơn: ' + (err.response?.data?.message || err.message));
+    },
+  });
+
+  // Khôi phục nhiều hóa đơn đã chọn
+  const bulkRestoreMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      return api.post('/invoices/bulk-restore', { ids });
+    },
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices-trash-count'] });
+      const count = res?.data?.count || selectedIds.length;
+      setSelectedIds([]);
+      alert(`Đã khôi phục thành công ${count} hóa đơn về bảng chính!`);
+    },
+    onError: (err: any) => {
+      alert('Lỗi khôi phục nhiều hóa đơn: ' + (err.response?.data?.message || err.message));
+    },
+  });
+
+  // Xóa vĩnh viễn 1 hóa đơn
+  const permanentDeleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return api.delete(`/invoices/${id}/permanent`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices-trash-count'] });
+      alert('Đã xóa vĩnh viễn hóa đơn khỏi cơ sở dữ liệu!');
+    },
+    onError: (err: any) => {
+      alert('Lỗi xóa vĩnh viễn: ' + (err.response?.data?.message || err.message));
+    },
+  });
+
+  // Xóa vĩnh viễn nhiều hóa đơn
+  const bulkPermanentDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      return api.post('/invoices/bulk-permanent-delete', { ids });
+    },
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices-trash-count'] });
+      const count = res?.data?.count || selectedIds.length;
+      setSelectedIds([]);
+      alert(`Đã xóa vĩnh viễn ${count} hóa đơn đã chọn!`);
+    },
+    onError: (err: any) => {
+      alert('Lỗi xóa vĩnh viễn: ' + (err.response?.data?.message || err.message));
+    },
+  });
+
+  // Dọn sạch thùng rác
+  const emptyTrashMutation = useMutation({
+    mutationFn: async () => {
+      return api.post('/invoices/empty-trash');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices-trash-count'] });
+      setSelectedIds([]);
+      alert('Đã dọn sạch toàn bộ thùng rác thành công!');
+    },
+    onError: (err: any) => {
+      alert('Lỗi dọn thùng rác: ' + (err.response?.data?.message || err.message));
+    },
+  });
+
+  // Tải bản sao lưu toàn bộ hóa đơn
+  const handleExportBackup = async () => {
+    try {
+      const res = await api.get('/invoices/backup/export');
+      const data = res.data;
+      const jsonStr = JSON.stringify(data, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backup_invoices_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert('Lỗi tải bản sao lưu: ' + (err.response?.data?.message || err.message));
+    }
+  };
 
   // Tính toán KPI số liệu
   const metrics = useMemo(() => {
@@ -192,12 +309,12 @@ export default function InvoicesPage() {
         inv.buyerCompany?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         inv.buyerEmail?.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchStatus = selectedStatus === 'ALL' || inv.status === selectedStatus;
+      const matchStatus = isTrashView || selectedStatus === 'ALL' || inv.status === selectedStatus;
       const matchType = selectedType === 'ALL' || inv.invoiceType === selectedType;
 
       return matchSearch && matchStatus && matchType;
     });
-  }, [invoices, searchTerm, selectedStatus, selectedType]);
+  }, [invoices, searchTerm, selectedStatus, selectedType, isTrashView]);
 
   // Xử lý chọn nhiều (Multi-Select)
   const isAllSelected =
@@ -221,12 +338,29 @@ export default function InvoicesPage() {
 
   const handleBulkDelete = () => {
     if (selectedIds.length === 0) return;
-    if (
-      confirm(
-        `Bạn có chắc chắn muốn xóa ${selectedIds.length} hóa đơn đã chọn không?\nHành động này không thể hoàn tác!`
-      )
-    ) {
-      bulkDeleteMutation.mutate(selectedIds);
+    if (isTrashView) {
+      if (
+        confirm(
+          `Bạn có chắc chắn muốn XÓA VĨNH VIỄN ${selectedIds.length} hóa đơn đã chọn khỏi cơ sở dữ liệu?\nHành động này KHÔNG THỂ HOÀN TÁC!`
+        )
+      ) {
+        bulkPermanentDeleteMutation.mutate(selectedIds);
+      }
+    } else {
+      if (
+        confirm(
+          `Bạn có chắc muốn chuyển ${selectedIds.length} hóa đơn đã chọn vào Thùng rác không? Bạn có thể khôi phục lại bất kỳ lúc nào.`
+        )
+      ) {
+        bulkDeleteMutation.mutate(selectedIds);
+      }
+    }
+  };
+
+  const handleBulkRestore = () => {
+    if (selectedIds.length === 0) return;
+    if (confirm(`Khôi phục ${selectedIds.length} hóa đơn đã chọn về danh sách chính?`)) {
+      bulkRestoreMutation.mutate(selectedIds);
     }
   };
 
@@ -285,6 +419,16 @@ export default function InvoicesPage() {
         </div>
 
         <div className="flex items-center space-x-3">
+          <button
+            type="button"
+            onClick={handleExportBackup}
+            className="inline-flex items-center space-x-1.5 px-3 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs transition-all shadow-xs cursor-pointer"
+            title="Tải tệp sao lưu toàn bộ dữ liệu hóa đơn về máy tính"
+          >
+            <Download className="w-4 h-4 text-slate-500" />
+            <span>Sao Lưu (Backup)</span>
+          </button>
+
           <button
             type="button"
             onClick={() => refetch()}
@@ -385,20 +529,33 @@ export default function InvoicesPage() {
               { id: 'ISSUED', label: 'Đã phát hành' },
               { id: 'SENT', label: 'Đã gửi' },
               { id: 'CANCELLED', label: 'Đã hủy' },
+              {
+                id: 'TRASH',
+                label: `Thùng rác${trashCount > 0 ? ` (${trashCount})` : ''}`,
+                isTrash: true,
+              },
             ].map((tab) => {
               const isSelected = selectedStatus === tab.id;
               return (
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => setSelectedStatus(tab.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  onClick={() => {
+                    setSelectedStatus(tab.id);
+                    setSelectedIds([]);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer ${
                     isSelected
-                      ? 'bg-white text-slate-900 shadow-xs'
+                      ? tab.isTrash
+                        ? 'bg-rose-50 text-rose-700 border border-rose-200 shadow-xs'
+                        : 'bg-white text-slate-900 shadow-xs'
+                      : tab.isTrash && trashCount > 0
+                      ? 'text-rose-600 hover:text-rose-800'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  {tab.label}
+                  {tab.isTrash && <Trash2 className="w-3.5 h-3.5" />}
+                  <span>{tab.label}</span>
                 </button>
               );
             })}
@@ -448,6 +605,36 @@ export default function InvoicesPage() {
           </div>
         </div>
       </div>
+
+      {/* Trash Area Notice Banner */}
+      {isTrashView && (
+        <div className="bg-rose-50/70 border border-rose-200/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center space-x-2.5 text-rose-950">
+            <Trash2 className="w-4 h-4 text-rose-600 shrink-0" />
+            <div>
+              <span className="font-bold">Khu vực Thùng rác:</span> Các hóa đơn bị xóa tạm thời lưu ở đây và không tính vào doanh thu. Bạn có thể <strong>Khôi phục</strong> về bảng chính bất cứ lúc nào hoặc <strong>Xóa vĩnh viễn</strong>.
+            </div>
+          </div>
+          {filteredInvoices.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                if (
+                  confirm(
+                    'Bạn có chắc chắn muốn DỌN SẠCH THÙNG RÁC không?\nTất cả hóa đơn trong thùng rác sẽ bị XÓA VĨNH VIỄN khỏi cơ sở dữ liệu và không thể hoàn tác!'
+                  )
+                ) {
+                  emptyTrashMutation.mutate();
+                }
+              }}
+              disabled={emptyTrashMutation.isPending}
+              className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-semibold rounded-xl shrink-0 transition-colors shadow-xs cursor-pointer"
+            >
+              {emptyTrashMutation.isPending ? 'Đang dọn...' : 'Dọn Sạch Thùng Rác'}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Main Data Table */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
@@ -578,35 +765,49 @@ export default function InvoicesPage() {
                       {getStatusBadge(inv.status)}
                     </td>
 
-                    {/* Thao Tác: Menu 3 chấm */}
+                    {/* Thao Tác: Quick Restore & Menu 3 chấm */}
                     <td className="py-4 px-5 text-right">
-                      <div ref={openMenuRow === inv.id ? menuRef : undefined}>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (openMenuRow === inv.id) {
-                              setOpenMenuRow(null);
-                              setMenuPos(null);
-                            } else {
-                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                              setMenuPos({
-                                top: rect.bottom + 6,
-                                right: window.innerWidth - rect.right,
-                              });
-                              setOpenMenuRow(inv.id);
-                            }
-                          }}
-                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                            openMenuRow === inv.id
-                              ? 'bg-slate-100 text-slate-800'
-                              : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
-                          }`}
-                          title="Thao tác"
-                          aria-label="Thao tác hóa đơn"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
+                      <div className="flex items-center justify-end space-x-2">
+                        {isTrashView && (
+                          <button
+                            type="button"
+                            onClick={() => restoreMutation.mutate(inv.id)}
+                            disabled={restoreMutation.isPending}
+                            className="inline-flex items-center space-x-1 px-2.5 py-1 text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg transition-colors cursor-pointer"
+                            title="Khôi phục về bảng chính"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            <span>Khôi phục</span>
+                          </button>
+                        )}
+                        <div ref={openMenuRow === inv.id ? menuRef : undefined}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (openMenuRow === inv.id) {
+                                setOpenMenuRow(null);
+                                setMenuPos(null);
+                              } else {
+                                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                setMenuPos({
+                                  top: rect.bottom + 6,
+                                  right: window.innerWidth - rect.right,
+                                });
+                                setOpenMenuRow(inv.id);
+                              }
+                            }}
+                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                              openMenuRow === inv.id
+                                ? 'bg-slate-100 text-slate-800'
+                                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+                            }`}
+                            title="Thao tác"
+                            aria-label="Thao tác hóa đơn"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
 
                       {openMenuRow === inv.id && menuPos && (
@@ -619,78 +820,125 @@ export default function InvoicesPage() {
                           }}
                           className="z-[9999] w-52 bg-white rounded-xl border border-slate-200 shadow-xl py-1.5 text-left animate-in fade-in zoom-in-95 duration-100"
                         >
-                          <Link
-                            href={`/invoices/${inv.id}`}
-                            onClick={() => { setOpenMenuRow(null); setMenuPos(null); }}
-                            className="flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-                          >
-                            <Eye className="w-3.5 h-3.5 text-slate-400" />
-                            <span>Xem chi tiết</span>
-                          </Link>
+                          {isTrashView ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  restoreMutation.mutate(inv.id);
+                                  setOpenMenuRow(null);
+                                  setMenuPos(null);
+                                }}
+                                disabled={restoreMutation.isPending}
+                                className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition-colors text-left cursor-pointer"
+                              >
+                                <RotateCcw className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Khôi phục hóa đơn</span>
+                              </button>
 
-                          <Link
-                            href={`/invoices/${inv.id}/edit`}
-                            onClick={() => { setOpenMenuRow(null); setMenuPos(null); }}
-                            className="flex items-center space-x-2.5 px-3.5 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 transition-colors"
-                          >
-                            <Pencil className="w-3.5 h-3.5 text-amber-600" />
-                            <span>Chỉnh sửa hóa đơn</span>
-                          </Link>
+                              <Link
+                                href={`/invoices/${inv.id}`}
+                                onClick={() => { setOpenMenuRow(null); setMenuPos(null); }}
+                                className="flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                              >
+                                <Eye className="w-3.5 h-3.5 text-slate-400" />
+                                <span>Xem chi tiết</span>
+                              </Link>
 
-                          <a
-                            href={getExportPdfUrl(inv.id)}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={() => { setOpenMenuRow(null); setMenuPos(null); }}
-                            className="flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-                          >
-                            <Download className="w-3.5 h-3.5 text-slate-400" />
-                            <span>In / Tải PDF</span>
-                          </a>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              cloneMutation.mutate(inv.id);
-                              setOpenMenuRow(null);
-                              setMenuPos(null);
-                            }}
-                            disabled={cloneMutation.isPending}
-                            className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors text-left cursor-pointer"
-                          >
-                            <Copy className="w-3.5 h-3.5 text-slate-400" />
-                            <span>Nhân bản hóa đơn</span>
-                          </button>
-                          {inv.status !== 'PAID' && inv.status !== 'CANCELLED' && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                payMutation.mutate({ id: inv.id });
-                                setOpenMenuRow(null);
-                                setMenuPos(null);
-                              }}
-                              disabled={payMutation.isPending}
-                              className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors text-left cursor-pointer"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" />
-                              <span>Xác nhận đã thanh toán</span>
-                            </button>
+                              <div className="my-1 border-t border-slate-100" />
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (confirm(`Bạn có chắc muốn XÓA VĨNH VIỄN hóa đơn ${inv.invoiceNumber} khỏi cơ sở dữ liệu?\nHành động này KHÔNG thể hoàn tác!`)) {
+                                    permanentDeleteMutation.mutate(inv.id);
+                                  }
+                                  setOpenMenuRow(null);
+                                  setMenuPos(null);
+                                }}
+                                disabled={permanentDeleteMutation.isPending}
+                                className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors text-left cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Xóa vĩnh viễn</span>
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <Link
+                                href={`/invoices/${inv.id}`}
+                                onClick={() => { setOpenMenuRow(null); setMenuPos(null); }}
+                                className="flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                              >
+                                <Eye className="w-3.5 h-3.5 text-slate-400" />
+                                <span>Xem chi tiết</span>
+                              </Link>
+
+                              <Link
+                                href={`/invoices/${inv.id}/edit`}
+                                onClick={() => { setOpenMenuRow(null); setMenuPos(null); }}
+                                className="flex items-center space-x-2.5 px-3.5 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 transition-colors"
+                              >
+                                <Pencil className="w-3.5 h-3.5 text-amber-600" />
+                                <span>Chỉnh sửa hóa đơn</span>
+                              </Link>
+
+                              <a
+                                href={getExportPdfUrl(inv.id)}
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={() => { setOpenMenuRow(null); setMenuPos(null); }}
+                                className="flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                              >
+                                <Download className="w-3.5 h-3.5 text-slate-400" />
+                                <span>In / Tải PDF</span>
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  cloneMutation.mutate(inv.id);
+                                  setOpenMenuRow(null);
+                                  setMenuPos(null);
+                                }}
+                                disabled={cloneMutation.isPending}
+                                className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors text-left cursor-pointer"
+                              >
+                                <Copy className="w-3.5 h-3.5 text-slate-400" />
+                                <span>Nhân bản hóa đơn</span>
+                              </button>
+                              {inv.status !== 'PAID' && inv.status !== 'CANCELLED' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    payMutation.mutate({ id: inv.id });
+                                    setOpenMenuRow(null);
+                                    setMenuPos(null);
+                                  }}
+                                  disabled={payMutation.isPending}
+                                  className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors text-left cursor-pointer"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>Xác nhận đã thanh toán</span>
+                                </button>
+                              )}
+                              <div className="my-1 border-t border-slate-100" />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (confirm(`Bạn có chắc muốn chuyển hóa đơn ${inv.invoiceNumber} vào Thùng rác? Bạn có thể khôi phục lại bất kỳ lúc nào.`)) {
+                                    deleteMutation.mutate(inv.id);
+                                  }
+                                  setOpenMenuRow(null);
+                                  setMenuPos(null);
+                                }}
+                                disabled={deleteMutation.isPending}
+                                className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors text-left cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Chuyển vào Thùng rác</span>
+                              </button>
+                            </>
                           )}
-                          <div className="my-1 border-t border-slate-100" />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (confirm(`Bạn có chắc muốn xóa hóa đơn ${inv.invoiceNumber}?`)) {
-                                deleteMutation.mutate(inv.id);
-                              }
-                              setOpenMenuRow(null);
-                              setMenuPos(null);
-                            }}
-                            disabled={deleteMutation.isPending}
-                            className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors text-left cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span>Xóa hóa đơn</span>
-                          </button>
                         </div>
                       )}
                     </td>
@@ -730,15 +978,38 @@ export default function InvoicesPage() {
             <span>Đã chọn {selectedIds.length} hóa đơn</span>
           </div>
           <div className="h-4 w-px bg-slate-700" />
-          <button
-            type="button"
-            onClick={handleBulkDelete}
-            disabled={bulkDeleteMutation.isPending}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-all shadow-sm cursor-pointer"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>{bulkDeleteMutation.isPending ? 'Đang xóa...' : 'Xóa tất cả đã chọn'}</span>
-          </button>
+          {isTrashView ? (
+            <>
+              <button
+                type="button"
+                onClick={handleBulkRestore}
+                disabled={bulkRestoreMutation.isPending}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-all shadow-sm cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>{bulkRestoreMutation.isPending ? 'Đang khôi phục...' : `Khôi phục (${selectedIds.length})`}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={bulkPermanentDeleteMutation.isPending}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-all shadow-sm cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{bulkPermanentDeleteMutation.isPending ? 'Đang xóa...' : `Xóa vĩnh viễn (${selectedIds.length})`}</span>
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleteMutation.isPending}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-all shadow-sm cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>{bulkDeleteMutation.isPending ? 'Đang chuyển...' : `Chuyển vào Thùng rác (${selectedIds.length})`}</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setSelectedIds([])}

@@ -264,8 +264,14 @@ export class InvoicesController {
     @Query('search') search?: string,
     @Query('invoiceType') invoiceType?: string,
     @Query('invoiceForm') invoiceForm?: string,
+    @Query('trash') trash?: string,
   ) {
-    return this.invoicesService.getInvoices(status, search, invoiceType, invoiceForm);
+    return this.invoicesService.getInvoices(status, search, invoiceType, invoiceForm, trash);
+  }
+
+  @Get('backup/export')
+  async exportBackup() {
+    return this.invoicesService.getBackupData();
   }
 
   @Get('next-number')
@@ -489,9 +495,34 @@ export class InvoicesController {
     return this.invoicesService.getInvoiceHistory(id);
   }
 
+  @Post('bulk-restore')
+  async bulkRestoreInvoices(@Body() body: { ids: string[] }) {
+    return this.invoicesService.restoreManyInvoices(body.ids || []);
+  }
+
+  @Post('bulk-permanent-delete')
+  async bulkPermanentDeleteInvoices(@Body() body: { ids: string[] }) {
+    return this.invoicesService.permanentDeleteManyInvoices(body.ids || []);
+  }
+
+  @Post('empty-trash')
+  async emptyTrash() {
+    return this.invoicesService.emptyTrash();
+  }
+
   @Post('bulk-delete')
   async bulkDeleteInvoices(@Body() body: { ids: string[] }) {
     return this.invoicesService.deleteManyInvoices(body.ids || []);
+  }
+
+  @Post(':id/restore')
+  async restoreInvoice(@Param('id') id: string) {
+    return this.invoicesService.restoreInvoice(id);
+  }
+
+  @Delete(':id/permanent')
+  async permanentDeleteInvoice(@Param('id') id: string) {
+    return this.invoicesService.permanentDeleteInvoice(id);
   }
 
   @Delete(':id')

@@ -34,9 +34,15 @@ export class InvoicesService {
     return `https://qr.sepay.vn/img?bank=${bankCode}&acc=${account}&template=compact&amount=${sanitizedAmount}&des=${encodedDesc}`;
   }
 
-  async getInvoices(status?: string, search?: string, invoiceType?: string, invoiceForm?: string) {
+  async getInvoices(status?: string, search?: string, invoiceType?: string, invoiceForm?: string, trash?: boolean | string) {
     const where: any = {};
-    if (status && status !== 'ALL') {
+    if (trash === true || trash === 'true') {
+      where.deletedAt = { not: null };
+    } else {
+      where.deletedAt = null;
+    }
+
+    if (status && status !== 'ALL' && status !== 'TRASH') {
       where.status = status;
     }
     if (invoiceType && invoiceType !== 'ALL') {
@@ -47,9 +53,11 @@ export class InvoicesService {
     }
     if (search) {
       where.OR = [
-        { invoiceNumber: { contains: search } },
-        { buyerName: { contains: search } },
-        { buyerCompany: { contains: search } },
+        { invoiceNumber: { contains: search, mode: 'insensitive' } },
+        { buyerName: { contains: search, mode: 'insensitive' } },
+        { buyerCompany: { contains: search, mode: 'insensitive' } },
+        { buyerEmail: { contains: search, mode: 'insensitive' } },
+        { buyerPhone: { contains: search } },
       ];
     }
 
@@ -98,6 +106,7 @@ export class InvoicesService {
         AND: [
           { OR: searchConditions },
           { status: { notIn: ['CANCELLED'] } },
+          { deletedAt: null },
         ],
       },
       orderBy: { createdAt: 'desc' },
@@ -565,13 +574,93 @@ export class InvoicesService {
   }
 
   async deleteInvoice(id: string) {
-    return this.prisma.invoice.delete({ where: { id } });
+    const existing = await this.prisma.invoice.findFirst({
+      where: { OR: [{ id }, { invoiceNumber: id }] },
+    });
+    if (!existing) throw new Error('Hóa đơn không tồn tại');
+
+    return this.prisma.invoice.update({
+      where: { id: existing.id },
+      data: {
+        deletedAt: new Date(),
+        histories: {
+          create: {
+            action: 'CANCELLED',
+            note: `Chuyển hóa đơn ${existing.invoiceNumber} vào Thùng rác`,
+          },
+        },
+      },
+      include: { items: true },
+    });
   }
 
   async deleteManyInvoices(ids: string[]) {
     if (!ids || ids.length === 0) return { count: 0 };
+    return this.prisma.invoice.updateMany({
+      where: { id: { in: ids } },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  async restoreInvoice(id: string) {
+    const existing = await this.prisma.invoice.findFirst({
+      where: { OR: [{ id }, { invoiceNumber: id }] },
+    });
+    if (!existing) throw new Error('Hóa đơn không tồn tại trong Thùng rác');
+
+    return this.prisma.invoice.update({
+      where: { id: existing.id },
+      data: {
+        deletedAt: null,
+        histories: {
+          create: {
+            action: 'UPDATED',
+            note: `Khôi phục hóa đơn ${existing.invoiceNumber} từ Thùng rác`,
+          },
+        },
+      },
+      include: { items: true },
+    });
+  }
+
+  async restoreManyInvoices(ids: string[]) {
+    if (!ids || ids.length === 0) return { count: 0 };
+    return this.prisma.invoice.updateMany({
+      where: { id: { in: ids } },
+      data: { deletedAt: null },
+    });
+  }
+
+  async permanentDeleteInvoice(id: string) {
+    const existing = await this.prisma.invoice.findFirst({
+      where: { OR: [{ id }, { invoiceNumber: id }] },
+    });
+    if (!existing) throw new Error('Hóa đơn không tồn tại');
+    return this.prisma.invoice.delete({ where: { id: existing.id } });
+  }
+
+  async permanentDeleteManyInvoices(ids: string[]) {
+    if (!ids || ids.length === 0) return { count: 0 };
     return this.prisma.invoice.deleteMany({
       where: { id: { in: ids } },
     });
+  }
+
+  async emptyTrash() {
+    return this.prisma.invoice.deleteMany({
+      where: { deletedAt: { not: null } },
+    });
+  }
+
+  async getBackupData() {
+    const invoices = await this.prisma.invoice.findMany({
+      include: { items: true, histories: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return {
+      exportedAt: new Date().toISOString(),
+      totalCount: invoices.length,
+      invoices,
+    };
   }
 }
