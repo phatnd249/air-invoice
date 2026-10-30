@@ -24,9 +24,12 @@ import {
   Trash2,
   Copy,
   MessageSquare,
+  CalendarClock,
+  UserPlus,
 } from 'lucide-react';
 import Link from 'next/link';
 import InvoiceTemplateRenderer from '@/components/InvoiceTemplateRenderer';
+import AddSubscriptionFromInvoiceModal from '@/components/AddSubscriptionFromInvoiceModal';
 import { INVOICE_TYPE_CONFIG, INVOICE_FORM_CONFIG, InvoiceType, InvoiceForm } from '@invoice/types';
 
 interface HistoryItem {
@@ -120,6 +123,7 @@ export default function InvoiceDetailPage() {
   const id = params?.id as string;
   const [isSendingMail, setIsSendingMail] = useState(false);
   const [isSendingZalo, setIsSendingZalo] = useState(false);
+  const [isAddSubModalOpen, setIsAddSubModalOpen] = useState(false);
 
   const { data: invoice, isLoading } = useQuery({
     queryKey: ['invoice', id],
@@ -424,6 +428,17 @@ export default function InvoiceDetailPage() {
             </button>
           )}
 
+          {invoice.status === 'PAID' && (
+            <button
+              onClick={() => setIsAddSubModalOpen(true)}
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg space-x-2 transition-all cursor-pointer"
+              title="Thêm người dùng vào Trang Khách Hàng kèm dịch vụ và thời gian"
+            >
+              <CalendarClock className="w-4 h-4" />
+              <span>Thêm Vào Trang Khách Hàng</span>
+            </button>
+          )}
+
           {invoice.status !== 'CANCELLED' && (
             <button
               onClick={() => {
@@ -578,6 +593,13 @@ export default function InvoiceDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal Thêm vào Trang Khách Hàng */}
+      <AddSubscriptionFromInvoiceModal
+        isOpen={isAddSubModalOpen}
+        onClose={() => setIsAddSubModalOpen(false)}
+        invoice={invoice}
+      />
     </div>
   );
 }

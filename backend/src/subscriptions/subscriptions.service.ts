@@ -184,6 +184,130 @@ export class SubscriptionsService {
     return this.computeStatusAndRemaining(created);
   }
 
+  
+  async createFromInvoice(
+    invoiceId: string,
+    overrides?: {
+      startDate?: string;
+      endDate?: string;
+      cycle?: string;
+      staffName?: string;
+      notes?: string;
+    },
+  ) {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { OR: [{ id: invoiceId }, { invoiceNumber: invoiceId }] },
+      include: { items: true, histories: { orderBy: { createdAt: 'desc' } } },
+    });
+    if (!invoice) throw new NotFoundException('Hóa đơn không tồn tại');
+
+    // Tìm thời điểm thanh toán thành công
+    const paidHistory = invoice.histories.find((h) => h.action === 'PAID');
+    const start = overrides?.startDate
+      ? new Date(overrides.startDate)
+      : (paidHistory ? new Date(paidHistory.createdAt) : new Date(invoice.updatedAt || invoice.createdAt));
+
+    const firstItem = invoice.items[0] || { name: 'Gói Dịch Vụ', description: '', metaInfo: '' };
+    const serviceName = firstItem.name || 'Gói Dịch Vụ';
+
+    // Tìm trong ServiceCatalog để xác định chu kỳ mặc định
+    let cycle = overrides?.cycle;
+    let matchedCatalog: any = null;
+    try {
+      matchedCatalog = await this.prisma.serviceCatalog.findFirst({
+        where: { name: { equals: serviceName, mode: 'insensitive' } },
+      });
+    } catch {}
+
+    if (!cycle) {
+      const meta = (matchedCatalog?.metaInfo || (firstItem as any).metaInfo || firstItem.description || serviceName).toLowerCase();
+      if (meta.includes('năm') || meta.includes('12 tháng') || meta.includes('year')) {
+        cycle = '1 năm';
+      } else if (meta.includes('quý') || meta.includes('3 tháng')) {
+        cycle = '3 tháng';
+      } else if (meta.includes('6 tháng')) {
+        cycle = '6 tháng';
+      } else {
+        cycle = '1 tháng';
+      }
+    }
+
+    let end: Date;
+    if (overrides?.endDate) {
+      end = new Date(overrides.endDate);
+    } else {
+      end = new Date(start);
+      if (cycle.includes('năm')) {
+        end.setFullYear(end.getFullYear() + 1);
+      } else if (cycle.includes('6 tháng')) {
+        end.setMonth(end.getMonth() + 6);
+      } else if (cycle.includes('3 tháng')) {
+        end.setMonth(end.getMonth() + 3);
+      } else {
+        end.setMonth(end.getMonth() + 1);
+      }
+    }
+
+    // Kiểm tra xem khách hàng này đã có subscription chưa (nếu có cùng email & service thì cập nhật/gia hạn)
+    const existingSub = await this.prisma.customerSubscription.findFirst({
+      where: {
+        customerEmail: invoice.buyerEmail || '',
+        serviceName: serviceName,
+      },
+    });
+
+    let subscription;
+    if (existingSub) {
+      subscription = await this.prisma.customerSubscription.update({
+        where: { id: existingSub.id },
+        data: {
+          customerName: invoice.buyerName,
+          customerPhone: invoice.buyerPhone || existingSub.customerPhone,
+          customerCompany: invoice.buyerCompany || existingSub.customerCompany,
+          servicePrice: invoice.grandTotal || existingSub.servicePrice,
+          cycle,
+          startDate: start,
+          endDate: end,
+          status: 'ACTIVE',
+          notes: overrides?.notes || `Gia hạn từ Hóa đơn #${invoice.invoiceNumber}`,
+        },
+      });
+    } else {
+      subscription = await this.prisma.customerSubscription.create({
+        data: {
+          customerName: invoice.buyerName,
+          customerEmail: (invoice.buyerEmail || 'khachhang@example.com').trim().toLowerCase(),
+          customerPhone: invoice.buyerPhone?.trim(),
+          customerCompany: invoice.buyerCompany?.trim(),
+          serviceId: matchedCatalog?.id || undefined,
+          serviceName: serviceName,
+          servicePrice: invoice.grandTotal,
+          cycle,
+          startDate: start,
+          endDate: end,
+          status: 'ACTIVE',
+          staffName: overrides?.staffName,
+          notes: overrides?.notes || `Thêm từ Hóa đơn #${invoice.invoiceNumber}`,
+        },
+      });
+    }
+
+    // Ghi nhận lịch sử vào Hóa đơn
+    await this.prisma.invoiceHistory.create({
+      data: {
+        invoiceId: invoice.id,
+        action: 'UPDATED',
+        note: `Đã thêm khách hàng vào Quản lý Khách hàng & Dịch vụ (${serviceName}, Chu kỳ: ${cycle}, Hạn: ${end.toLocaleDateString('vi-VN')})`,
+      },
+    });
+
+    return {
+      success: true,
+      message: existingSub ? 'Đã gia hạn gói dịch vụ cho khách hàng thành công!' : 'Đã thêm khách hàng vào Trang Khách Hàng thành công!',
+      subscription: this.computeStatusAndRemaining(subscription),
+    };
+  }
+
   async update(id: string, dto: UpdateSubscriptionDto) {
     const existing = await this.prisma.customerSubscription.findUnique({ where: { id } });
     if (!existing) {

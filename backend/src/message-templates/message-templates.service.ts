@@ -338,6 +338,8 @@ export class MessageTemplatesService implements OnModuleInit {
       phone?: string;
       email?: string;
       notes?: string;
+      startDate?: string;
+      endDate?: string;
     },
   ): { subject: string; content: string; attachments: AttachmentFile[] } {
     const formatCurrency = (n: any) =>
@@ -372,6 +374,13 @@ export class MessageTemplatesService implements OnModuleInit {
       '{{phone}}': vars.phone || '0812305046',
       '{{email}}': vars.email || '',
       '{{notes}}': vars.notes || '',
+      '{{startDate}}': vars.startDate || '',
+      '{{packageStartDate}}': vars.startDate || '',
+      '{{serviceStartDate}}': vars.startDate || '',
+      '{{endDate}}': vars.endDate || '',
+      '{{packageEndDate}}': vars.endDate || '',
+      '{{serviceEndDate}}': vars.endDate || '',
+      '{{expireDate}}': vars.endDate || '',
     };
 
     let subject = template.subject || '';

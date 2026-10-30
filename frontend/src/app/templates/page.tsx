@@ -244,6 +244,8 @@ const TEMPLATE_VARIABLES = [
   { tag: '{{invoiceNumber}}', desc: 'Số hóa đơn (HD-000001)' },
   { tag: '{{grandTotal}}', desc: 'Tổng tiền thanh toán (VND)' },
   { tag: '{{packageName}}', desc: 'Tên gói dịch vụ đăng ký' },
+  { tag: '{{startDate}}', desc: 'Thời gian bắt đầu gói' },
+  { tag: '{{endDate}}', desc: 'Thời gian kết thúc gói' },
   { tag: '{{viewUrl}}', desc: 'Link xem & quét VietQR' },
   { tag: '{{paymentCode}}', desc: 'Cú pháp chuyển khoản' },
   { tag: '{{dueDate}}', desc: 'Hạn thanh toán' },
@@ -549,6 +551,8 @@ export default function TemplatesPage() {
       .replace(/{{invoiceNumber}}|{invoiceNumber}/g, SAMPLE_INVOICE.invoiceNumber)
       .replace(/{{grandTotal}}|{grandTotal}/g, '1.452.000 ₫')
       .replace(/{{packageName}}/g, SAMPLE_INVOICE.items[0].name)
+      .replace(/{{startDate}}|{packageStartDate}/g, '30/10/2026')
+      .replace(/{{endDate}}|{packageEndDate}|{{expireDate}}/g, '30/11/2026')
       .replace(/{{viewUrl}}|{viewUrl}/g, 'https://invoice.share4happy.com/view/demo-token')
       .replace(/{{paymentCode}}/g, SAMPLE_INVOICE.paymentCode)
       .replace(/{{dueDate}}/g, '05/07/2026')

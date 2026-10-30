@@ -267,7 +267,7 @@ export class DeliveryService {
   ): Promise<{ success: boolean; message: string }> {
     const invoice = await this.prisma.invoice.findUnique({
       where: { id: invoiceId },
-      include: { items: true },
+      include: { items: true, histories: { orderBy: { createdAt: 'desc' } } },
     });
 
     if (!invoice) throw new Error('Hóa đơn không tồn tại');
@@ -571,7 +571,7 @@ export class DeliveryService {
   ): Promise<{ success: boolean; message: string }> {
     const invoice = await this.prisma.invoice.findUnique({
       where: { id: invoiceId },
-      include: { items: true },
+      include: { items: true, histories: true },
     });
 
     if (!invoice) throw new Error('Hóa đơn không tồn tại');
@@ -598,6 +598,39 @@ export class DeliveryService {
       options?.subject ||
       `[${brandName}] Xác nhận thanh toán thành công & Biên lai điện tử - #${invoice.invoiceNumber}`;
 
+    
+    // Tính toán thời gian bắt đầu và kết thúc gói dịch vụ
+    const paidHistory = (invoice as any).histories?.find((h: any) => h.action === 'PAID');
+    const paymentDate = paidHistory ? new Date(paidHistory.createdAt) : new Date(invoice.updatedAt || invoice.createdAt);
+
+    let cycleMonths = 1;
+    try {
+      const matchedCatalog = await this.prisma.serviceCatalog.findFirst({
+        where: { name: { equals: packageName, mode: 'insensitive' } },
+      });
+      const meta = (matchedCatalog?.metaInfo || (firstItem as any).metaInfo || firstItem.description || packageName).toLowerCase();
+      if (meta.includes('năm') || meta.includes('12 tháng') || meta.includes('year')) {
+        cycleMonths = 12;
+      } else if (meta.includes('quý') || meta.includes('3 tháng')) {
+        cycleMonths = 3;
+      } else if (meta.includes('6 tháng')) {
+        cycleMonths = 6;
+      }
+    } catch {}
+
+    const expireDate = new Date(paymentDate);
+    expireDate.setMonth(expireDate.getMonth() + cycleMonths);
+
+    const formatVNDate = (d: Date) => {
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    };
+
+    const startDateStr = formatVNDate(paymentDate);
+    const endDateStr = formatVNDate(expireDate);
+
     let customPaymentAttachments: any[] = [];
     const payItemIds = invoice.items.map((it: any) => it.id);
     const payItemNames = invoice.items.map((it: any) => it.name);
@@ -622,6 +655,8 @@ export class DeliveryService {
         phone: settings?.phone || '0812305046',
         email: settings?.email || '',
         notes: options?.note || invoice.notes || '',
+        startDate: startDateStr,
+        endDate: endDateStr,
       });
       if (rendered.subject) emailSubject = rendered.subject;
       htmlBody = rendered.content;
@@ -655,6 +690,14 @@ export class DeliveryService {
             <tr>
               <td style="padding: 10px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Gói dịch vụ:</td>
               <td style="padding: 10px 16px; font-weight: 600; color: #0f172a; text-align: right; border-bottom: 1px solid #f1f5f9;">${packageName}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Thời gian bắt đầu:</td>
+              <td style="padding: 10px 16px; font-weight: 600; color: #0f172a; text-align: right; border-bottom: 1px solid #f1f5f9;">${startDateStr}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Thời gian kết thúc:</td>
+              <td style="padding: 10px 16px; font-weight: 600; color: #0f172a; text-align: right; border-bottom: 1px solid #f1f5f9;">${endDateStr}</td>
             </tr>
             <tr>
               <td style="padding: 10px 16px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Số tiền đã thanh toán:</td>

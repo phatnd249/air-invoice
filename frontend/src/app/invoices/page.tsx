@@ -21,9 +21,12 @@ import {
   MoreVertical,
   RotateCcw,
   ArchiveRestore,
+  CalendarClock,
+  UserPlus,
 } from 'lucide-react';
 import { INVOICE_TYPE_CONFIG, INVOICE_FORM_CONFIG, InvoiceType } from '@invoice/types';
 import { useAuth } from '@/context/AuthContext';
+import AddSubscriptionFromInvoiceModal from '@/components/AddSubscriptionFromInvoiceModal';
 
 export default function InvoicesPage() {
   const { user } = useAuth();
@@ -34,6 +37,7 @@ export default function InvoicesPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [openMenuRow, setOpenMenuRow] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const [selectedInvoiceForSub, setSelectedInvoiceForSub] = useState<any>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -768,6 +772,17 @@ export default function InvoicesPage() {
                     {/* Thao Tác: Quick Restore & Menu 3 chấm */}
                     <td className="py-4 px-5 text-right">
                       <div className="flex items-center justify-end space-x-2">
+                        {!isTrashView && inv.status === 'PAID' && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedInvoiceForSub(inv)}
+                            className="inline-flex items-center space-x-1 px-2.5 py-1 text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded-lg transition-colors cursor-pointer shadow-xs"
+                            title="Thêm khách hàng vào Trang Khách Hàng kèm dịch vụ & thời gian bắt đầu"
+                          >
+                            <CalendarClock className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Khách Hàng</span>
+                          </button>
+                        )}
                         {isTrashView && (
                           <button
                             type="button"
@@ -921,6 +936,20 @@ export default function InvoicesPage() {
                                   <span>Xác nhận đã thanh toán</span>
                                 </button>
                               )}
+                              {inv.status === 'PAID' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedInvoiceForSub(inv);
+                                    setOpenMenuRow(null);
+                                    setMenuPos(null);
+                                  }}
+                                  className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 transition-colors text-left cursor-pointer"
+                                >
+                                  <CalendarClock className="w-3.5 h-3.5 text-indigo-600" />
+                                  <span>Thêm vào Trang Khách Hàng</span>
+                                </button>
+                              )}
                               <div className="my-1 border-t border-slate-100" />
                               <button
                                 type="button"
@@ -1019,6 +1048,13 @@ export default function InvoicesPage() {
           </button>
         </div>
       )}
+
+      {/* Modal Thêm vào Trang Khách Hàng */}
+      <AddSubscriptionFromInvoiceModal
+        isOpen={!!selectedInvoiceForSub}
+        onClose={() => setSelectedInvoiceForSub(null)}
+        invoice={selectedInvoiceForSub}
+      />
     </div>
   );
 }

@@ -21,6 +21,8 @@ export interface SendPaymentSuccessZaloOptions {
   viewUrl?: string;
   pdfUrl?: string;
   note?: string;
+  startDate?: string;
+  endDate?: string;
   customMessage?: string;
 }
 
@@ -279,6 +281,9 @@ export class ZaloService {
     const packageName = options.packageName || 'Gói Dịch Vụ AI WRITER';
     const viewUrl = options.viewUrl || '';
     const noteLine = options.note ? `• Ghi chú: ${options.note}\n` : '';
+    const timeLine = (options.startDate && options.endDate)
+      ? `• Thời gian bắt đầu: ${options.startDate}\n• Thời gian kết thúc: ${options.endDate}\n`
+      : '';
     const viewLine = viewUrl ? `👉 Xem & Tải biên lai điện tử: ${viewUrl}\n` : '';
 
     let messageText = options.customMessage;
@@ -291,6 +296,7 @@ export class ZaloService {
         `• Mã hóa đơn: #${invoiceNum}\n` +
         `• Số tiền đã thanh toán: ${totalStr}\n` +
         `• Trạng thái: ✅ ĐÃ HOÀN TẤT THANH TOÁN\n` +
+        timeLine +
         noteLine +
         viewLine +
         `\n✨ Gói dịch vụ của Quý khách đã được kích hoạt thành công. Cảm ơn Quý khách đã tin tưởng và đồng hành cùng ${brandName}!`;

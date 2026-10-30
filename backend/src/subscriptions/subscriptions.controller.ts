@@ -35,6 +35,14 @@ export class SubscriptionsController {
     return this.subscriptionsService.findOne(id);
   }
 
+  @Post('from-invoice/:invoiceId')
+  async createFromInvoice(
+    @Param('invoiceId') invoiceId: string,
+    @Body() body: any,
+  ) {
+    return this.subscriptionsService.createFromInvoice(invoiceId, body);
+  }
+
   @Post()
   async create(@Body() dto: CreateSubscriptionDto) {
     return this.subscriptionsService.create(dto);

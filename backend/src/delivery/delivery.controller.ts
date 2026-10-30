@@ -41,7 +41,7 @@ export class DeliveryController {
     try {
       const invoice = await this.prisma.invoice.findUnique({
         where: { id },
-        include: { items: true },
+        include: { items: true, histories: { orderBy: { createdAt: 'desc' } } },
       });
       if (!invoice) throw new BadRequestException('Không tìm thấy hóa đơn');
       if (!invoice.buyerPhone) throw new BadRequestException('Hóa đơn không có số điện thoại');
@@ -57,6 +57,37 @@ export class DeliveryController {
       // Tra cứu mẫu tin nhắn Zalo được cấu hình cho gói này
       const isPaid = invoice.status === 'PAID';
       const triggerType = isPaid ? 'PAYMENT_SUCCESS' : 'INVOICE_CREATED';
+      
+      // Tính toán thời gian bắt đầu & kết thúc gói nếu thanh toán
+      let startDateStr = '';
+      let endDateStr = '';
+      if (isPaid) {
+        const paidHistory = invoice.histories?.find((h: any) => h.action === 'PAID');
+        const paymentDate = paidHistory ? new Date(paidHistory.createdAt) : new Date(invoice.updatedAt || invoice.createdAt);
+        let cycleMonths = 1;
+        try {
+          const matchedCatalog = await this.prisma.serviceCatalog.findFirst({
+            where: { name: { equals: packageName, mode: 'insensitive' } },
+          });
+          const meta = (matchedCatalog?.metaInfo || (invoice.items?.[0] as any)?.metaInfo || invoice.items?.[0]?.description || packageName).toLowerCase();
+          if (meta.includes('năm') || meta.includes('12 tháng') || meta.includes('year')) {
+            cycleMonths = 12;
+          } else if (meta.includes('quý') || meta.includes('3 tháng')) {
+            cycleMonths = 3;
+          } else if (meta.includes('6 tháng')) {
+            cycleMonths = 6;
+          }
+        } catch {}
+        const expireDate = new Date(paymentDate);
+        expireDate.setMonth(expireDate.getMonth() + cycleMonths);
+        const day = String(paymentDate.getDate()).padStart(2, '0');
+        const month = String(paymentDate.getMonth() + 1).padStart(2, '0');
+        startDateStr = `${day}/${month}/${paymentDate.getFullYear()}`;
+        const endDay = String(expireDate.getDate()).padStart(2, '0');
+        const endMonth = String(expireDate.getMonth() + 1).padStart(2, '0');
+        endDateStr = `${endDay}/${endMonth}/${expireDate.getFullYear()}`;
+      }
+
       const matchTpl = await this.messageTemplatesService.findMatchingTemplate(
         'ZALO',
         triggerType as any,
@@ -76,6 +107,8 @@ export class DeliveryController {
           paymentCode: invoice.paymentCode || '',
           brandName: 'AI WRITER',
           notes: invoice.notes || '',
+          startDate: startDateStr,
+          endDate: endDateStr,
         });
         customMessage = rendered.content;
         if (rendered.attachments && rendered.attachments.length > 0) {
@@ -97,6 +130,8 @@ export class DeliveryController {
           viewUrl,
           pdfUrl,
           customMessage,
+          startDate: startDateStr,
+          endDate: endDateStr,
         });
         if (!res.success) throw new BadRequestException(res.error || 'Gửi tin nhắn Zalo không thành công');
         return res;

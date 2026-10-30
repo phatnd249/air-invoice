@@ -370,6 +370,31 @@ export class InvoicesController {
       emailResult.jobId = emailJob.id;
     }
 
+    // Tính toán thời gian bắt đầu & kết thúc gói dịch vụ
+    const payStartDate = new Date();
+    let payCycleMonths = 1;
+    try {
+      const matchedCatalog = await this.prisma.serviceCatalog.findFirst({
+        where: { name: { equals: packageName, mode: 'insensitive' } },
+      });
+      const meta = (matchedCatalog?.metaInfo || (firstItem as any)?.metaInfo || firstItem?.description || packageName).toLowerCase();
+      if (meta.includes('năm') || meta.includes('12 tháng') || meta.includes('year')) {
+        payCycleMonths = 12;
+      } else if (meta.includes('quý') || meta.includes('3 tháng')) {
+        payCycleMonths = 3;
+      } else if (meta.includes('6 tháng')) {
+        payCycleMonths = 6;
+      }
+    } catch {}
+    const payExpireDate = new Date(payStartDate);
+    payExpireDate.setMonth(payExpireDate.getMonth() + payCycleMonths);
+    const pDay = String(payStartDate.getDate()).padStart(2, '0');
+    const pMonth = String(payStartDate.getMonth() + 1).padStart(2, '0');
+    const payStartStr = `${pDay}/${pMonth}/${payStartDate.getFullYear()}`;
+    const pEndDay = String(payExpireDate.getDate()).padStart(2, '0');
+    const pEndMonth = String(payExpireDate.getMonth() + 1).padStart(2, '0');
+    const payEndStr = `${pEndDay}/${pEndMonth}/${payExpireDate.getFullYear()}`;
+
     // 3. Tự động gửi Tin Nhắn Zalo xác nhận thanh toán & kích hoạt gói: Đưa vào Hàng Chờ
     let zaloResult = { sent: false, queued: false, jobId: null as any };
     if (body?.sendZalo !== false && updated.buyerPhone) {
@@ -383,6 +408,8 @@ export class InvoicesController {
         viewUrl,
         pdfUrl,
         note,
+        startDate: payStartStr,
+        endDate: payEndStr,
       };
 
       const zaloJob = await this.queueService.enqueue(
@@ -437,6 +464,30 @@ export class InvoicesController {
     const packageName = body?.packageName || invoice.items?.[0]?.name || 'Gói Dịch Vụ AI WRITER';
     const note = body?.note || 'Xác nhận thanh toán thành công (Thử nghiệm)';
 
+    const paymentDate = new Date();
+    let cycleMonths = 1;
+    try {
+      const matchedCatalog = await this.prisma.serviceCatalog.findFirst({
+        where: { name: { equals: packageName, mode: 'insensitive' } },
+      });
+      const meta = (matchedCatalog?.metaInfo || (invoice.items?.[0] as any)?.metaInfo || invoice.items?.[0]?.description || packageName).toLowerCase();
+      if (meta.includes('năm') || meta.includes('12 tháng') || meta.includes('year')) {
+        cycleMonths = 12;
+      } else if (meta.includes('quý') || meta.includes('3 tháng')) {
+        cycleMonths = 3;
+      } else if (meta.includes('6 tháng')) {
+        cycleMonths = 6;
+      }
+    } catch {}
+    const expireDate = new Date(paymentDate);
+    expireDate.setMonth(expireDate.getMonth() + cycleMonths);
+    const day = String(paymentDate.getDate()).padStart(2, '0');
+    const month = String(paymentDate.getMonth() + 1).padStart(2, '0');
+    const startDateStr = `${day}/${month}/${paymentDate.getFullYear()}`;
+    const endDay = String(expireDate.getDate()).padStart(2, '0');
+    const endMonth = String(expireDate.getMonth() + 1).padStart(2, '0');
+    const endDateStr = `${endDay}/${endMonth}/${expireDate.getFullYear()}`;
+
     let emailResult = { sent: false, error: null as any };
     if (invoice.buyerEmail) {
       try {
@@ -464,6 +515,8 @@ export class InvoicesController {
           viewUrl,
           pdfUrl,
           note,
+          startDate: startDateStr,
+          endDate: endDateStr,
         });
         if (zRes.success) {
           zaloResult.sent = true;
