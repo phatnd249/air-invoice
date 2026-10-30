@@ -60,6 +60,51 @@ export class InvoicesService {
     });
   }
 
+  normalizePhone(phone?: string): string[] {
+    if (!phone) return [];
+    const clean = phone.toString().replace(/\D/g, ''); // Giữ lại chỉ các chữ số
+    const variants = new Set<string>();
+    const trimmed = phone.toString().trim();
+    if (trimmed) variants.add(trimmed);
+    if (clean) {
+      variants.add(clean);
+      if (clean.startsWith('84') && clean.length >= 10) {
+        variants.add('0' + clean.substring(2));
+        variants.add('+' + clean);
+      } else if (clean.startsWith('0') && clean.length >= 10) {
+        variants.add('+84' + clean.substring(1));
+        variants.add('84' + clean.substring(1));
+      }
+    }
+    return Array.from(variants);
+  }
+
+  async findExistingInvoice(buyerEmail?: string, buyerPhone?: string) {
+    const searchConditions: any[] = [];
+    if (buyerEmail && buyerEmail.toString().trim()) {
+      searchConditions.push({ buyerEmail: { equals: buyerEmail.toString().trim(), mode: 'insensitive' } });
+    }
+    if (buyerPhone && buyerPhone.toString().trim()) {
+      const phoneVariants = this.normalizePhone(buyerPhone);
+      if (phoneVariants.length > 0) {
+        searchConditions.push({ buyerPhone: { in: phoneVariants } });
+      }
+    }
+
+    if (searchConditions.length === 0) return null;
+
+    return this.prisma.invoice.findFirst({
+      where: {
+        AND: [
+          { OR: searchConditions },
+          { status: { notIn: ['CANCELLED'] } },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      include: { items: { orderBy: { sortOrder: 'asc' } }, histories: { orderBy: { createdAt: 'desc' } } },
+    });
+  }
+
   async getInvoiceById(id: string) {
     return this.prisma.invoice.findFirst({
       where: {
@@ -82,6 +127,14 @@ export class InvoicesService {
   }
 
   async createInvoice(dto: any) {
+    // 0. Kiểm tra chống tạo trùng lặp hóa đơn cho cùng một khách hàng (nếu không forceNew)
+    if (!dto.forceNew && (dto.buyerEmail || dto.buyerPhone)) {
+      const existing = await this.findExistingInvoice(dto.buyerEmail, dto.buyerPhone);
+      if (existing) {
+        return existing;
+      }
+    }
+
     const settings = await this.settingsService.getSettings();
     const paymentCode = this.generatePaymentCode();
     

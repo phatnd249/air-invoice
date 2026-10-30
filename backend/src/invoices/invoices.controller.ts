@@ -18,6 +18,36 @@ export class InvoicesController {
     private readonly prisma: PrismaService,
   ) {}
 
+  @Public() // 🌐 Endpoint kiểm tra nhanh xem khách hàng đã có hóa đơn chưa
+  @Get('check-existing')
+  async checkExistingInvoice(
+    @Query('email') email?: string,
+    @Query('phone') phone?: string,
+  ) {
+    if (!email && !phone) {
+      return { exists: false, message: 'Vui lòng cung cấp email hoặc số điện thoại' };
+    }
+    const existing = await this.invoicesService.findExistingInvoice(email, phone);
+    if (!existing) {
+      return { exists: false };
+    }
+    const appUrl = (process.env.APP_URL || 'https://invoice.share4happy.com').replace(/\/+$/, '');
+    const backendUrl = (process.env.BACKEND_URL || 'https://invoice-backend-5tbi.onrender.com').replace(/\/+$/, '');
+    return {
+      exists: true,
+      id: existing.id,
+      invoiceNumber: existing.invoiceNumber,
+      buyerName: existing.buyerName,
+      buyerEmail: existing.buyerEmail,
+      buyerPhone: existing.buyerPhone,
+      status: existing.status,
+      grandTotal: existing.grandTotal,
+      viewUrl: `${appUrl}/view/${existing.shareToken}`,
+      pdfUrl: `${backendUrl}/api/delivery/public/${existing.shareToken}/pdf`,
+      createdAt: existing.createdAt,
+    };
+  }
+
   @Public() // 🌐 Endpoint dành riêng cho Landing Page (gọi tạo hoá đơn & sinh PDF trực tiếp)
   @Post('quick-create')
   async quickCreateInvoice(@Body() body: any, @Req() req: any) {
@@ -70,37 +100,9 @@ export class InvoicesController {
       }
     }
 
-    // 1.5. Chống trùng lặp (Deduplication): Nếu khách hàng đã có hóa đơn hợp lệ cho gói này
+    // 1.5. Chống trùng lặp (Deduplication): Nếu khách hàng đã có hóa đơn trên hệ thống
     if (!body.forceNew && (dto.buyerEmail || dto.buyerPhone)) {
-      const searchConditions: any[] = [];
-      if (dto.buyerEmail) {
-        searchConditions.push({ buyerEmail: { equals: dto.buyerEmail, mode: 'insensitive' } });
-      }
-      if (dto.buyerPhone) {
-        searchConditions.push({ buyerPhone: dto.buyerPhone });
-      }
-
-      const firstItemName = dto.items?.[0]?.name;
-      const existing = await this.prisma.invoice.findFirst({
-        where: {
-          AND: [
-            { OR: searchConditions },
-            firstItemName
-              ? {
-                  items: {
-                    some: {
-                      name: { equals: firstItemName, mode: 'insensitive' },
-                    },
-                  },
-                }
-              : {},
-            { status: { notIn: ['CANCELLED'] } },
-          ],
-        },
-        orderBy: { createdAt: 'desc' },
-        include: { items: true },
-      });
-
+      const existing = await this.invoicesService.findExistingInvoice(dto.buyerEmail, dto.buyerPhone);
       if (existing) {
         const appUrl = (process.env.APP_URL || 'https://invoice.share4happy.com').replace(/\/+$/, '');
         const backendUrl = (process.env.BACKEND_URL || 'https://invoice-backend-5tbi.onrender.com').replace(/\/+$/, '');
@@ -110,12 +112,19 @@ export class InvoicesController {
         return {
           success: true,
           isExisting: true,
-          message: `Hóa đơn đã tồn tại cho khách hàng (#${existing.invoiceNumber})`,
-          ...existing,
-          invoice: existing,
+          message: `Khách hàng ${existing.buyerName} đã có hóa đơn #${existing.invoiceNumber}. Không tạo thêm hóa đơn và không gửi lại email/Zalo để tránh làm phiền khách.`,
+          id: existing.id,
+          invoiceNumber: existing.invoiceNumber,
+          paymentCode: existing.paymentCode,
+          grandTotal: existing.grandTotal,
+          shareToken: existing.shareToken,
+          qrDataUrl: existing.qrDataUrl,
           viewUrl,
           pdfUrl,
           downloadPdfUrl: `${backendUrl}/api/delivery/export-pdf/${existing.id}`,
+          invoice: existing,
+          emailResult: { sent: false, queued: false, note: 'Bỏ qua gửi email vì hóa đơn đã tồn tại' },
+          zaloResult: { sent: false, queued: false, note: 'Bỏ qua gửi Zalo vì hóa đơn đã tồn tại' },
         };
       }
     }
