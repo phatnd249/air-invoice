@@ -64,13 +64,84 @@ export class PdfService implements OnModuleDestroy {
         this.browser = null;
         this.page = null;
       });
-      this.page = await this.browser.newPage();
+      this.page = await this.createPage();
     } else if (!this.page || this.page.isClosed()) {
-      this.page = await this.browser.newPage();
+      this.page = await this.createPage();
     }
 
     this.clearIdleTimer();
     return this.page;
+  }
+
+  /**
+   * Host được phép tải tài nguyên khi render PDF (QR SePay + backend/logo).
+   * Có thể mở rộng bằng PDF_ALLOWED_HOSTS="a.com,b.com".
+   */
+  private getAllowedPdfHosts(): Set<string> {
+    const hosts = new Set<string>(['qr.sepay.vn']);
+
+    const addHost = (value?: string) => {
+      if (!value) return;
+      try {
+        hosts.add(new URL(value).hostname.toLowerCase());
+      } catch {
+        // bỏ qua giá trị không phải URL
+      }
+    };
+
+    addHost(process.env.BACKEND_URL);
+    addHost(process.env.APP_URL);
+    addHost(process.env.FRONTEND_URL);
+
+    for (const item of (process.env.PDF_ALLOWED_HOSTS || '').split(',')) {
+      const host = item.trim().toLowerCase();
+      if (host) hosts.add(host);
+    }
+
+    // Local dev: logo/QR có thể trỏ về máy local
+    if (process.env.NODE_ENV !== 'production') {
+      hosts.add('localhost');
+      hosts.add('127.0.0.1');
+      hosts.add('::1');
+    }
+
+    return hosts;
+  }
+
+  private isAllowedPdfResource(rawUrl: string): boolean {
+    if (
+      rawUrl.startsWith('data:') ||
+      rawUrl.startsWith('blob:') ||
+      rawUrl === 'about:blank'
+    ) {
+      return true;
+    }
+
+    let url: URL;
+    try {
+      url = new URL(rawUrl);
+    } catch {
+      return false;
+    }
+
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+    return this.getAllowedPdfHosts().has(url.hostname.toLowerCase());
+  }
+
+  private async createPage(): Promise<Page> {
+    // Hóa đơn chỉ là HTML/CSS tĩnh: tắt JS để chặn script (nếu có) thực thi.
+    const page = await this.browser!.newPage({ javaScriptEnabled: false });
+
+    await page.route('**/*', (route) => {
+      const url = route.request().url();
+      if (this.isAllowedPdfResource(url)) {
+        return route.continue();
+      }
+      this.logger.warn(`[PDF] Chặn tài nguyên ngoài allowlist: ${url}`);
+      return route.abort();
+    });
+
+    return page;
   }
 
   private clearIdleTimer(): void {
