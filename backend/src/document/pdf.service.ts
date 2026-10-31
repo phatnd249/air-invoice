@@ -355,6 +355,24 @@ export class PdfService implements OnModuleDestroy {
     let qrBankHtml = '';
     const qrLayout = design.qrLayout || 'side-by-side';
 
+    const paymentDescription = (() => {
+      if (invoice.buyerEmail && invoice.buyerEmail.toLowerCase().includes('lachong.edu.vn')) {
+        const clean = invoice.buyerEmail.trim().toLowerCase();
+        const prefix = clean.split('@')[0].trim();
+        const match = prefix.match(/^(\d+)/);
+        const mssv = match ? match[1] : prefix;
+        return `${mssv} / Trường Đại Học Lạc Hồng`;
+      }
+      if (invoice.qrDataUrl) {
+        try {
+          const urlObj = new URL(invoice.qrDataUrl);
+          const des = urlObj.searchParams.get('des');
+          if (des) return des;
+        } catch {}
+      }
+      return invoice.paymentCode || invoice.invoiceNumber || 'HD';
+    })();
+
     if (isQrVisible || isBankVisible) {
       if (qrLayout === 'stacked') {
         qrBankHtml = `
@@ -367,7 +385,7 @@ export class PdfService implements OnModuleDestroy {
                 <div style="display:flex;justify-content:space-between"><span>Số tài khoản:</span><strong style="font-family:'Courier New',monospace;font-size:15px;color:${pc};letter-spacing:0.5px">${bankAccount}</strong></div>
                 <div style="display:flex;justify-content:space-between"><span>Chủ tài khoản:</span><strong style="text-transform:uppercase;color:#0f172a">${bankName}</strong></div>
                 <div style="display:flex;justify-content:space-between"><span>Số tiền:</span><strong style="color:#059669;font-size:14px">${fmt(invoice.grandTotal)}</strong></div>
-                <div style="display:flex;justify-content:space-between;margin-top:2px"><span>Nội dung chuyển khoản:</span><strong style="font-family:'Courier New',monospace;background:#fff;padding:2px 8px;border:1px solid #94a3b8;border-radius:4px;color:#0f172a;font-size:13px">${invoice.paymentCode || invoice.invoiceNumber || 'HD'}</strong></div>
+                <div style="display:flex;justify-content:space-between;margin-top:2px"><span>Nội dung chuyển khoản:</span><strong style="font-family:'Courier New',monospace;background:#fff;padding:2px 8px;border:1px solid #94a3b8;border-radius:4px;color:#0f172a;font-size:13px">${paymentDescription}</strong></div>
               </div>
             ` : ''}
           </div>
@@ -384,7 +402,7 @@ export class PdfService implements OnModuleDestroy {
                 <div>Số tài khoản: <strong style="font-family:'Courier New',monospace;font-size:16px;color:${pc};letter-spacing:0.5px">${bankAccount}</strong></div>
                 <div>Chủ tài khoản: <strong style="text-transform:uppercase;color:#0f172a">${bankName}</strong></div>
                 <div>Số tiền: <strong style="color:#059669;font-size:15px">${fmt(invoice.grandTotal)}</strong></div>
-                <div style="margin-top:2px">Nội dung chuyển khoản: <strong style="font-family:'Courier New',monospace;background:#fff;padding:2px 8px;border:1px solid #94a3b8;border-radius:4px;color:#0f172a;font-size:13px">${invoice.paymentCode || invoice.invoiceNumber || 'HD'}</strong></div>
+                <div style="margin-top:2px">Nội dung chuyển khoản: <strong style="font-family:'Courier New',monospace;background:#fff;padding:2px 8px;border:1px solid #94a3b8;border-radius:4px;color:#0f172a;font-size:13px">${paymentDescription}</strong></div>
               </div>
             ` : ''}
           </div>

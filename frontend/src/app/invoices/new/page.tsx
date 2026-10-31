@@ -224,10 +224,22 @@ export default function NewInvoicePage() {
   const changeAmount = numericCashGiven >= grandTotal ? numericCashGiven - grandTotal : 0;
 
   // VietQR Link theo tài khoản ngân hàng đang được chọn
+  const getPreviewDescription = () => {
+    const buyerEmail = watchedValues.buyerEmail;
+    if (buyerEmail && buyerEmail.toLowerCase().includes('lachong.edu.vn')) {
+      const clean = buyerEmail.trim().toLowerCase();
+      const prefix = clean.split('@')[0].trim();
+      const match = prefix.match(/^(\d+)/);
+      const mssv = match ? match[1] : prefix;
+      return `${mssv} / Trường Đại Học Lạc Hồng`;
+    }
+    return `${watchedValues.invoiceNumber || 'HD'} - ${items[0]?.name || 'Dich vu'}`;
+  };
+
   const qrPreviewUrl =
     activeBank?.bankCode && activeBank?.bankAccount
       ? `https://qr.sepay.vn/img?bank=${activeBank.bankCode}&acc=${activeBank.bankAccount}&template=compact&amount=${Math.round(grandTotal)}&des=${encodeURIComponent(
-          `${watchedValues.invoiceNumber || 'HD'} - ${items[0]?.name || 'Dich vu'}`
+          getPreviewDescription()
         )}`
       : '';
 

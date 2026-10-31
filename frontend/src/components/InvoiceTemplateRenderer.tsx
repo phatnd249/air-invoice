@@ -554,86 +554,106 @@ export default function InvoiceTemplateRenderer({
         )}
 
         {/* === QR + BANK INFO === */}
-        {(showQrCode || showBankInfo) && (
-          <div className="invoice-qr-bank-container">
-            {showQrCode && (
-              <div className="invoice-qr-box">
-                {invoice.status === 'PAID' ? (
-                  <div style={{ background: '#f0fdf4', padding: '20px 24px', borderRadius: '12px', border: '2px solid #10b981', display: 'inline-block', textAlign: 'center', minWidth: '180px' }}>
-                    <div style={{ fontSize: '36px', lineHeight: 1, marginBottom: '6px' }}>✔</div>
-                    <div style={{ fontSize: '14px', color: '#065f46', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>ĐÃ THANH TOÁN</div>
-                    <div style={{ fontSize: '10px', color: '#047857', marginTop: '2px', fontWeight: 600 }}>PAID IN FULL</div>
+        {(() => {
+          const paymentDescription = (() => {
+            if (invoice.buyerEmail && invoice.buyerEmail.toLowerCase().includes('lachong.edu.vn')) {
+              const clean = invoice.buyerEmail.trim().toLowerCase();
+              const prefix = clean.split('@')[0].trim();
+              const match = prefix.match(/^(\d+)/);
+              const mssv = match ? match[1] : prefix;
+              return `${mssv} / Trường Đại Học Lạc Hồng`;
+            }
+            if (invoice.qrDataUrl) {
+              try {
+                const urlObj = new URL(invoice.qrDataUrl);
+                const des = urlObj.searchParams.get('des');
+                if (des) return des;
+              } catch {}
+            }
+            return invoice.paymentCode || invoice.invoiceNumber || 'HD';
+          })();
+
+          return (showQrCode || showBankInfo) ? (
+            <div className="invoice-qr-bank-container">
+              {showQrCode && (
+                <div className="invoice-qr-box">
+                  {invoice.status === 'PAID' ? (
+                    <div style={{ background: '#f0fdf4', padding: '20px 24px', borderRadius: '12px', border: '2px solid #10b981', display: 'inline-block', textAlign: 'center', minWidth: '180px' }}>
+                      <div style={{ fontSize: '36px', lineHeight: 1, marginBottom: '6px' }}>✔</div>
+                      <div style={{ fontSize: '14px', color: '#065f46', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>ĐÃ THANH TOÁN</div>
+                      <div style={{ fontSize: '10px', color: '#047857', marginTop: '2px', fontWeight: 600 }}>PAID IN FULL</div>
+                    </div>
+                  ) : invoice.qrDataUrl ? (
+                    <div style={{ background: '#ffffff', padding: '10px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', display: 'inline-block' }}>
+                      <img
+                        src={invoice.qrDataUrl}
+                        alt="VietQR"
+                        style={{ width: '190px', maxWidth: '100%', height: 'auto', display: 'block', margin: '0 auto' }}
+                      />
+                      <div style={{ fontSize: '10px', color: '#64748b', marginTop: '6px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        QUÉT MÃ THANH TOÁN
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ width: '190px', height: '190px', border: '2px dashed #cbd5e1', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '12px', background: '#fff' }}>
+                      <span style={{ fontWeight: 'bold', fontSize: '14px' }}>VietQR</span>
+                      <span style={{ fontSize: '10px', marginTop: '4px' }}>Chưa tạo mã QR</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {showBankInfo && (
+                <div className="invoice-bank-box">
+                  <div style={{ fontWeight: 'bold', fontSize: '12px', textTransform: 'uppercase', color: pc, marginBottom: '10px', letterSpacing: '0.5px', borderBottom: '1px dashed #cbd5e1', paddingBottom: '6px' }}>
+                    {invoice.status === 'PAID' ? 'Thông tin giao dịch & biên lai' : 'Thông tin thanh toán chuyển khoản'}
                   </div>
-                ) : invoice.qrDataUrl ? (
-                  <div style={{ background: '#ffffff', padding: '10px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', display: 'inline-block' }}>
-                    <img
-                      src={invoice.qrDataUrl}
-                      alt="VietQR"
-                      style={{ width: '190px', maxWidth: '100%', height: 'auto', display: 'block', margin: '0 auto' }}
-                    />
-                    <div style={{ fontSize: '10px', color: '#64748b', marginTop: '6px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      QUÉT MÃ THANH TOÁN
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px' }}>
+                      <span style={{ color: '#64748b', fontSize: '12.5px' }}>Ngân hàng thụ hưởng:</span>
+                      <strong style={{ color: '#0f172a', fontSize: '13px' }}>{invoice.bankCode || settings?.bankCode || 'Vietcombank'}</strong>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px' }}>
+                      <span style={{ color: '#64748b', fontSize: '12.5px' }}>Số tài khoản:</span>
+                      <strong style={{ fontFamily: "'Courier New', monospace", fontSize: '16px', color: pc, letterSpacing: '0.5px' }}>
+                        {invoice.bankAccount || settings?.bankAccount || 'SHYNNERI'}
+                      </strong>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px' }}>
+                      <span style={{ color: '#64748b', fontSize: '12.5px' }}>Chủ tài khoản:</span>
+                      <strong style={{ textTransform: 'uppercase', color: '#0f172a', fontSize: '13px' }}>
+                        {invoice.bankAccountName || settings?.bankAccountName || 'AI ROBOTIC'}
+                      </strong>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px' }}>
+                      <span style={{ color: '#64748b', fontSize: '12.5px' }}>Số tiền:</span>
+                      <strong style={{ color: '#059669', fontSize: '16px' }}>
+                        {formatCurrency(invoice.grandTotal)}
+                      </strong>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px', paddingTop: '2px' }}>
+                      <span style={{ color: '#64748b', fontSize: '12.5px' }}>Nội dung chuyển khoản:</span>
+                      <strong style={{ fontFamily: "'Courier New', monospace", background: '#ffffff', padding: '3px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', color: '#0f172a', fontSize: '14px', letterSpacing: '0.5px' }}>
+                        {paymentDescription}
+                      </strong>
                     </div>
                   </div>
-                ) : (
-                  <div style={{ width: '190px', height: '190px', border: '2px dashed #cbd5e1', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '12px', background: '#fff' }}>
-                    <span style={{ fontWeight: 'bold', fontSize: '14px' }}>VietQR</span>
-                    <span style={{ fontSize: '10px', marginTop: '4px' }}>Chưa tạo mã QR</span>
-                  </div>
-                )}
-              </div>
-            )}
 
-            {showBankInfo && (
-              <div className="invoice-bank-box">
-                <div style={{ fontWeight: 'bold', fontSize: '12px', textTransform: 'uppercase', color: pc, marginBottom: '10px', letterSpacing: '0.5px', borderBottom: '1px dashed #cbd5e1', paddingBottom: '6px' }}>
-                  {invoice.status === 'PAID' ? 'Thông tin giao dịch & biên lai' : 'Thông tin thanh toán chuyển khoản'}
+                  {invoice.status === 'PAID' && (
+                    <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '6px', padding: '8px 12px', marginTop: '12px', color: '#065f46', fontSize: '12px', fontWeight: 600 }}>
+                      ✔ Hóa đơn đã được xác nhận thanh toán thành công &amp; hợp lệ.
+                    </div>
+                  )}
                 </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px' }}>
-                    <span style={{ color: '#64748b', fontSize: '12.5px' }}>Ngân hàng thụ hưởng:</span>
-                    <strong style={{ color: '#0f172a', fontSize: '13px' }}>{invoice.bankCode || settings?.bankCode || 'Vietcombank'}</strong>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px' }}>
-                    <span style={{ color: '#64748b', fontSize: '12.5px' }}>Số tài khoản:</span>
-                    <strong style={{ fontFamily: "'Courier New', monospace", fontSize: '16px', color: pc, letterSpacing: '0.5px' }}>
-                      {invoice.bankAccount || settings?.bankAccount || 'SHYNNERI'}
-                    </strong>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px' }}>
-                    <span style={{ color: '#64748b', fontSize: '12.5px' }}>Chủ tài khoản:</span>
-                    <strong style={{ textTransform: 'uppercase', color: '#0f172a', fontSize: '13px' }}>
-                      {invoice.bankAccountName || settings?.bankAccountName || 'AI ROBOTIC'}
-                    </strong>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px' }}>
-                    <span style={{ color: '#64748b', fontSize: '12.5px' }}>Số tiền:</span>
-                    <strong style={{ color: '#059669', fontSize: '16px' }}>
-                      {formatCurrency(invoice.grandTotal)}
-                    </strong>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px', paddingTop: '2px' }}>
-                    <span style={{ color: '#64748b', fontSize: '12.5px' }}>Nội dung chuyển khoản:</span>
-                    <strong style={{ fontFamily: "'Courier New', monospace", background: '#ffffff', padding: '3px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', color: '#0f172a', fontSize: '14px', letterSpacing: '0.5px' }}>
-                      {invoice.paymentCode || invoice.invoiceNumber || 'HD'}
-                    </strong>
-                  </div>
-                </div>
-
-                {invoice.status === 'PAID' && (
-                  <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '6px', padding: '8px 12px', marginTop: '12px', color: '#065f46', fontSize: '12px', fontWeight: 600 }}>
-                    ✔ Hóa đơn đã được xác nhận thanh toán thành công &amp; hợp lệ.
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          ) : null;
+        })()}
 
         {/* === SIGNATURES BLOCK (IF ENABLED) === */}
         {showSignatures && (
