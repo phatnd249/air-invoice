@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  ForbiddenException,
   OnModuleInit,
   Logger,
   BadRequestException,
@@ -105,9 +106,24 @@ export class AuthService implements OnModuleInit {
   }
 
   /**
+   * Đăng ký công khai chỉ được bật khi biến môi trường ALLOW_PUBLIC_REGISTER=true.
+   * Mặc định TẮT: chỉ ADMIN (qua /api/users) mới tạo được tài khoản,
+   * tránh việc người ngoài tự đăng ký rồi dùng toàn bộ hệ thống.
+   */
+  private assertPublicRegistrationAllowed() {
+    if ((process.env.ALLOW_PUBLIC_REGISTER || '').trim().toLowerCase() !== 'true') {
+      throw new ForbiddenException(
+        'Chức năng đăng ký công khai đã bị tắt. Vui lòng liên hệ quản trị viên để được cấp tài khoản.',
+      );
+    }
+  }
+
+  /**
    * Đăng ký tài khoản mới
    */
   async register(dto: RegisterDto) {
+    this.assertPublicRegistrationAllowed();
+
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email.trim().toLowerCase() },
     });
@@ -236,6 +252,9 @@ export class AuthService implements OnModuleInit {
    * (không tiết lộ thông tin tài khoản, chỉ trả về exists)
    */
   async checkEmail(email: string) {
+    // Không cho dò email khi đăng ký công khai đã tắt
+    this.assertPublicRegistrationAllowed();
+
     const normalizedEmail = email.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({
       where: { email: normalizedEmail },
