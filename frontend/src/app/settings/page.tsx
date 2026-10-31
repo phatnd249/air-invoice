@@ -33,7 +33,7 @@ import {
   Sparkles,
   ExternalLink,
 } from 'lucide-react';
-import { CompanyProfile, BankAccountItem } from '@invoice/types';
+import { CompanyProfile, BankAccountItem, PaymentDescriptionRule } from '@invoice/types';
 
 const POPULAR_BANKS = [
   { code: 'Vietcombank', name: 'Vietcombank (VCB - Ngoại thương)' },
@@ -70,6 +70,17 @@ export default function SettingsPage() {
   // State modal ngân hàng
   const [editingAccount, setEditingAccount] = useState<BankAccountItem | null>(null);
   const [isBankModalOpen, setIsBankModalOpen] = useState(false);
+
+  // State Cấu hình Quy tắc Chuyển khoản VietQR theo Email
+  const [paymentRules, setPaymentRules] = useState<PaymentDescriptionRule[]>([]);
+  const [defaultPaymentDesc, setDefaultPaymentDesc] = useState<string>('{paymentCode} - {serviceName}');
+  const [editingRule, setEditingRule] = useState<PaymentDescriptionRule | null>(null);
+  const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
+  const [ruleFormName, setRuleFormName] = useState('');
+  const [ruleFormPattern, setRuleFormPattern] = useState('');
+  const [ruleFormTemplate, setRuleFormTemplate] = useState('');
+  const [ruleFormActive, setRuleFormActive] = useState(true);
+  const [testEmail, setTestEmail] = useState('124001340@lachong.edu.vn');
 
   // State Cấu hình Thông báo (Email & Zalo Bot)
   const [enableEmail, setEnableEmail] = useState<boolean>(true);
@@ -200,6 +211,24 @@ export default function SettingsPage() {
         ]);
       }
 
+      // Quy tắc chuyển khoản VietQR theo email
+      if (settings.paymentRules && Array.isArray(settings.paymentRules) && settings.paymentRules.length > 0) {
+        setPaymentRules(settings.paymentRules);
+      } else {
+        setPaymentRules([
+          {
+            id: 'rule-lachong',
+            name: 'Sinh viên Trường Đại Học Lạc Hồng',
+            emailPattern: 'lachong.edu.vn',
+            descriptionTemplate: '{studentId} / Trường Đại Học Lạc Hồng',
+            isActive: true,
+          },
+        ]);
+      }
+      if (settings.defaultPaymentDescription) {
+        setDefaultPaymentDesc(settings.defaultPaymentDescription);
+      }
+
       // Cấu hình thông báo
       setEnableEmail(settings.enableEmailNotification ?? true);
       setEnableZalo(settings.enableZaloNotification ?? false);
@@ -246,7 +275,121 @@ export default function SettingsPage() {
     }
   };
 
-  // --- XỬ LÝ CÔNG TY / ĐƠN VỊ CUNG CẤP (tự lưu) ---
+  // --- XỬ LÝ QUY TẮC CHUYỂN KHOẢN THEO EMAIL (tự lưu) ---
+  const calculateRulePreview = (email: string, template: string) => {
+    const clean = (email || '').trim().toLowerCase();
+    const prefix = clean ? clean.split('@')[0].trim() : '';
+    const matchNumber = prefix.match(/^(\d+)/);
+    const studentId = matchNumber ? matchNumber[1] : prefix;
+    return (template || '')
+      .replace(/{studentId}/gi, studentId || '124001340')
+      .replace(/{emailPrefix}/gi, prefix || '124001340')
+      .replace(/{paymentCode}/gi, 'A8X9K2')
+      .replace(/{invoiceNumber}/gi, 'HD-000047')
+      .replace(/{serviceName}/gi, 'AI Writer Pro')
+      .replace(/{customerName}/gi, 'Nguyễn Văn A');
+  };
+
+  const autoSavePaymentRules = (updated: PaymentDescriptionRule[], defaultDesc?: string) => {
+    setPaymentRules(updated);
+    const payload: any = { paymentRules: updated };
+    if (defaultDesc !== undefined) {
+      payload.defaultPaymentDescription = defaultDesc;
+    }
+    persist(payload, 'Đã cập nhật quy tắc nội dung chuyển khoản theo email');
+  };
+
+  const handleOpenAddRule = () => {
+    setEditingRule(null);
+    setRuleFormName('');
+    setRuleFormPattern('');
+    setRuleFormTemplate('{studentId} / Trường Đại Học Lạc Hồng');
+    setRuleFormActive(true);
+    setTestEmail('124001340@lachong.edu.vn');
+    setIsRuleModalOpen(true);
+  };
+
+  const handleOpenEditRule = (rule: PaymentDescriptionRule) => {
+    setEditingRule(rule);
+    setRuleFormName(rule.name);
+    setRuleFormPattern(rule.emailPattern);
+    setRuleFormTemplate(rule.descriptionTemplate);
+    setRuleFormActive(rule.isActive ?? true);
+    setTestEmail(rule.emailPattern ? '124001340@' + rule.emailPattern : '124001340@lachong.edu.vn');
+    setIsRuleModalOpen(true);
+  };
+
+  const handleToggleRuleActive = (ruleId: string) => {
+    const updated = paymentRules.map((r) =>
+      r.id === ruleId ? { ...r, isActive: !r.isActive } : r
+    );
+    autoSavePaymentRules(updated);
+  };
+
+  const handleDeleteRule = async (ruleId: string) => {
+    const isOk = await confirm({
+      title: 'Xóa quy tắc nội dung chuyển khoản',
+      message: 'Bạn có chắc chắn muốn xóa quy tắc này? Hành động này sẽ không thể hoàn tác.',
+      confirmLabel: 'Xóa quy tắc',
+      cancelLabel: 'Hủy',
+      danger: true,
+    });
+    if (!isOk) return;
+
+    const updated = paymentRules.filter((r) => r.id !== ruleId);
+    autoSavePaymentRules(updated);
+  };
+
+  const handleSaveRuleModal = () => {
+    if (!ruleFormName.trim()) {
+      toast('error', 'Lỗi nhập liệu', 'Vui lòng nhập tên quy tắc');
+      return;
+    }
+    if (!ruleFormPattern.trim()) {
+      toast('error', 'Lỗi nhập liệu', 'Vui lòng nhập từ khóa/tên miền email nhận diện (VD: lachong.edu.vn)');
+      return;
+    }
+    if (!ruleFormTemplate.trim()) {
+      toast('error', 'Lỗi nhập liệu', 'Vui lòng nhập cú pháp nội dung chuyển khoản');
+      return;
+    }
+
+    let updated: PaymentDescriptionRule[] = [];
+    if (editingRule) {
+      updated = paymentRules.map((r) =>
+        r.id === editingRule.id
+          ? {
+              ...r,
+              name: ruleFormName.trim(),
+              emailPattern: ruleFormPattern.trim().toLowerCase(),
+              descriptionTemplate: ruleFormTemplate.trim(),
+              isActive: ruleFormActive,
+            }
+          : r
+      );
+    } else {
+      const newRule: PaymentDescriptionRule = {
+        id: 'rule-' + Date.now(),
+        name: ruleFormName.trim(),
+        emailPattern: ruleFormPattern.trim().toLowerCase(),
+        descriptionTemplate: ruleFormTemplate.trim(),
+        isActive: ruleFormActive,
+      };
+      updated = [...paymentRules, newRule];
+    }
+
+    autoSavePaymentRules(updated);
+    setIsRuleModalOpen(false);
+  };
+
+  const handleSaveDefaultDesc = () => {
+    persist(
+      { defaultPaymentDescription: defaultPaymentDesc },
+      'Đã lưu cú pháp nội dung chuyển khoản mặc định'
+    );
+  };
+
+    // --- XỬ LÝ CÔNG TY / ĐƠN VỊ CUNG CẤP (tự lưu) ---
   const autoSaveCompanies = (updated: CompanyProfile[]) => {
     setCompanies(updated);
     persist({ companies: updated }, 'Đã lưu danh sách đơn vị cung cấp');
@@ -1359,7 +1502,169 @@ Trân trọng!`}
         </div>
       )}
 
-      {/* POPUP THÊM / SỬA TÀI KHOẢN NGÂN HÀNG */}
+      {/* POPUP THÊM / SỬA QUY TẮC CHUYỂN KHOẢN THEO EMAIL */}
+      {isRuleModalOpen && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsRuleModalOpen(false);
+          }}
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto cursor-pointer"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl shadow-2xl max-w-xl w-full flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 cursor-default"
+          >
+            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">
+                    {editingRule ? 'Chỉnh Sửa Quy Tắc Chuyển Khoản' : 'Thêm Quy Tắc Chuyển Khoản Theo Email'}
+                  </h3>
+                  <p className="text-xs text-slate-500">Cấu hình định dạng nội dung VietQR tự động theo email</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsRuleModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-200 transition-all font-bold text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 overflow-y-auto max-h-[75vh]">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Tên Quy Tắc Gợi Nhớ <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="VD: Sinh viên Trường Đại Học Lạc Hồng, Đối tác Viettel..."
+                  value={ruleFormName}
+                  onChange={(e) => setRuleFormName(e.target.value)}
+                  className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Tên Miền Hoặc Từ Khóa Trong Email Khách Hàng <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="VD: lachong.edu.vn, ueh.edu.vn, @fpt.com.vn..."
+                  value={ruleFormPattern}
+                  onChange={(e) => setRuleFormPattern(e.target.value)}
+                  className="w-full px-3.5 py-2 text-sm font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Hệ thống tự động so khớp khi email người mua có chứa chuỗi này (không phân biệt chữ hoa thường).
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Cú Pháp Nội Dung Chuyển Khoản (VietQR) <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="VD: {studentId} / Trường Đại Học Lạc Hồng"
+                  value={ruleFormTemplate}
+                  onChange={(e) => setRuleFormTemplate(e.target.value)}
+                  className="w-full px-3.5 py-2 text-sm font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+
+                {/* Quick tags */}
+                <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-600 mt-2">
+                  <span className="text-[11px] text-slate-400 font-medium">Bấm chèn biến:</span>
+                  {[
+                    { tag: '{studentId}', label: 'Mã số SV (dãy số đầu)' },
+                    { tag: '{emailPrefix}', label: 'Phần trước @' },
+                    { tag: '{paymentCode}', label: 'Mã TT (6 ký tự)' },
+                    { tag: '{invoiceNumber}', label: 'Số hóa đơn' },
+                    { tag: '{serviceName}', label: 'Tên dịch vụ' },
+                    { tag: '{customerName}', label: 'Tên KH' },
+                  ].map((item) => (
+                    <button
+                      key={item.tag}
+                      type="button"
+                      onClick={() => setRuleFormTemplate((prev) => prev + (prev.endsWith(' ') || prev === '' ? '' : ' ') + item.tag)}
+                      className="px-2 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300 border border-slate-200 rounded text-[11px] font-mono transition-colors cursor-pointer"
+                      title={item.label}
+                    >
+                      {item.tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="ruleFormActive"
+                  checked={ruleFormActive}
+                  onChange={(e) => setRuleFormActive(e.target.checked)}
+                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                />
+                <label htmlFor="ruleFormActive" className="text-xs font-medium text-slate-700 cursor-pointer">
+                  Kích hoạt quy tắc này ngay sau khi lưu
+                </label>
+              </div>
+
+              {/* Khung Test Trực Quan */}
+              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 space-y-2 mt-2">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                  <span className="flex items-center gap-1.5">
+                    <Info className="w-4 h-4 text-indigo-600" />
+                    <span>Xem trước kết quả thử nghiệm trực quan:</span>
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <label className="text-[11px] text-slate-500 block mb-1">Email khách hàng thử nghiệm:</label>
+                    <input
+                      type="text"
+                      value={testEmail}
+                      onChange={(e) => setTestEmail(e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-xs font-mono border border-slate-300 rounded-lg bg-white focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-slate-500 block mb-1">Nội dung VietQR thực tế sinh ra:</label>
+                    <div className="px-2.5 py-1.5 text-xs font-mono font-bold text-indigo-900 bg-indigo-100/60 border border-indigo-200 rounded-lg break-all min-h-[32px] flex items-center">
+                      {calculateRulePreview(testEmail, ruleFormTemplate) || '(Chưa có nội dung)'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-5 border-t border-slate-200 bg-slate-50 flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setIsRuleModalOpen(false)}
+                className="px-4 py-2 border border-slate-300 rounded-xl text-slate-700 text-xs font-semibold hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveRuleModal}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+              >
+                {editingRule ? 'Cập Nhật Quy Tắc' : 'Lưu Quy Tắc Mới'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+            {/* POPUP THÊM / SỬA TÀI KHOẢN NGÂN HÀNG */}
       {isBankModalOpen && (
         <div
           onClick={(e) => {

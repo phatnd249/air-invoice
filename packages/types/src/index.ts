@@ -102,6 +102,14 @@ export interface BankAccountItem {
   isDefault?: boolean;
 }
 
+export interface PaymentDescriptionRule {
+  id: string;
+  name: string;
+  emailPattern: string;
+  descriptionTemplate: string;
+  isActive: boolean;
+}
+
 export interface SellerInfo {
   name: string;
   taxCode?: string;

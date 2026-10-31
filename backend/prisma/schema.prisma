@@ -87,6 +87,10 @@ model Setting {
   zaloAliasPrefix         String? @default("KH_")
   zaloMessageTemplate     String?
 
+  // Quy tắc nội dung chuyển khoản VietQR theo email
+  paymentRules              String? // JSON string: PaymentDescriptionRule[] danh sách quy tắc nội dung thanh toán theo email
+  defaultPaymentDescription String? @default("{paymentCode} - {serviceName}")
+
   updatedAt DateTime @updatedAt
 }
 

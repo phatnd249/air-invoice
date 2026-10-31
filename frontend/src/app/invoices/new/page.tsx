@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import InvoiceTemplateRenderer from '@/components/InvoiceTemplateRenderer';
-import { INVOICE_TYPE_CONFIG, INVOICE_FORM_CONFIG, InvoiceType, InvoiceForm } from '@invoice/types';
+import { INVOICE_TYPE_CONFIG, INVOICE_FORM_CONFIG, InvoiceType, InvoiceForm, PaymentDescriptionRule } from '@invoice/types';
 
 interface CatalogService {
   id: string;
@@ -223,17 +223,54 @@ export default function NewInvoicePage() {
   const numericCashGiven = typeof cashGiven === 'number' ? cashGiven : Number(cashGiven) || 0;
   const changeAmount = numericCashGiven >= grandTotal ? numericCashGiven - grandTotal : 0;
 
-  // VietQR Link theo tài khoản ngân hàng đang được chọn
+  // VietQR Link theo tài khoản ngân hàng đang được chọn và quy tắc cấu hình theo email
   const getPreviewDescription = () => {
-    const buyerEmail = watchedValues.buyerEmail;
-    if (buyerEmail && buyerEmail.toLowerCase().includes('lachong.edu.vn')) {
-      const clean = buyerEmail.trim().toLowerCase();
-      const prefix = clean.split('@')[0].trim();
-      const match = prefix.match(/^(\d+)/);
-      const mssv = match ? match[1] : prefix;
-      return `${mssv} / Trường Đại Học Lạc Hồng`;
+    const buyerEmail = (watchedValues.buyerEmail || '').trim().toLowerCase();
+    const rules: PaymentDescriptionRule[] = (settings?.paymentRules && Array.isArray(settings.paymentRules) && settings.paymentRules.length > 0)
+      ? settings.paymentRules
+      : [
+          {
+            id: 'rule-lachong',
+            name: 'Sinh viên Trường Đại Học Lạc Hồng',
+            emailPattern: 'lachong.edu.vn',
+            descriptionTemplate: '{studentId} / Trường Đại Học Lạc Hồng',
+            isActive: true,
+          },
+        ];
+
+    const emailPrefix = buyerEmail ? buyerEmail.split('@')[0].trim() : '';
+    const matchNumber = emailPrefix.match(/^(\d+)/);
+    const studentId = matchNumber ? matchNumber[1] : emailPrefix;
+    const paymentCode = watchedValues.invoiceNumber || 'HD';
+    const serviceName = items[0]?.name || 'Dich vu';
+    const customerName = watchedValues.buyerName || 'Khach hang';
+    const invoiceNumber = watchedValues.invoiceNumber || 'HD';
+
+    if (buyerEmail) {
+      for (const rule of rules) {
+        if (!rule.isActive) continue;
+        const pattern = (rule.emailPattern || '').trim().toLowerCase();
+        if (pattern && buyerEmail.includes(pattern)) {
+          let desc = rule.descriptionTemplate || '{paymentCode} - {serviceName}';
+          desc = desc.replace(/{studentId}/gi, studentId);
+          desc = desc.replace(/{emailPrefix}/gi, emailPrefix);
+          desc = desc.replace(/{paymentCode}/gi, paymentCode);
+          desc = desc.replace(/{invoiceNumber}/gi, invoiceNumber);
+          desc = desc.replace(/{serviceName}/gi, serviceName);
+          desc = desc.replace(/{customerName}/gi, customerName);
+          return desc;
+        }
+      }
     }
-    return `${watchedValues.invoiceNumber || 'HD'} - ${items[0]?.name || 'Dich vu'}`;
+
+    let defaultDesc = settings?.defaultPaymentDescription || '{paymentCode} - {serviceName}';
+    defaultDesc = defaultDesc.replace(/{studentId}/gi, studentId);
+    defaultDesc = defaultDesc.replace(/{emailPrefix}/gi, emailPrefix);
+    defaultDesc = defaultDesc.replace(/{paymentCode}/gi, paymentCode);
+    defaultDesc = defaultDesc.replace(/{invoiceNumber}/gi, invoiceNumber);
+    defaultDesc = defaultDesc.replace(/{serviceName}/gi, serviceName);
+    defaultDesc = defaultDesc.replace(/{customerName}/gi, customerName);
+    return defaultDesc;
   };
 
   const qrPreviewUrl =
