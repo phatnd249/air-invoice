@@ -9,6 +9,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { PaymentWebhookGuard } from './guards/payment-webhook.guard';
 import { QueueType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { RateLimit } from '../common/rate-limit.decorator';
 
 // 🔒 Protected by global JwtAuthGuard in app.module.ts
 @Controller('invoices')
@@ -22,6 +23,7 @@ export class InvoicesController {
   ) {}
 
   @Public() // 🌐 Endpoint kiểm tra nhanh xem khách hàng đã có hóa đơn chưa
+  @RateLimit({ limit: 60, windowMs: 60_000 })
   @Get('check-existing')
   async checkExistingInvoice(
     @Query('email') email?: string,
@@ -38,6 +40,12 @@ export class InvoicesController {
   }
 
   @Public() // 🌐 Endpoint dành riêng cho Landing Page (gọi tạo hoá đơn & sinh PDF trực tiếp)
+  @RateLimit({
+    limit: 30,
+    windowMs: 10 * 60_000,
+    message:
+      'Bạn đã tạo quá nhiều hoá đơn trong thời gian ngắn. Vui lòng thử lại sau.',
+  })
   @Post('quick-create')
   async quickCreateInvoice(@Body() body: any, @Req() req: any) {
     let dto: any = {};

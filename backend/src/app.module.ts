@@ -17,6 +17,7 @@ import { HealthModule } from './health/health.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
 import { QueueModule } from './queue/queue.module';
 import { RequestLoggerMiddleware } from './common/logger.middleware';
+import { RateLimitGuard } from './common/rate-limit.guard';
 
 @Module({
   imports: [
@@ -37,6 +38,11 @@ import { RequestLoggerMiddleware } from './common/logger.middleware';
     SubscriptionsModule,
   ],
   providers: [
+    {
+      // ⏱️ Chạy TRƯỚC JwtAuthGuard để chặn cả các request không hợp lệ về auth
+      provide: APP_GUARD,
+      useClass: RateLimitGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard, // 🔒 Global JWT Guard - all endpoints protected by default

@@ -16,6 +16,19 @@ try {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // ================= PROXY / CLIENT IP =================
+  // Render (và hầu hết PaaS) đặt app sau 1 lớp reverse proxy.
+  // Tin đúng 1 hop để req.ip là IP thật của client (dùng cho rate limiting,
+  // log). Đặt TRUST_PROXY=false nếu chạy trực tiếp không qua proxy.
+  const trustProxyEnv = (process.env.TRUST_PROXY ?? '').trim().toLowerCase();
+  const trustProxy =
+    trustProxyEnv === 'false' || trustProxyEnv === '0'
+      ? false
+      : trustProxyEnv && /^\d+$/.test(trustProxyEnv)
+        ? Number(trustProxyEnv)
+        : 1;
+  app.getHttpAdapter().getInstance().set('trust proxy', trustProxy);
+
   // ================= CORS =================
   // CORS_ORIGINS có thể là:
   //   'https://a.com,https://b'  -> chỉ các domain này (khuyến nghị)

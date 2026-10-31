@@ -11,6 +11,7 @@ import {
 import { QueueService } from './queue.service';
 import { Public } from '../auth/decorators/public.decorator';
 import { QueueStatus, QueueType } from '@prisma/client';
+import { RateLimit } from '../common/rate-limit.decorator';
 
 @Controller('queue')
 export class QueueController {
@@ -48,6 +49,11 @@ export class QueueController {
   }
 
   @Public() // Cho phép tiếp nhận request từ bên ngoài vào hàng chờ (Landing Page, N8N, Webhooks, Form)
+  @RateLimit({
+    limit: 60,
+    windowMs: 60_000,
+    message: 'Bạn đã gửi quá nhiều yêu cầu vào hàng chờ. Vui lòng thử lại sau.',
+  })
   @Post('enqueue')
   async enqueue(
     @Body()
