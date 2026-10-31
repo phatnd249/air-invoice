@@ -268,7 +268,8 @@ export class InvoicesController {
     };
   }
 
-  @Public() // 🌐 Endpoint kiểm tra trực tiếp việc gửi email cho một hóa đơn
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
   @Post('test-send-email/:id')
   async testSendEmail(@Param('id') id: string) {
     return this.deliveryService.sendInvoiceEmail(id, {
@@ -472,7 +473,8 @@ export class InvoicesController {
     return this.payInvoice(id, body, req);
   }
 
-  @Public() // 🌐 Endpoint kiểm tra trực tiếp gửi Email & Zalo thanh toán thành công
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
   @Post('test-send-payment-success/:id')
   async testSendPaymentSuccess(@Param('id') id: string, @Body() body: any = {}) {
     const invoice = await this.invoicesService.getInvoiceById(id);
