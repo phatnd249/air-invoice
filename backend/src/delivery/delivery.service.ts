@@ -5,6 +5,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MessageTemplatesService } from '../message-templates/message-templates.service';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as http from 'http';
+import * as https from 'https';
+import * as dns from 'dns';
+import * as net from 'net';
+
+/** Giới hạn tải file đính kèm từ URL bên ngoài */
+const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024; // 10MB
+const ATTACHMENT_TIMEOUT_MS = 15_000;
 
 @Injectable()
 export class DeliveryService {
@@ -52,6 +60,197 @@ export class DeliveryService {
   }
 
   /**
+   * Chỉ cho phép IP công khai. Chặn loopback, private, link-local, CGNAT,
+   * multicast và dải reserved để tránh SSRF vào mạng nội bộ / cloud metadata.
+   */
+  private isPublicAddress(address: string): boolean {
+    if (net.isIPv4(address)) {
+      const [a, b] = address.split('.').map(Number);
+      if (a === 0 || a === 10 || a === 127) return false;
+      if (a === 100 && b >= 64 && b <= 127) return false; // CGNAT
+      if (a === 169 && b === 254) return false; // link-local / metadata
+      if (a === 172 && b >= 16 && b <= 31) return false;
+      if (a === 192 && b === 168) return false;
+      if (a === 192 && b === 0) return false; // 192.0.0.0/24 + 192.0.2.0/24
+      if (a === 198 && (b === 18 || b === 19)) return false; // benchmark
+      if (a === 198 && b === 51) return false; // TEST-NET-2
+      if (a === 203 && b === 0) return false; // TEST-NET-3
+      if (a >= 224) return false; // multicast + reserved
+      return true;
+    }
+
+    if (net.isIPv6(address)) {
+      const lower = address.toLowerCase();
+      if (lower === '::' || lower === '::1') return false;
+      // fe80::/10 link-local
+      if (/^fe[89ab]/.test(lower)) return false;
+      // fc00::/7 unique local
+      if (/^f[cd]/.test(lower)) return false;
+      // IPv4-mapped ::ffff:a.b.c.d
+      if (lower.startsWith('::ffff:')) {
+        const v4 = lower.slice('::ffff:'.length);
+        return net.isIPv4(v4) ? this.isPublicAddress(v4) : false;
+      }
+      return true;
+    }
+
+    return false;
+  }
+
+  private isBlockedHostname(hostname: string): boolean {
+    const host = hostname.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '');
+    if (!host) return true;
+    if (net.isIP(host)) return !this.isPublicAddress(host);
+
+    return (
+      host === 'localhost' ||
+      host.endsWith('.localhost') ||
+      host.endsWith('.local') ||
+      host.endsWith('.internal') ||
+      host.endsWith('.home.arpa') ||
+      host === 'metadata' ||
+      host === 'metadata.google.internal'
+    );
+  }
+
+  /**
+   * Hàm lookup được dùng ngay tại thời điểm mở kết nối: vừa chống SSRF,
+   * vừa chống DNS rebinding (không có khe thời gian giữa lúc kiểm tra và lúc kết nối).
+   */
+  private safeLookup = (
+    hostname: string,
+    options: any,
+    callback: any,
+  ): void => {
+    dns.lookup(hostname, { all: true, verbatim: true }, (err, addresses) => {
+      if (err) return callback(err);
+      if (!addresses.length) {
+        return callback(new Error('Không phân giải được hostname'));
+      }
+      if (addresses.some((item) => !this.isPublicAddress(item.address))) {
+        return callback(new Error('Địa chỉ IP nội bộ không được phép tải tài liệu'));
+      }
+      // Node >= 20 gọi lookup với { all: true } (Happy Eyeballs) và cần mảng.
+      if (options?.all) {
+        return callback(
+          null,
+          addresses.map((item) => ({
+            address: item.address,
+            family: item.family,
+          })),
+        );
+      }
+      const first = addresses[0];
+      callback(null, first.address, first.family);
+    });
+  };
+
+  /**
+   * Tải file đính kèm từ URL bên ngoài với các chốt an toàn:
+   * chỉ http/https, không follow redirect, timeout 15s, tối đa 10MB.
+   * @returns null nếu response là trang HTML (khi đó chỉ gửi link).
+   */
+  private downloadRemoteAttachment(
+    urlStr: string,
+  ): Promise<{ buffer: Buffer; contentType: string } | null> {
+    return new Promise((resolve, reject) => {
+      let parsed: URL;
+      try {
+        parsed = new URL(urlStr);
+      } catch {
+        return reject(new Error('URL không hợp lệ'));
+      }
+
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        return reject(new Error('Chỉ hỗ trợ http/https'));
+      }
+      if (this.isBlockedHostname(parsed.hostname)) {
+        return reject(new Error('Hostname không được phép'));
+      }
+
+      const client = parsed.protocol === 'https:' ? https : http;
+      const req = client.request(
+        parsed,
+        {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Invoice-AIR/1.0',
+            Accept: '*/*',
+            'Accept-Encoding': 'identity',
+          },
+          lookup: this.safeLookup as any,
+          timeout: ATTACHMENT_TIMEOUT_MS,
+        },
+        (res) => {
+          const status = res.statusCode || 0;
+
+          // Không follow redirect để tránh bị dẫn sang địa chỉ nội bộ.
+          if (status >= 300 && status < 400) {
+            res.resume();
+            return reject(new Error(`Không follow redirect (HTTP ${status})`));
+          }
+          if (status < 200 || status >= 300) {
+            res.resume();
+            return reject(new Error(`HTTP ${status}`));
+          }
+
+          const contentType = String(res.headers['content-type'] || '').toLowerCase();
+          if (
+            contentType.includes('text/html') ||
+            contentType.includes('application/xhtml+xml')
+          ) {
+            res.resume();
+            return resolve(null);
+          }
+
+          const declaredLength = Number(res.headers['content-length'] || 0);
+          if (declaredLength > ATTACHMENT_MAX_BYTES) {
+            res.destroy(new Error('File vượt quá 10MB'));
+            return;
+          }
+
+          const chunks: Buffer[] = [];
+          let total = 0;
+
+          res.on('data', (chunk: Buffer) => {
+            total += chunk.length;
+            if (total > ATTACHMENT_MAX_BYTES) {
+              res.destroy(new Error('File vượt quá 10MB'));
+              return;
+            }
+            chunks.push(chunk);
+          });
+          res.on('end', () =>
+            resolve({ buffer: Buffer.concat(chunks), contentType }),
+          );
+          res.on('error', reject);
+        },
+      );
+
+      req.on('timeout', () =>
+        req.destroy(new Error('Tải file đính kèm quá thời gian cho phép')),
+      );
+      req.on('error', reject);
+      req.end();
+    });
+  }
+
+  /**
+   * Chỉ cho phép đọc file cục bộ trong thư mục uploads của ứng dụng.
+   * Trả về null nếu đường dẫn nằm ngoài (chống đọc file hệ thống).
+   */
+  private resolveLocalAttachmentPath(filePath: string): string | null {
+    try {
+      const uploadsRoot = path.resolve(process.cwd(), 'uploads');
+      const resolved = path.resolve(filePath);
+      if (!resolved.startsWith(uploadsRoot + path.sep)) return null;
+      return resolved;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Phân loại và xử lý file đính kèm:
    * - linkAttachments: Các đường link (Google Drive, Dropbox, liên kết web, trang HTML) -> nhúng vào nội dung email
    * - binaryAttachments: Các file nhị phân có thể tải về (PDF, Zip, Image, Doc...) -> gửi dưới dạng file đính kèm
@@ -84,40 +283,42 @@ export class DeliveryService {
           continue;
         }
 
-        // 2. Xử lý tải file qua HTTP/HTTPS
+        // 2. Xử lý tải file qua HTTP/HTTPS (có chống SSRF, giới hạn dung lượng/thời gian)
         if (url.startsWith('http://') || url.startsWith('https://')) {
-          const res = await fetch(url, { headers: { 'User-Agent': 'Invoice-AIR/1.0' } });
-          if (!res.ok) {
-            console.warn(`[Delivery] Tải file đính kèm thất bại (${res.status}): ${url}`);
+          const downloaded = await this.downloadRemoteAttachment(url);
+          if (!downloaded) {
+            // Trang HTML / không phải file nhị phân -> chỉ gửi link
             linkAttachments.push({ name, url });
             continue;
           }
-
-          const rawContentType = (res.headers.get('content-type') || '').toLowerCase();
-
-          // Nếu trả về text/html (trang web, trang đăng nhập, thư mục chia sẻ...) -> không attach binary, chuyển thành link
-          if (rawContentType.includes('text/html') || rawContentType.includes('application/xhtml+xml')) {
-            linkAttachments.push({ name, url });
-            continue;
-          }
-
-          const arr = await res.arrayBuffer();
-          const buffer = Buffer.from(arr);
 
           // Chuẩn hóa tên file: bắt buộc có phần mở rộng hợp lệ để Resend và mail client chấp nhận
-          const filename = this.ensureFilenameExtension(name, url, rawContentType);
+          const filename = this.ensureFilenameExtension(
+            name,
+            url,
+            downloaded.contentType,
+          );
+          const contentType =
+            att.type && !/html/i.test(String(att.type))
+              ? att.type
+              : downloaded.contentType || 'application/octet-stream';
 
           binaryAttachments.push({
             filename,
-            content: buffer,
-            contentType: att.type || rawContentType || 'application/octet-stream',
+            content: downloaded.buffer,
+            contentType,
           });
         } else if (fs.existsSync(url)) {
-          // File cục bộ trên máy chủ
+          // File cục bộ trên máy chủ — chỉ cho phép trong thư mục uploads
+          const localPath = this.resolveLocalAttachmentPath(url);
+          if (!localPath || !fs.existsSync(localPath)) {
+            linkAttachments.push({ name, url });
+            continue;
+          }
           const filename = this.ensureFilenameExtension(name, url);
           binaryAttachments.push({
             filename,
-            content: fs.readFileSync(url),
+            content: fs.readFileSync(localPath),
             contentType: att.type || 'application/octet-stream',
           });
         } else {
