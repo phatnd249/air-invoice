@@ -11,6 +11,7 @@ import { UseGuards } from '@nestjs/common';
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 
+  @Roles('ADMIN')
   @Get()
   async getSettings() {
     return this.settingsService.getSettings();

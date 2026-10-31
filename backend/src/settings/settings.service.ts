@@ -71,6 +71,18 @@ export class SettingsService implements OnModuleInit {
     }
   }
 
+  private static readonly SECRET_MASK = '••••••••';
+
+  /**
+   * Che bớt secret trước khi trả về client (giữ 6 ký tự đầu để nhận diện, ví dụ "zlite_").
+   */
+  private maskSecret(value?: string | null): string | null {
+    if (!value) return null;
+    const trimmed = String(value).trim();
+    if (trimmed.length <= 6) return SettingsService.SECRET_MASK;
+    return `${trimmed.slice(0, 6)}${SettingsService.SECRET_MASK}`;
+  }
+
   async getSettings() {
     const setting = await this.prisma.setting.findUnique({ where: { id: 'default' } });
     if (!setting) return null;
@@ -126,8 +138,13 @@ export class SettingsService implements OnModuleInit {
       }
     }
 
+    // 🔒 Không trả nguyên văn API Key của gateway Zalo về client
+    const { zaloApiKey, ...safeSetting } = setting as any;
+
     return {
-      ...setting,
+      ...safeSetting,
+      zaloApiKey: this.maskSecret(zaloApiKey),
+      hasZaloApiKey: !!zaloApiKey,
       companies,
       bankAccounts,
     };
@@ -135,6 +152,14 @@ export class SettingsService implements OnModuleInit {
 
   async updateSettings(data: any) {
     const updatePayload = { ...data };
+
+    // 🔒 Nếu client gửi lại giá trị đã bị che thì giữ nguyên secret hiện có trong DB
+    if (
+      updatePayload.zaloApiKey !== undefined &&
+      String(updatePayload.zaloApiKey ?? '').includes(SettingsService.SECRET_MASK)
+    ) {
+      delete updatePayload.zaloApiKey;
+    }
 
     // Xử lý danh sách đơn vị cung cấp (companies)
     if (data.companies && Array.isArray(data.companies)) {

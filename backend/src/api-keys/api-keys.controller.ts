@@ -1,6 +1,11 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiKeysService } from './api-keys.service';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
+// 🔒 Protected by global JwtAuthGuard + ADMIN-only RolesGuard
+@UseGuards(RolesGuard)
+@Roles('ADMIN')
 @Controller('api-keys')
 export class ApiKeysController {
   constructor(private readonly apiKeysService: ApiKeysService) {}
