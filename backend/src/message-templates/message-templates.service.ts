@@ -200,8 +200,8 @@ export class MessageTemplatesService implements OnModuleInit {
         name: dto.name,
         channel: dto.channel,
         triggerType: dto.triggerType || 'INVOICE_CREATED',
-        subject: dto.subject,
-        content: dto.content,
+        subject: this.sanitizeSubject(dto.subject),
+        content: this.sanitizeHtml(dto.content),
         serviceIds: serviceIdsJson,
         attachments: attachmentsJson,
         isDefault: dto.isDefault ?? false,
@@ -217,8 +217,8 @@ export class MessageTemplatesService implements OnModuleInit {
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.channel !== undefined) data.channel = dto.channel;
     if (dto.triggerType !== undefined) data.triggerType = dto.triggerType;
-    if (dto.subject !== undefined) data.subject = dto.subject;
-    if (dto.content !== undefined) data.content = dto.content;
+    if (dto.subject !== undefined) data.subject = this.sanitizeSubject(dto.subject);
+    if (dto.content !== undefined) data.content = this.sanitizeHtml(dto.content);
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
 
     if (dto.serviceIds !== undefined) {
@@ -316,8 +316,83 @@ export class MessageTemplatesService implements OnModuleInit {
     return this.formatTemplateOutput(templates[0]);
   }
 
+  // ==================== SECURITY: sanitize HTML ====================
+
   /**
-   * Thay thế các biến placeholder trong nội dung tin nhắn và tiêu đề
+   * Escape giá trị người dùng trước khi thay vào nội dung HTML email,
+   * tránh chèn thẻ/URL độc hại qua tên khách hàng, ghi chú...
+   */
+  private escapeHtml(value: string): string {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  /** Chỉ chấp nhận URL http/https cho các placeholder link. */
+  private safeUrl(value?: string): string {
+    const url = String(value || '').trim();
+    return /^https?:\/\//i.test(url) ? url : '';
+  }
+
+  /** Bỏ ký tự xuống dòng trong subject để chặn header injection. */
+  private sanitizeSubject(subject?: string): string {
+    return String(subject || '')
+      .replace(/[\r\n]+/g, ' ')
+      .trim();
+  }
+
+  /**
+   * Làm sạch HTML của mẫu tin nhắn: bỏ script/iframe/form..., thuộc tính
+   * sự kiện (onclick...), URL javascript: và CSS expression.
+   * Không cần thư viện ngoài; chỉ giữ lại HTML tĩnh thường dùng trong email.
+   */
+  sanitizeHtml(html: string): string {
+    if (!html) return '';
+
+    let out = String(html);
+
+    // 1. Xoá cả khối thẻ nguy hiểm (kèm nội dung bên trong)
+    out = out.replace(
+      /<\s*(script|iframe|object|embed|form|base|meta|link|svg|math)\b[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi,
+      '',
+    );
+
+    // 2. Xoá thẻ nguy hiểm không có thẻ đóng
+    out = out.replace(
+      /<\s*\/?\s*(script|iframe|object|embed|form|base|meta|link|svg|math)\b[^>]*>/gi,
+      '',
+    );
+
+    // 3. Xoá thuộc tính xử lý sự kiện (onclick, onerror, onload...)
+    out = out.replace(
+      /\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi,
+      '',
+    );
+
+    // 4. Xoá URL javascript: trong href/src/action/xlink:href
+    out = out.replace(
+      /((?:href|src|action|xlink:href)\s*=\s*)(?:"\s*javascript:[^"]*"|'\s*javascript:[^']*'|javascript:[^\s>]*)/gi,
+      '$1"#"',
+    );
+
+    // 5. Xoá srcdoc (nhúng HTML trong iframe)
+    out = out.replace(/\ssrcdoc\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+
+    // 6. CSS nguy hiểm
+    out = out.replace(/expression\s*\(/gi, '');
+    out = out.replace(/url\s*\(\s*(?:"|')?\s*javascript:[^)]*\)/gi, 'url()');
+
+    return out;
+  }
+
+  /**
+   * Thay thế các biến placeholder trong nội dung tin nhắn và tiêu đề.
+   * - Nội dung mẫu được sanitize trước khi render.
+   * - Với email: escape giá trị chèn vào để chặn HTML injection.
+   * - URL chỉ nhận http/https.
    */
   renderTemplateContent(
     template: any,
@@ -350,7 +425,7 @@ export class MessageTemplatesService implements OnModuleInit {
     const grandTotalStr =
       typeof vars.grandTotal === 'number' ? formatCurrency(vars.grandTotal) : vars.grandTotal || '0 VND';
 
-    const replacements: Record<string, string> = {
+    const rawReplacements: Record<string, string> = {
       '{{customerName}}': vars.customerName || 'Quý khách',
       '{buyerName}': vars.customerName || 'Quý khách',
       '{{buyerName}}': vars.customerName || 'Quý khách',
@@ -360,10 +435,10 @@ export class MessageTemplatesService implements OnModuleInit {
       '{grandTotal}': grandTotalStr,
       '{{totalAmount}}': grandTotalStr,
       '{{packageName}}': vars.packageName || 'Gói Dịch Vụ',
-      '{{viewUrl}}': vars.viewUrl || '',
-      '{viewUrl}': vars.viewUrl || '',
-      '{{pdfUrl}}': vars.pdfUrl || '',
-      '{pdfUrl}': vars.pdfUrl || '',
+      '{{viewUrl}}': this.safeUrl(vars.viewUrl),
+      '{viewUrl}': this.safeUrl(vars.viewUrl),
+      '{{pdfUrl}}': this.safeUrl(vars.pdfUrl),
+      '{pdfUrl}': this.safeUrl(vars.pdfUrl),
       '{{paymentCode}}': vars.paymentCode || '',
       '{{dueDate}}': vars.dueDate || '',
       '{{brandName}}': vars.brandName || vars.companyName || 'AI WRITER',
@@ -383,14 +458,20 @@ export class MessageTemplatesService implements OnModuleInit {
       '{{expireDate}}': vars.endDate || '',
     };
 
-    let subject = template.subject || '';
-    let content = template.content || '';
+    const isEmail = String(template.channel || '').toUpperCase() === 'EMAIL';
 
-    for (const [key, val] of Object.entries(replacements)) {
+    // Subject là header dạng text: dùng giá trị gốc, chỉ bỏ \r\n.
+    let subject = this.sanitizeSubject(template.subject);
+    // Nội dung: sanitize HTML của mẫu trước, sau đó chèn biến đã escape.
+    let content = this.sanitizeHtml(String(template.content || ''));
+
+    for (const [key, val] of Object.entries(rawReplacements)) {
       const reg = new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
       subject = subject.replace(reg, val);
-      content = content.replace(reg, val);
+      content = content.replace(reg, isEmail ? this.escapeHtml(val) : val);
     }
+
+    subject = this.sanitizeSubject(subject);
 
     let attachments: AttachmentFile[] = [];
     if (template.attachments) {

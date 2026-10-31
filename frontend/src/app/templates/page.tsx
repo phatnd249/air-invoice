@@ -1543,10 +1543,12 @@ export default function TemplatesPage() {
                   {/* Email Body Frame (Spacious & Scaled) */}
                   <div className="bg-slate-100/90 rounded-2xl p-4 sm:p-8 border border-slate-200/80 flex justify-center items-start min-h-[460px]">
                     <div className="w-full max-w-[650px] bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                      <div
-                        dangerouslySetInnerHTML={{
-                          __html: renderMockText(previewMsgModal.content),
-                        }}
+                      <iframe
+                        title="Xem trước nội dung email"
+                        sandbox=""
+                        referrerPolicy="no-referrer"
+                        srcDoc={renderMockText(previewMsgModal.content)}
+                        className="w-full h-[560px] bg-white border-0"
                       />
                     </div>
                   </div>
