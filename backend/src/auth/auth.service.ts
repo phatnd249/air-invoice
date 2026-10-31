@@ -2,7 +2,6 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
-  NotFoundException,
   OnModuleInit,
   Logger,
   BadRequestException,
@@ -15,6 +14,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { DeliveryService } from '../delivery/delivery.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
 import { JwtPayload } from './strategies/jwt.strategy';
+import { getJwtSecret } from './jwt-config';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -32,23 +32,41 @@ export class AuthService implements OnModuleInit {
   }
 
   /**
-   * Khởi tạo tài khoản quản trị mặc định nếu database chưa có người dùng
+   * Khởi tạo tài khoản quản trị ĐẦU TIÊN khi database chưa có người dùng nào.
+   * 🔒 Không hardcode mật khẩu trong source: chỉ tạo khi có SEED_ADMIN_EMAIL + SEED_ADMIN_PASSWORD.
    */
   private async seedInitialAdmin() {
     try {
       const userCount = await this.prisma.user.count();
-      if (userCount === 0) {
-        const hashedPassword = await bcrypt.hash('admin123', 10);
-        await this.prisma.user.create({
-          data: {
-            email: 'admin@airobotics.edu.vn',
-            password: hashedPassword,
-            name: 'Quản Trị Viên (Admin)',
-            role: 'ADMIN',
-          },
-        });
-        this.logger.log('Đã khởi tạo tài khoản Admin mặc định: admin@airobotics.edu.vn / admin123');
+      if (userCount > 0) return;
+
+      const email = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
+      const password = process.env.SEED_ADMIN_PASSWORD;
+
+      if (!email || !password) {
+        this.logger.warn(
+          'Database chưa có người dùng nào. Bỏ qua tạo admin mặc định — hãy đặt SEED_ADMIN_EMAIL và SEED_ADMIN_PASSWORD để khởi tạo tài khoản quản trị đầu tiên.',
+        );
+        return;
       }
+
+      if (password.length < 12) {
+        this.logger.error(
+          'SEED_ADMIN_PASSWORD phải có tối thiểu 12 ký tự — bỏ qua tạo tài khoản admin đầu tiên.',
+        );
+        return;
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 12);
+      await this.prisma.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          name: process.env.SEED_ADMIN_NAME?.trim() || 'Quản Trị Viên (Admin)',
+          role: 'ADMIN',
+        },
+      });
+      this.logger.log(`Đã khởi tạo tài khoản Admin đầu tiên: ${email}`);
     } catch (error) {
       this.logger.error('Lỗi khi kiểm tra / khởi tạo Admin mặc định', error);
     }
@@ -133,9 +151,9 @@ export class AuthService implements OnModuleInit {
       throw new BadRequestException('Refresh token không được để trống');
     }
 
-    const refreshSecret = this.configService.get<string>(
+    const refreshSecret = getJwtSecret(
+      this.configService,
       'REFRESH_TOKEN_SECRET',
-      'super-secret-refresh-key-invoice-air',
     );
 
     let payload: JwtPayload;
@@ -233,16 +251,31 @@ export class AuthService implements OnModuleInit {
   /**
    * Yêu cầu khôi phục mật khẩu (Quên mật khẩu)
    * Sinh token an toàn (64 ký tự hex) → lưu SHA-256 hash vào DB → gửi email kèm link đặt lại mật khẩu.
-   * Link được xây dựng từ baseUrl truyền vào (Origin header từ trình duyệt / APP_URL) để khi Deploy
-   * lên môi trường khác không cần chỉnh sửa đường link.
+   * Link được xây dựng DUY NHẤT từ APP_URL trong biến môi trường — tuyệt đối không dùng
+   * header `Origin`/`Host` do client kiểm soát (nếu không, kẻ tấn công có thể đánh cắp token).
    */
-  async forgotPassword(email: string, baseUrl?: string) {
+  async forgotPassword(email: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const expiresInMinutes =
+      Number(process.env.PASSWORD_RESET_TTL_MINUTES) || 60;
+    const expiresAt = new Date(Date.now() + expiresInMinutes * 60 * 1000);
+
+    // 🔒 Phản hồi LUÔN giống nhau dù email có tồn tại hay không → chống dò tài khoản
+    const genericResponse = {
+      message: `Nếu email tồn tại trong hệ thống, liên kết đặt lại mật khẩu đã được gửi (hiệu lực ${expiresInMinutes} phút)`,
+      email: normalizedEmail,
+      expiresAt: expiresAt.toISOString(),
+    };
+
     const user = await this.prisma.user.findUnique({
-      where: { email: email.trim().toLowerCase() },
+      where: { email: normalizedEmail },
     });
 
     if (!user) {
-      throw new NotFoundException('Không tìm thấy tài khoản với email này trong hệ thống');
+      this.logger.warn(
+        `Yêu cầu đặt lại mật khẩu cho email không tồn tại: ${normalizedEmail}`,
+      );
+      return genericResponse;
     }
 
     // Token ngẫu nhiên an toàn, chỉ hiện 1 lần trong email / response
@@ -254,24 +287,20 @@ export class AuthService implements OnModuleInit {
       .update(resetToken)
       .digest('hex');
 
-    const expiresInMinutes =
-      Number(process.env.PASSWORD_RESET_TTL_MINUTES) || 60;
-    const resetExpires = new Date(
-      Date.now() + expiresInMinutes * 60 * 1000,
-    );
-
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
         resetPasswordToken: resetTokenHash,
-        resetPasswordExpires: resetExpires,
+        resetPasswordExpires: expiresAt,
       },
     });
 
-    // Xây link đặt lại mật khẩu — ưu tiên origin của trình duyệt (khớp mọi môi trường khi Deploy),
-    // fallback APP_URL (env), cuối cùng là localhost cho dev
-    const appUrl = baseUrl || process.env.APP_URL || 'http://localhost:3000';
-    const resetLink = `${appUrl.replace(/\/$/, '')}/reset-password?token=${resetToken}`;
+    // 🔒 Chỉ dùng APP_URL cấu hình trong env (allowlist), không lấy từ request
+    const appUrl = (process.env.APP_URL || 'http://localhost:3000').replace(
+      /\/+$/,
+      '',
+    );
+    const resetLink = `${appUrl}/reset-password?token=${resetToken}`;
 
     // Gửi email kèm link (không throw nếu SMTP chưa cấu hình — vẫn trả link để dev demo)
     try {
@@ -287,17 +316,14 @@ export class AuthService implements OnModuleInit {
       );
     }
 
+    // 🔒 Không log token/link — chỉ log email + thời hạn
     this.logger.log(
-      `Yêu cầu đổi mật khẩu cho ${user.email}. Link: ${resetLink}`,
+      `Đã tạo yêu cầu đặt lại mật khẩu cho ${user.email} (hiệu lực ${expiresInMinutes} phút)`,
     );
 
     // 🔒 Security: Do NOT expose resetLink in production API response
     // Link should only be sent via email, not returned to client
-    const response: any = {
-      message: `Liên kết đặt lại mật khẩu đã được gửi tới ${user.email} (hiệu lực ${expiresInMinutes} phút)`,
-      email: user.email,
-      expiresAt: resetExpires.toISOString(),
-    };
+    const response: any = { ...genericResponse, email: user.email };
 
     // Development only: Include link for testing when SMTP not configured
     if (process.env.NODE_ENV === 'development') {
@@ -364,13 +390,10 @@ export class AuthService implements OnModuleInit {
       role,
     };
 
-    const jwtSecret = this.configService.get<string>(
-      'JWT_SECRET',
-      'super-secret-jwt-key-invoice-air',
-    );
-    const refreshSecret = this.configService.get<string>(
+    const jwtSecret = getJwtSecret(this.configService, 'JWT_SECRET');
+    const refreshSecret = getJwtSecret(
+      this.configService,
       'REFRESH_TOKEN_SECRET',
-      'super-secret-refresh-key-invoice-air',
     );
     const sanitizeExpiresIn = (raw: string | undefined, defaultVal: string) => {
       let val = (raw || defaultVal).toString().trim().replace(/['"]/g, '');
