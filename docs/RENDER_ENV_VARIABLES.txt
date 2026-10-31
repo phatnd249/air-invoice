@@ -34,9 +34,24 @@ PASSWORD_RESET_TTL_MINUTES=60
 APP_URL=https://your-app.vercel.app
 
 # CORS Origins
-# '*' = PUBLIC API: mọi website gọi được (mặc định, không cần thêm domain)
-# Hoặc danh sách domain ngăn cách bằng dấu phẩy, hỗ trợ wildcard: https://*.vercel.app
-CORS_ORIGINS=*
+# 🔒 Khuyến nghị: chỉ liệt kê domain chính thức, ngăn cách bằng dấu phẩy.
+# Hỗ trợ wildcard: https://*.vercel.app
+# '*' = mở cho mọi website (chỉ dùng tạm khi cần, sẽ log cảnh báo)
+CORS_ORIGINS=https://invoice.share4happy.com
+
+# 🔒 Secret cho webhook đối soát thanh toán (POST /api/invoices/confirm-payment/:id)
+# Client phải gửi header: x-webhook-secret: <giá trị này>
+# Nếu để trống, endpoint confirm-payment trả 503 (fail closed).
+# Generate: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+PAYMENT_WEBHOOK_SECRET=GENERATE_NEW_SECRET_HERE
+
+# 🔒 Đăng ký công khai: mặc định tắt. Chỉ đặt true khi thật sự muốn cho tự đăng ký.
+ALLOW_PUBLIC_REGISTER=false
+
+# 🔒 Tài khoản ADMIN đầu tiên (chỉ dùng khi database CHƯA có user nào).
+# Bỏ trống => không tự tạo tài khoản mặc định (an toàn hơn).
+SEED_ADMIN_EMAIL=
+SEED_ADMIN_PASSWORD=
 
 # PDF/Chromium Configuration
 # Đóng Chromium sau 60 giây không dùng để giải phóng RAM

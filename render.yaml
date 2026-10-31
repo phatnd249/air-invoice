@@ -68,8 +68,18 @@ services:
       # Frontend URLs - Update sau khi deploy Vercel
       - key: APP_URL
         sync: false
+      # 🔒 Chỉ domain chính thức được gọi API từ trình duyệt (không dùng '*')
       - key: CORS_ORIGINS
-        value: "*"
+        value: https://invoice.share4happy.com
+
+      # 🔒 Secret cho webhook đối soát thanh toán (header x-webhook-secret).
+      # BẮT BUỘC đặt giá trị trong Render Dashboard, nếu để trống endpoint confirm-payment trả 503.
+      - key: PAYMENT_WEBHOOK_SECRET
+        sync: false
+
+      # 🔒 Đăng ký công khai mặc định TẮT (chỉ ADMIN tạo user qua /api/users)
+      - key: ALLOW_PUBLIC_REGISTER
+        value: "false"
 
       # PDF/Chromium Optimization
       - key: PDF_BROWSER_IDLE_TIMEOUT_MS
