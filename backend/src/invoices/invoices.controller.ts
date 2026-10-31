@@ -25,27 +25,13 @@ export class InvoicesController {
     @Query('phone') phone?: string,
   ) {
     if (!email && !phone) {
-      return { exists: false, message: 'Vui lòng cung cấp email hoặc số điện thoại' };
-    }
-    const existing = await this.invoicesService.findExistingInvoice(email, phone);
-    if (!existing) {
       return { exists: false };
     }
-    const appUrl = (process.env.APP_URL || 'https://invoice.share4happy.com').replace(/\/+$/, '');
-    const backendUrl = (process.env.BACKEND_URL || 'https://invoice-backend-5tbi.onrender.com').replace(/\/+$/, '');
-    return {
-      exists: true,
-      id: existing.id,
-      invoiceNumber: existing.invoiceNumber,
-      buyerName: existing.buyerName,
-      buyerEmail: existing.buyerEmail,
-      buyerPhone: existing.buyerPhone,
-      status: existing.status,
-      grandTotal: existing.grandTotal,
-      viewUrl: `${appUrl}/view/${existing.shareToken}`,
-      pdfUrl: `${backendUrl}/api/delivery/public/${existing.shareToken}/pdf`,
-      createdAt: existing.createdAt,
-    };
+    const existing = await this.invoicesService.findExistingInvoice(email, phone);
+
+    // 🔒 Chỉ trả về true/false. KHÔNG trả tên, email, SĐT, mã hóa đơn, số tiền hay link
+    // xem/tải PDF — endpoint này là public nên mọi dữ liệu chi tiết đều là rò rỉ PII.
+    return { exists: !!existing };
   }
 
   @Public() // 🌐 Endpoint dành riêng cho Landing Page (gọi tạo hoá đơn & sinh PDF trực tiếp)
@@ -80,6 +66,19 @@ export class InvoicesController {
       dto = body;
     }
 
+    // 🔒 Request công khai (không kèm API Key) không được điều khiển nội dung email/Zalo.
+    // Nếu cho phép, bất kỳ ai cũng dùng được domain email đã xác thực để gửi nội dung tùy ý.
+    if (!req?.apiKey) {
+      delete body.emailSubject;
+      delete body.customMessage;
+      delete body.message;
+      delete body.brandName;
+      delete body.source;
+      delete dto.emailSubject;
+      delete dto.customMessage;
+      delete dto.message;
+    }
+
     // Tự động đối chiếu đơn giá & mô tả từ Danh mục dịch vụ nếu chưa có
     if (dto.items && Array.isArray(dto.items)) {
       for (const item of dto.items) {
@@ -101,9 +100,26 @@ export class InvoicesController {
     }
 
     // 1.5. Chống trùng lặp (Deduplication): Nếu khách hàng đã có hóa đơn trên hệ thống
-    if (!body.forceNew && (dto.buyerEmail || dto.buyerPhone)) {
+    // Chuẩn hóa cờ forceNew để controller và service dùng cùng một điều kiện
+    // (tránh trường hợp controller bỏ qua dedupe nhưng service lại trả về hóa đơn cũ).
+    dto.forceNew = body.forceNew === true;
+
+    if (!dto.forceNew && (dto.buyerEmail || dto.buyerPhone)) {
       const existing = await this.invoicesService.findExistingInvoice(dto.buyerEmail, dto.buyerPhone);
       if (existing) {
+        // 🔒 Request không kèm API Key (Google Form / Landing Page public) chỉ nhận thông báo,
+        // không được trả về dữ liệu hóa đơn của khách khác (PII + token xem/tải PDF).
+        if (!req?.apiKey) {
+          return {
+            success: true,
+            isExisting: true,
+            message:
+              'Thông tin này đã được đăng ký trước đó. Vui lòng kiểm tra email/SĐT hoặc liên hệ bộ phận hỗ trợ để được cấp lại link hóa đơn.',
+            emailResult: { sent: false, queued: false, note: 'Bỏ qua gửi email vì hóa đơn đã tồn tại' },
+            zaloResult: { sent: false, queued: false, note: 'Bỏ qua gửi Zalo vì hóa đơn đã tồn tại' },
+          };
+        }
+
         const appUrl = (process.env.APP_URL || 'https://invoice.share4happy.com').replace(/\/+$/, '');
         const backendUrl = (process.env.BACKEND_URL || 'https://invoice-backend-5tbi.onrender.com').replace(/\/+$/, '');
         const viewUrl = `${appUrl}/view/${existing.shareToken}`;
