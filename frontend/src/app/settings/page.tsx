@@ -53,7 +53,7 @@ const POPULAR_BANKS = [
   { code: 'OCB', name: 'OCB (Phương Đông)' },
 ];
 
-type SettingsTabId = 'companies' | 'banks' | 'rules' | 'notifications';
+type SettingsTabId = 'companies' | 'banks' | 'formats' | 'rules' | 'notifications';
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
@@ -109,7 +109,8 @@ export default function SettingsPage() {
   const [testResult, setTestResult] = useState<{ success: boolean; message: string; raw?: any } | null>(null);
   const settingsTabs: { id: SettingsTabId; label: string; icon: React.ElementType }[] = [
     { id: 'companies', label: 'Đơn vị cung cấp', icon: Building2 },
-    { id: 'banks', label: 'Tài khoản & VietQR', icon: QrCode },
+    { id: 'banks', label: 'Tài khoản ngân hàng', icon: CreditCard },
+    { id: 'formats', label: 'Cấu hình định dạng', icon: Sparkles },
     { id: 'rules', label: 'Đánh số & VAT', icon: Sliders },
     { id: 'notifications', label: 'Cấu hình Thông báo', icon: Bell },
   ];
@@ -945,6 +946,221 @@ export default function SettingsPage() {
             ))}
           </div>
         </section>
+      )}
+
+      {/* === TAB: CẤU HÌNH ĐỊNH DẠNG NỘI DUNG CHUYỂN KHOẢN (VIETQR) === */}
+      {activeTab === 'formats' && (
+        <div className="space-y-6">
+          {/* Main Card: Quy tắc theo email */}
+          <section className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
+              <div>
+                <div className="flex items-center space-x-2.5 text-slate-900 font-bold text-base">
+                  <Sparkles className="w-5 h-5 text-indigo-600" />
+                  <span>Quy Tắc Định Dạng Nội Dung Chuyển Khoản Theo Email (VietQR)</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Tự động nhận diện email khách hàng (sinh viên trường đại học, tổ chức, đối tác...) để sinh nội dung thanh toán mã QR chuẩn xác.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleOpenAddRule}
+                className="inline-flex items-center space-x-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors shrink-0 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Thêm Quy Tắc Mới</span>
+              </button>
+            </div>
+
+            {/* Danh sách quy tắc */}
+            <div className="space-y-3">
+              {paymentRules.length === 0 ? (
+                <div className="text-center py-10 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 text-sm space-y-2">
+                  <p>Chưa có quy tắc riêng theo email nào.</p>
+                  <p className="text-xs text-slate-400">Bấm nút "Thêm Quy Tắc Mới" phía trên để tạo quy tắc cho trường học hoặc đối tác.</p>
+                </div>
+              ) : (
+                paymentRules.map((rule) => {
+                  const sampleEmail = '124001340@' + (rule.emailPattern || 'lachong.edu.vn');
+                  const samplePreview = calculateRulePreview(sampleEmail, rule.descriptionTemplate);
+
+                  return (
+                    <div
+                      key={rule.id}
+                      className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                        rule.isActive
+                          ? 'border-indigo-200 bg-indigo-50/20 shadow-xs'
+                          : 'border-slate-200 bg-slate-50/60 opacity-60'
+                      }`}
+                    >
+                      <div className="space-y-2 flex-1">
+                        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                          <span className="font-bold text-slate-900 text-sm">{rule.name}</span>
+                          {rule.isActive ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              Đang kích hoạt
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                              Đã tạm dừng
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="text-xs text-slate-600 space-y-1">
+                          <div>
+                            Điều kiện email chứa: <code className="px-2 py-0.5 bg-white border border-slate-200 rounded font-mono text-indigo-700 font-semibold">{rule.emailPattern}</code>
+                          </div>
+                          <div>
+                            Cú pháp định dạng: <code className="px-2 py-0.5 bg-white border border-slate-200 rounded font-mono text-slate-800">{rule.descriptionTemplate}</code>
+                          </div>
+                          <div className="text-[11px] text-slate-500 pt-1 flex items-center space-x-1.5 flex-wrap">
+                            <span>👉 Kết quả mẫu trên VietQR:</span>
+                            <strong className="font-mono text-indigo-900 bg-indigo-100/70 px-2.5 py-0.5 rounded border border-indigo-200/60">{samplePreview}</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-200/60">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleRuleActive(rule.id)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                            rule.isActive
+                              ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200'
+                              : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
+                          }`}
+                        >
+                          {rule.isActive ? 'Tạm dừng' : 'Kích hoạt'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditRule(rule)}
+                          className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer border border-transparent hover:border-indigo-200"
+                          title="Chỉnh sửa quy tắc"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteRule(rule.id)}
+                          className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer border border-transparent hover:border-rose-200"
+                          title="Xóa quy tắc"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Cú pháp chuyển khoản mặc định */}
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
+                    Cú pháp chuyển khoản mặc định (khi email không khớp quy tắc nào)
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    Áp dụng cho mọi hóa đơn thanh toán nếu khách hàng không dùng email đặc thù.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveDefaultDesc}
+                  disabled={saveSettings.isPending}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer shrink-0"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{saveSettings.isPending ? 'Đang lưu...' : 'Lưu Cú Pháp Mặc Định'}</span>
+                </button>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  value={defaultPaymentDesc}
+                  onChange={(e) => setDefaultPaymentDesc(e.target.value)}
+                  className="w-full px-3.5 py-2 text-sm font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+                  placeholder="{paymentCode} - {serviceName}"
+                />
+              </div>
+
+              {/* Quick tags */}
+              <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-600 pt-1">
+                <span className="text-[11px] text-slate-400 font-medium">Bấm chèn biến:</span>
+                {[
+                  { tag: '{paymentCode}', desc: 'Mã thanh toán' },
+                  { tag: '{invoiceNumber}', desc: 'Số hóa đơn' },
+                  { tag: '{serviceName}', desc: 'Tên dịch vụ' },
+                  { tag: '{customerName}', desc: 'Tên khách hàng' },
+                ].map((item) => (
+                  <button
+                    key={item.tag}
+                    type="button"
+                    onClick={() => setDefaultPaymentDesc((prev) => prev + (prev.endsWith(' ') || prev === '' ? '' : ' ') + item.tag)}
+                    className="px-2 py-0.5 bg-white border border-slate-200 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 rounded text-[11px] font-mono transition-colors cursor-pointer"
+                  >
+                    {item.tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Guide Card: Bảng tra cứu các biến */}
+          <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            <div className="flex items-center space-x-2.5 text-slate-900 font-bold text-sm">
+              <Info className="w-4 h-4 text-indigo-600" />
+              <span>Bảng Tra Cứu Các Biến Tự Động Trong Định Dạng Chuyển Khoản</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                <div className="font-mono font-bold text-indigo-700">{'{studentId}'}</div>
+                <div className="text-slate-600">Dãy số mã số sinh viên ở đầu email (hoặc toàn bộ chuỗi trước @ nếu không có số).</div>
+                <div className="text-[11px] text-slate-400 italic">Ví dụ: "124001340@lachong.edu.vn" → "124001340"</div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                <div className="font-mono font-bold text-indigo-700">{'{emailPrefix}'}</div>
+                <div className="text-slate-600">Toàn bộ ký tự nằm phía trước dấu @ của địa chỉ email.</div>
+                <div className="text-[11px] text-slate-400 italic">Ví dụ: "thanhdat.nguyen@company.com" → "thanhdat.nguyen"</div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                <div className="font-mono font-bold text-indigo-700">{'{paymentCode}'}</div>
+                <div className="text-slate-600">Mã thanh toán đối soát 6 ký tự ngẫu nhiên được sinh cho mỗi hóa đơn.</div>
+                <div className="text-[11px] text-slate-400 italic">Ví dụ: "A8X9K2", "M3AU0C"</div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                <div className="font-mono font-bold text-indigo-700">{'{invoiceNumber}'}</div>
+                <div className="text-slate-600">Số hiệu hóa đơn chính thức trên hệ thống.</div>
+                <div className="text-[11px] text-slate-400 italic">Ví dụ: "HD-000047", "HD-000072"</div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                <div className="font-mono font-bold text-indigo-700">{'{serviceName}'}</div>
+                <div className="text-slate-600">Tên dịch vụ, khóa học hoặc hàng hóa đầu tiên trong hóa đơn.</div>
+                <div className="text-[11px] text-slate-400 italic">Ví dụ: "Starter", "AI Writer Pro 1 Năm"</div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                <div className="font-mono font-bold text-indigo-700">{'{customerName}'}</div>
+                <div className="text-slate-600">Họ và tên của khách hàng / người mua ghi trên hóa đơn.</div>
+                <div className="text-[11px] text-slate-400 italic">Ví dụ: "Phạm Phương Thảo", "Đinh Triệu Mẫn"</div>
+              </div>
+            </div>
+          </section>
+        </div>
       )}
 
       {/* === TAB: ĐÁNH SỐ & VAT === */}
