@@ -1,9 +1,12 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from '@nestjs/common';
 import { InvoicesService } from './invoices.service';
 import { DeliveryService } from '../delivery/delivery.service';
 import { ZaloService } from '../delivery/zalo.service';
 import { QueueService } from '../queue/queue.service';
 import { Public } from '../auth/decorators/public.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { PaymentWebhookGuard } from './guards/payment-webhook.guard';
 import { QueueType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -336,6 +339,8 @@ export class InvoicesController {
     return this.invoicesService.issueInvoice(id);
   }
 
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'API_KEY')
   @Post(':id/pay')
   async payInvoice(
     @Param('id') id: string,
@@ -456,7 +461,8 @@ export class InvoicesController {
     };
   }
 
-  @Public() // 🌐 Endpoint dành cho Webhook đối soát (SePay, Casso, Ngân hàng) hoặc Landing Page gọi xác nhận
+  @Public() // 🌐 Endpoint dành cho Webhook đối soát (SePay, Casso, Ngân hàng) — bắt buộc có secret
+  @UseGuards(PaymentWebhookGuard)
   @Post('confirm-payment/:id')
   async confirmPaymentWebhook(
     @Param('id') id: string,
