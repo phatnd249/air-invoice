@@ -1,5 +1,6 @@
 import './globals.css';
 import Providers from '@/components/Providers';
+import BackendWarmup from '@/components/BackendWarmup';
 import { AppShell } from '@/components/AppShell';
 
 export const metadata = {
@@ -16,6 +17,7 @@ export default function RootLayout({
     <html lang="vi">
       <body className="antialiased bg-slate-50 text-slate-900">
         <Providers>
+          <BackendWarmup />
           <AppShell>{children}</AppShell>
         </Providers>
       </body>
