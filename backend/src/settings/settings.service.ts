@@ -208,6 +208,23 @@ export class SettingsService implements OnModuleInit {
       }
     }
 
+    let paymentRules: PaymentDescriptionRule[] = [];
+    try {
+      if ((setting as any).paymentRules) {
+        if (typeof (setting as any).paymentRules === 'string') {
+          paymentRules = JSON.parse((setting as any).paymentRules);
+        } else if (Array.isArray((setting as any).paymentRules)) {
+          paymentRules = (setting as any).paymentRules;
+        }
+      }
+    } catch (e) {
+      paymentRules = [];
+    }
+
+    if (!paymentRules || paymentRules.length === 0) {
+      paymentRules = DEFAULT_PAYMENT_RULES;
+    }
+
     // 🔒 Không trả nguyên văn API Key của gateway Zalo về client
     const { zaloApiKey, ...safeSetting } = setting as any;
 
@@ -217,6 +234,8 @@ export class SettingsService implements OnModuleInit {
       hasZaloApiKey: !!zaloApiKey,
       companies,
       bankAccounts,
+      paymentRules,
+      defaultPaymentDescription: (setting as any).defaultPaymentDescription || '{paymentCode} - {serviceName}',
     };
   }
 
@@ -253,7 +272,9 @@ export class SettingsService implements OnModuleInit {
     }
 
     // Xử lý danh sách quy tắc nội dung chuyển khoản theo email (paymentRules)
+    let parsedRules: PaymentDescriptionRule[] | undefined = undefined;
     if (data.paymentRules && Array.isArray(data.paymentRules)) {
+      parsedRules = data.paymentRules;
       try {
         updatePayload.paymentRules = JSON.stringify(data.paymentRules);
       } catch (e) {}
@@ -281,10 +302,107 @@ export class SettingsService implements OnModuleInit {
       }
     }
 
-    return this.prisma.setting.upsert({
+    const result = await this.prisma.setting.upsert({
       where: { id: 'default' },
       update: updatePayload,
       create: { ...updatePayload, id: 'default' },
     });
+
+    let syncResult = null;
+    if (data.paymentRules !== undefined || data.defaultPaymentDescription !== undefined) {
+      syncResult = await this.syncUnpaidInvoicesQr(parsedRules, data.defaultPaymentDescription);
+    }
+
+    return { ...result, syncResult };
+  }
+
+  /**
+   * Cập nhật lại mã QR cho toàn bộ hóa đơn chưa thanh toán (ISSUED, SENT)
+   * dựa trên cấu hình quy tắc và cú pháp mới nhất.
+   */
+  async syncUnpaidInvoicesQr(
+    customRules?: PaymentDescriptionRule[] | null,
+    customDefaultTemplate?: string | null,
+  ): Promise<{ updatedCount: number; totalUnpaid: number }> {
+    const setting = await this.prisma.setting.findUnique({ where: { id: 'default' } });
+    const bankCode = setting?.bankCode || 'TPBank';
+    const bankAccount = setting?.bankAccount || '00006322633';
+
+    let rules = customRules;
+    if (!rules) {
+      try {
+        if ((setting as any)?.paymentRules) {
+          rules =
+            typeof (setting as any).paymentRules === 'string'
+              ? JSON.parse((setting as any).paymentRules)
+              : (setting as any).paymentRules;
+        }
+      } catch (e) {}
+    }
+    if (!rules || rules.length === 0) {
+      rules = DEFAULT_PAYMENT_RULES;
+    }
+
+    const defaultTemplate =
+      customDefaultTemplate ||
+      (setting as any)?.defaultPaymentDescription ||
+      '{paymentCode} - {serviceName}';
+
+    const unpaidInvoices = await this.prisma.invoice.findMany({
+      where: {
+        status: { in: ['ISSUED', 'SENT'] },
+        deletedAt: null,
+      },
+      include: {
+        items: {
+          orderBy: { sortOrder: 'asc' },
+          take: 1,
+        },
+      },
+    });
+
+    let updatedCount = 0;
+
+    for (const inv of unpaidInvoices) {
+      const firstItemName = inv.items?.[0]?.name || 'Dich vu';
+      const desc = this.formatPaymentDescription(
+        inv.buyerEmail,
+        inv.paymentCode,
+        firstItemName,
+        inv.buyerName,
+        inv.invoiceNumber,
+        rules,
+        defaultTemplate,
+      );
+
+      let qrBank = bankCode;
+      let qrAcc = bankAccount;
+      let qrTemplate = 'compact';
+      let qrAmount = Math.round(inv.grandTotal);
+
+      if (inv.qrDataUrl && inv.qrDataUrl.includes('qr.sepay.vn')) {
+        try {
+          const url = new URL(inv.qrDataUrl);
+          qrBank = url.searchParams.get('bank') || qrBank;
+          qrAcc = url.searchParams.get('acc') || qrAcc;
+          qrTemplate = url.searchParams.get('template') || qrTemplate;
+          const a = url.searchParams.get('amount');
+          if (a) qrAmount = Math.round(Number(a));
+        } catch (e) {}
+      }
+
+      const encodedDesc = encodeURIComponent(desc);
+      const newQrUrl = `https://qr.sepay.vn/img?bank=${qrBank}&acc=${qrAcc}&template=${qrTemplate}&amount=${qrAmount}&des=${encodedDesc}`;
+
+      if (inv.qrDataUrl !== newQrUrl) {
+        await this.prisma.invoice.update({
+          where: { id: inv.id },
+          data: { qrDataUrl: newQrUrl },
+        });
+        updatedCount++;
+      }
+    }
+
+    return { updatedCount, totalUnpaid: unpaidInvoices.length };
   }
 }

@@ -27,22 +27,24 @@ export class InvoicesService {
     return result;
   }
 
-  // Hàm tạo nội dung chuyển khoản VietQR thông minh: nếu là sinh viên ĐH Lạc Hồng -> MSSV / Trường Đại Học Lạc Hồng
-  public generatePaymentDescription(
+  // Hàm tạo nội dung chuyển khoản VietQR thông minh theo cấu hình hệ thống
+  public async generatePaymentDescription(
     buyerEmail?: string | null,
     paymentCode?: string | null,
     serviceName?: string | null,
-  ): string {
-    if (buyerEmail && buyerEmail.toLowerCase().includes('lachong.edu.vn')) {
-      const clean = buyerEmail.trim().toLowerCase();
-      const prefix = clean.split('@')[0].trim();
-      const match = prefix.match(/^(\d+)/);
-      const mssv = match ? match[1] : prefix;
-      return `${mssv} / Trường Đại Học Lạc Hồng`;
-    }
-    const code = paymentCode || 'HD';
-    const name = serviceName || 'Dich vu';
-    return `${code} - ${name}`;
+    buyerName?: string | null,
+    invoiceNumber?: string | null,
+  ): Promise<string> {
+    const settings = await this.settingsService.getSettings();
+    return this.settingsService.formatPaymentDescription(
+      buyerEmail,
+      paymentCode,
+      serviceName,
+      buyerName,
+      invoiceNumber,
+      settings?.paymentRules,
+      settings?.defaultPaymentDescription,
+    );
   }
 
   // Hàm sinh URL VietQR tự động
@@ -191,15 +193,21 @@ export class InvoicesService {
     const otherFee = Number(dto.otherFee) || 0;
     const grandTotal = subTotal + vatAmount + otherFee;
 
+    const invoiceNumber = dto.invoiceNumber || (await this.getNextInvoiceNumber());
+
     // Sinh QR SePay nếu có thông tin ngân hàng
     let qrDataUrl = '';
     if (settings?.bankCode && settings?.bankAccount) {
       const serviceName = processedItems[0]?.name || 'Dich vu';
-      const desc = this.generatePaymentDescription(dto.buyerEmail, paymentCode, serviceName);
+      const desc = await this.generatePaymentDescription(
+        dto.buyerEmail,
+        paymentCode,
+        serviceName,
+        dto.buyerName,
+        invoiceNumber,
+      );
       qrDataUrl = this.generateVietQrUrl(settings.bankCode, settings.bankAccount, grandTotal, desc);
     }
-
-    const invoiceNumber = dto.invoiceNumber || (await this.getNextInvoiceNumber());
 
     const created = await this.prisma.invoice.create({
       data: {
@@ -309,11 +317,18 @@ export class InvoicesService {
     const historyNote = changes.length > 0 ? changes.join(' | ') : 'Cập nhật nội dung hóa đơn';
 
     const currentBuyerEmail = dto.buyerEmail !== undefined ? dto.buyerEmail : existing.buyerEmail;
+    const currentBuyerName = dto.buyerName !== undefined ? dto.buyerName : existing.buyerName;
     const settings = await this.settingsService.getSettings();
     let qrDataUrl = existing.qrDataUrl;
     if (settings?.bankCode && settings?.bankAccount) {
       const firstItemName = dto.items?.[0]?.name || existing.items?.[0]?.name || 'Dich vu';
-      const desc = this.generatePaymentDescription(currentBuyerEmail, existing.paymentCode, firstItemName);
+      const desc = await this.generatePaymentDescription(
+        currentBuyerEmail,
+        existing.paymentCode,
+        firstItemName,
+        currentBuyerName,
+        existing.invoiceNumber,
+      );
       qrDataUrl = this.generateVietQrUrl(settings.bankCode, settings.bankAccount, grandTotal, desc);
     }
 
@@ -371,7 +386,13 @@ export class InvoicesService {
     let qrDataUrl = '';
     if (settings?.bankCode && settings?.bankAccount) {
       const serviceName = existing.items[0]?.name || 'Dich vu';
-      const desc = this.generatePaymentDescription(existing.buyerEmail, paymentCode, serviceName);
+      const desc = await this.generatePaymentDescription(
+        existing.buyerEmail,
+        paymentCode,
+        serviceName,
+        existing.buyerName,
+        nextInvoiceNumber,
+      );
       qrDataUrl = this.generateVietQrUrl(settings.bankCode, settings.bankAccount, existing.grandTotal, desc);
     }
 

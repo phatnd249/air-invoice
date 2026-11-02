@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Body } from '@nestjs/common';
+import { Controller, Get, Put, Post, Body } from '@nestjs/common';
 import { SettingsService } from './settings.service';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -21,5 +21,10 @@ export class SettingsController {
   @Put()
   async updateSettings(@Body() data: any) {
     return this.settingsService.updateSettings(data);
+  }
+  @Roles('ADMIN')
+  @Post('sync-unpaid-qr')
+  async syncUnpaidInvoicesQr() {
+    return this.settingsService.syncUnpaidInvoicesQr();
   }
 }

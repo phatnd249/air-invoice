@@ -81,6 +81,7 @@ export default function SettingsPage() {
   const [ruleFormTemplate, setRuleFormTemplate] = useState('');
   const [ruleFormActive, setRuleFormActive] = useState(true);
   const [testEmail, setTestEmail] = useState('124001340@lachong.edu.vn');
+  const [isSyncingQr, setIsSyncingQr] = useState(false);
 
   // State Cấu hình Thông báo (Email & Zalo Bot)
   const [enableEmail, setEnableEmail] = useState<boolean>(true);
@@ -213,9 +214,17 @@ export default function SettingsPage() {
       }
 
       // Quy tắc chuyển khoản VietQR theo email
-      if (settings.paymentRules && Array.isArray(settings.paymentRules) && settings.paymentRules.length > 0) {
-        setPaymentRules(settings.paymentRules);
-      } else {
+      let loadedRules = settings.paymentRules;
+      if (typeof loadedRules === 'string') {
+        try {
+          loadedRules = JSON.parse(loadedRules);
+        } catch (e) {
+          loadedRules = null;
+        }
+      }
+      if (Array.isArray(loadedRules) && loadedRules.length > 0) {
+        setPaymentRules(loadedRules);
+      } else if (settings.paymentRules === undefined) {
         setPaymentRules([
           {
             id: 'rule-lachong',
@@ -226,6 +235,7 @@ export default function SettingsPage() {
           },
         ]);
       }
+
       if (settings.defaultPaymentDescription) {
         setDefaultPaymentDesc(settings.defaultPaymentDescription);
       }
@@ -297,7 +307,26 @@ export default function SettingsPage() {
     if (defaultDesc !== undefined) {
       payload.defaultPaymentDescription = defaultDesc;
     }
-    persist(payload, 'Đã cập nhật quy tắc nội dung chuyển khoản theo email');
+    persist(payload, 'Đã lưu quy tắc và tự động cập nhật lại mã QR cho các hóa đơn chưa thanh toán');
+  };
+
+  const handleSyncUnpaidQr = async () => {
+    try {
+      setIsSyncingQr(true);
+      const res = await api.post('/settings/sync-unpaid-qr');
+      const { updatedCount, totalUnpaid } = res.data || {};
+      toast(
+        'success',
+        'Đồng bộ mã QR thành công',
+        `Đã cập nhật lại mã QR cho ${updatedCount}/${totalUnpaid} hóa đơn chưa thanh toán.`
+      );
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+    } catch (err: any) {
+      toast('error', 'Lỗi đồng bộ mã QR', err.response?.data?.message || err.message);
+    } finally {
+      setIsSyncingQr(false);
+    }
   };
 
   const handleOpenAddRule = () => {
@@ -386,7 +415,7 @@ export default function SettingsPage() {
   const handleSaveDefaultDesc = () => {
     persist(
       { defaultPaymentDescription: defaultPaymentDesc },
-      'Đã lưu cú pháp nội dung chuyển khoản mặc định'
+      'Đã lưu cú pháp mặc định và tự động cập nhật lại mã QR cho các hóa đơn chưa thanh toán'
     );
   };
 
@@ -964,14 +993,34 @@ export default function SettingsPage() {
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={handleOpenAddRule}
-                className="inline-flex items-center space-x-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors shrink-0 cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Thêm Quy Tắc Mới</span>
-              </button>
+              <div className="flex items-center space-x-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleSyncUnpaidQr}
+                  disabled={isSyncingQr}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 text-indigo-700 text-xs font-semibold rounded-xl border border-indigo-200 transition-colors shadow-xs cursor-pointer"
+                  title="Cập nhật lại mã QR SePay cho toàn bộ hóa đơn chưa thanh toán (ISSUED, SENT)"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingQr ? 'animate-spin' : ''}`} />
+                  <span>{isSyncingQr ? 'Đang đồng bộ...' : 'Đồng Bộ QR HĐ Chưa Trả'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleOpenAddRule}
+                  className="inline-flex items-center space-x-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Thêm Quy Tắc Mới</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-800 flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>
+                <strong>Tự động đồng bộ:</strong> Khi bạn lưu quy tắc hoặc cú pháp chuyển khoản mới, hệ thống tự động cập nhật lại mã QR cho toàn bộ hóa đơn chưa thanh toán (trạng thái Chờ thanh toán / Đã gửi).
+              </span>
             </div>
 
             {/* Danh sách quy tắc */}
