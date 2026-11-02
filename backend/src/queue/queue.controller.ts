@@ -7,6 +7,8 @@ import {
   Param,
   Query,
   Req,
+  BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { QueueService } from './queue.service';
 import { Public } from '../auth/decorators/public.decorator';
@@ -17,13 +19,13 @@ import { RateLimit } from '../common/rate-limit.decorator';
 export class QueueController {
   constructor(private readonly queueService: QueueService) {}
 
-  @Public() // Cho phép kiểm tra trạng thái hàng chờ
+  // 🔒 Chỉ người dùng đã đăng nhập / API key mới xem được thống kê hệ thống
   @Get('stats')
   async getStats() {
     return this.queueService.getStats();
   }
 
-  @Public() // Danh sách API hiện có và số request đang có của từng API
+  // 🔒 Danh sách API và số request là thông tin nội bộ
   @Get('apis')
   async getApiSummary() {
     return this.queueService.getApiSummary();
@@ -71,18 +73,49 @@ export class QueueController {
     },
     @Req() req: any,
   ) {
+    const requestedType = body.type || QueueType.CUSTOM;
+
+    if (!Object.values(QueueType).includes(requestedType)) {
+      throw new BadRequestException('Loại job không hợp lệ');
+    }
+
+    // 🔒 Request công khai chỉ được tạo job CUSTOM. Các loại job có tác dụng
+    // phụ (gửi email/Zalo, xác nhận thanh toán...) bắt buộc phải có API Key
+    // hoặc tài khoản ADMIN để tránh bị lợi dụng spam/đổi trạng thái hóa đơn.
+    const isTrustedCaller =
+      !!req?.apiKey ||
+      req?.user?.role === 'ADMIN' ||
+      req?.user?.role === 'API_KEY';
+
+    if (!isTrustedCaller && requestedType !== QueueType.CUSTOM) {
+      throw new ForbiddenException(
+        'Loại job này yêu cầu API Key hoặc tài khoản quản trị',
+      );
+    }
+
+    const toBoundedInt = (
+      value: unknown,
+      fallback: number,
+      min: number,
+      max: number,
+    ): number => {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return fallback;
+      return Math.min(Math.max(Math.trunc(num), min), max);
+    };
+
     const apiName =
       body.apiName ||
       req?.apiKey?.name ||
       (req?.headers?.['x-api-key'] ? 'API Key' : 'Hệ thống');
 
     const job = await this.queueService.enqueue(
-      body.type || QueueType.CUSTOM,
-      body.payload || {},
+      requestedType,
+      body.payload && typeof body.payload === 'object' ? body.payload : {},
       {
-        priority: body.priority,
-        maxRetries: body.maxRetries,
-        delaySeconds: body.delaySeconds,
+        priority: toBoundedInt(body.priority, 0, 0, 100),
+        maxRetries: toBoundedInt(body.maxRetries, 5, 1, 10),
+        delaySeconds: toBoundedInt(body.delaySeconds, 0, 0, 604800),
         apiName,
         endpoint: body.endpoint || req?.originalUrl || '/api/queue/enqueue',
         source: body.source || (req?.apiKey ? `API Key: ${req.apiKey.name}` : 'External API'),
