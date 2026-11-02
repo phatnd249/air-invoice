@@ -60,6 +60,14 @@ PDF_BROWSER_IDLE_TIMEOUT_MS=60000
 # Timeout render PDF (30 giây)
 PDF_RENDER_TIMEOUT_MS=30000
 
+# 🔒 Số hop reverse proxy tin cậy để lấy IP thật của client (rate limiting).
+# Render đặt app sau 1 proxy => 1. Chạy trực tiếp không proxy => false.
+TRUST_PROXY=1
+
+# 🔒 Host ngoài được phép tải khi render PDF (mặc định đã có qr.sepay.vn và host backend).
+# Chỉ thêm nếu logo/ảnh hóa đơn nằm ở domain khác, cách nhau bởi dấu phẩy.
+PDF_ALLOWED_HOSTS=
+
 # ===================================================================
 # 🔹 OPTIONAL - TÙY CHỌN (Chỉ cần nếu dùng Email)
 # ===================================================================

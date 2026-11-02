@@ -87,6 +87,10 @@ services:
       - key: PDF_RENDER_TIMEOUT_MS
         value: "30000"
 
+      # Tin 1 hop proxy của Render để req.ip là IP thật (rate limiting)
+      - key: TRUST_PROXY
+        value: "1"
+
       # SMTP Email (Optional) - Chỉ hoạt động với Starter plan
       - key: SMTP_HOST
         value: smtp.gmail.com

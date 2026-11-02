@@ -17,6 +17,13 @@ import { LoginDto, RegisterDto } from './dto/auth.dto';
 import { JwtPayload } from './strategies/jwt.strategy';
 import { getJwtSecret } from './jwt-config';
 
+/**
+ * Hash bcrypt giả (cost 10) dùng để cân bằng thời gian phản hồi khi email
+ * không tồn tại — tránh lộ thông tin "email có tồn tại hay không" qua timing.
+ */
+const DUMMY_PASSWORD_HASH =
+  '$2b$10$D4ed/BhxJAK89w3xMin9JOm5c1GrkfoUpjzQvqB5JxSnrtWhcF9BK';
+
 @Injectable()
 export class AuthService implements OnModuleInit {
   private readonly logger = new Logger(AuthService.name);
@@ -82,6 +89,9 @@ export class AuthService implements OnModuleInit {
     });
 
     if (!user) {
+      // So sánh với hash giả để thời gian phản hồi gần bằng trường hợp
+      // email tồn tại nhưng sai mật khẩu.
+      await bcrypt.compare(dto.password, DUMMY_PASSWORD_HASH);
       throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');
     }
 
