@@ -17,6 +17,11 @@ import {
   ExternalLink,
   DollarSign,
   AlertCircle,
+  XCircle,
+  RefreshCw,
+  Sparkles,
+  ArrowRight,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface Props {
@@ -40,15 +45,19 @@ export default function AddSubscriptionFromInvoiceModal({
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [notes, setNotes] = useState('');
-  const [isSuccess, setIsSuccess] = useState(false);
+  const [viewState, setViewState] = useState<'FORM' | 'SUCCESS' | 'ERROR'>('FORM');
   const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [createdSub, setCreatedSub] = useState<any>(null);
 
   // Tự động khởi tạo dữ liệu khi mở modal
   useEffect(() => {
     if (!invoice || !isOpen) return;
 
-    setIsSuccess(false);
+    setViewState('FORM');
     setSuccessMessage('');
+    setErrorMessage('');
+    setCreatedSub(null);
 
     const firstItem = invoice.items?.[0] || {};
     const pkgName = firstItem.name || 'Gói Dịch Vụ';
@@ -150,15 +159,17 @@ export default function AddSubscriptionFromInvoiceModal({
       return res.data;
     },
     onSuccess: (data: any) => {
-      setIsSuccess(true);
+      setViewState('SUCCESS');
       setSuccessMessage(data?.message || 'Đã thêm khách hàng vào Trang Khách Hàng thành công!');
+      setCreatedSub(data?.subscription);
       queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
       queryClient.invalidateQueries({ queryKey: ['invoice', invoice.id] });
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       if (onSuccess) onSuccess();
     },
     onError: (err: any) => {
-      alert('Lỗi: ' + (err.response?.data?.message || err.message));
+      setViewState('ERROR');
+      setErrorMessage(err.response?.data?.message || err.message || 'Không thể tạo thuê bao dịch vụ cho khách hàng.');
     },
   });
 
@@ -168,19 +179,50 @@ export default function AddSubscriptionFromInvoiceModal({
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0);
   };
 
+  const formatVNDate = (dateStr: string) => {
+    if (!dateStr) return '---';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      return `${day}/${month}/${d.getFullYear()}`;
+    } catch {
+      return dateStr;
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
       <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col border border-slate-100">
         {/* Header */}
         <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
           <div className="flex items-center space-x-3">
-            <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-2xl shadow-xs">
-              <CalendarClock className="w-5 h-5" />
+            <div className={`p-2.5 rounded-2xl shadow-xs transition-colors ${
+              viewState === 'SUCCESS'
+                ? 'bg-emerald-50 text-emerald-600'
+                : viewState === 'ERROR'
+                ? 'bg-rose-50 text-rose-600'
+                : 'bg-indigo-50 text-indigo-600'
+            }`}>
+              {viewState === 'SUCCESS' ? (
+                <CheckCircle2 className="w-5 h-5" />
+              ) : viewState === 'ERROR' ? (
+                <AlertCircle className="w-5 h-5" />
+              ) : (
+                <CalendarClock className="w-5 h-5" />
+              )}
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 text-base">Thêm Vào Trang Khách Hàng</h3>
+              <h3 className="font-bold text-slate-900 text-base">
+                {viewState === 'SUCCESS'
+                  ? 'Kích Hoạt Thuê Bao Thành Công'
+                  : viewState === 'ERROR'
+                  ? 'Lỗi Đăng Ký Thuê Bao'
+                  : 'Thêm Vào Trang Khách Hàng'}
+              </h3>
               <p className="text-xs text-slate-500">
-                Đăng ký dịch vụ thuê bao cho đơn <strong>#{invoice.invoiceNumber}</strong>
+                Đơn hàng <strong>#{invoice.invoiceNumber}</strong> &bull; {invoice.buyerName}
               </p>
             </div>
           </div>
@@ -196,41 +238,157 @@ export default function AddSubscriptionFromInvoiceModal({
 
         {/* Content */}
         <div className="p-6 space-y-4">
-          {isSuccess ? (
-            <div className="py-6 text-center space-y-4 animate-in zoom-in-95 duration-200">
-              <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
-                <CheckCircle2 className="w-8 h-8" />
-              </div>
-              <div>
-                <h4 className="text-lg font-bold text-slate-900">Thành công!</h4>
-                <p className="text-sm text-slate-600 mt-1 max-w-sm mx-auto">{successMessage}</p>
+          {/* VIEW: THÀNH CÔNG */}
+          {viewState === 'SUCCESS' && (
+            <div className="space-y-4 animate-in zoom-in-95 duration-200">
+              {/* Card Thành công trực quan */}
+              <div className="p-4 bg-emerald-50/80 rounded-2xl border border-emerald-200/80 flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-200">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-emerald-900">
+                      Đã lưu vào Trang Khách Hàng!
+                    </h4>
+                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
+                      Đang hoạt động
+                    </span>
+                  </div>
+                  <p className="text-xs text-emerald-700 mt-0.5 leading-relaxed">
+                    {successMessage}
+                  </p>
+                </div>
               </div>
 
-              <div className="pt-3 flex items-center justify-center gap-3">
+              {/* Tóm tắt chi tiết gói thuê bao */}
+              <div className="bg-slate-50/90 rounded-2xl border border-slate-200/80 p-4 space-y-2.5 text-xs">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 pb-1 border-b border-slate-200/60 flex items-center justify-between">
+                  <span>Thông tin thuê bao kích hoạt</span>
+                  <span className="text-indigo-600 font-semibold lowercase">
+                    {cycle}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">Khách hàng</span>
+                    <span className="font-semibold text-slate-900 block truncate">{invoice.buyerName}</span>
+                    {invoice.buyerEmail && (
+                      <span className="text-[11px] text-slate-500 block truncate">{invoice.buyerEmail}</span>
+                    )}
+                  </div>
+
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">Gói dịch vụ</span>
+                    <span className="font-semibold text-indigo-700 block truncate">{serviceName}</span>
+                    <span className="text-[11px] text-emerald-600 font-bold block">{formatCurrency(invoice.grandTotal)}</span>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-200/60 grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <div>
+                      <span className="text-[10px] text-slate-500 block uppercase">Bắt đầu</span>
+                      <span className="font-semibold text-slate-800">{formatVNDate(startDate)}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                    <div>
+                      <span className="text-[10px] text-slate-500 block uppercase">Hết hạn</span>
+                      <span className="font-semibold text-indigo-600">{formatVNDate(endDate)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Nút hành động */}
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                >
+                  Đóng & Ở lại đây
+                </button>
                 <button
                   type="button"
                   onClick={() => {
                     onClose();
                     router.push('/subscriptions');
                   }}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-md transition-all cursor-pointer"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-md shadow-indigo-100 transition-all cursor-pointer"
                 >
                   <ExternalLink className="w-4 h-4" />
                   <span>Đi tới Trang Khách Hàng</span>
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* VIEW: LỖI / THẤT BẠI */}
+          {viewState === 'ERROR' && (
+            <div className="space-y-4 animate-in zoom-in-95 duration-200">
+              <div className="p-4 bg-rose-50/90 rounded-2xl border border-rose-200/80 flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-rose-200">
+                  <XCircle className="w-6 h-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-bold text-rose-900">
+                    Không thể thêm vào Khách Hàng
+                  </h4>
+                  <p className="text-xs text-rose-700 mt-1 leading-relaxed break-words">
+                    {errorMessage}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1">
+                <p className="font-semibold text-slate-700">Gợi ý xử lý:</p>
+                <ul className="list-disc list-inside space-y-0.5 text-[11px] text-slate-500">
+                  <li>Kiểm tra lại thông tin ngày bắt đầu và kết thúc gói.</li>
+                  <li>Khách hàng có thể cần có email hoặc số điện thoại hợp lệ.</li>
+                  <li>Nếu dịch vụ đã tồn tại, bạn có thể chỉnh sửa trực tiếp tại Trang Khách Hàng.</li>
+                </ul>
+              </div>
+
+              {/* Nút hành động khi lỗi */}
+              <div className="pt-2 flex items-center justify-end gap-2.5">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl text-sm font-semibold transition-all cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
                 >
                   Đóng
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setViewState('FORM')}
+                  className="px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all cursor-pointer"
+                >
+                  Quay lại chỉnh sửa
+                </button>
+                <button
+                  type="button"
+                  onClick={() => mutation.mutate()}
+                  disabled={mutation.isPending}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-md transition-all cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${mutation.isPending ? 'animate-spin' : ''}`} />
+                  <span>{mutation.isPending ? 'Đang thử lại...' : 'Thử lại ngay'}</span>
+                </button>
               </div>
             </div>
-          ) : (
+          )}
+
+          {/* VIEW: FORM NHẬP LIỆU */}
+          {viewState === 'FORM' && (
             <>
               {/* Thẻ tóm tắt thông tin hóa đơn */}
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
+              <div className="p-4 bg-slate-50/90 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500 flex items-center gap-1.5">
                     <User className="w-3.5 h-3.5 text-slate-400" /> Khách hàng:
@@ -349,7 +507,7 @@ export default function AddSubscriptionFromInvoiceModal({
                   disabled={mutation.isPending}
                   className="inline-flex items-center gap-1.5 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl shadow-md transition-all cursor-pointer"
                 >
-                  <CalendarClock className="w-4 h-4" />
+                  <CalendarClock className={`w-4 h-4 ${mutation.isPending ? 'animate-spin' : ''}`} />
                   <span>{mutation.isPending ? 'Đang thêm...' : 'Xác Nhận Thêm Vào Khách Hàng'}</span>
                 </button>
               </div>
@@ -360,4 +518,3 @@ export default function AddSubscriptionFromInvoiceModal({
     </div>
   );
 }
-

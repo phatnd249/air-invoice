@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getExportPdfUrl } from '@/lib/api';
 import { formatVietnamDateTime } from '@/lib/date';
@@ -23,14 +24,28 @@ import {
   ArchiveRestore,
   CalendarClock,
   UserPlus,
+  CreditCard,
+  ExternalLink,
+  X,
+  AlertTriangle,
+  Mail,
+  Send,
+  MessageSquare,
+  Users,
+  Check,
+  Sparkles,
 } from 'lucide-react';
-import { INVOICE_TYPE_CONFIG, INVOICE_FORM_CONFIG, InvoiceType } from '@invoice/types';
+import { INVOICE_TYPE_CONFIG, INVOICE_FORM_CONFIG, InvoiceType, InvoiceForm } from '@invoice/types';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import AddSubscriptionFromInvoiceModal from '@/components/AddSubscriptionFromInvoiceModal';
 
 export default function InvoicesPage() {
+  const router = useRouter();
   const { user } = useAuth();
+  const { toast, confirm } = useToast();
   const queryClient = useQueryClient();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [selectedType, setSelectedType] = useState<string>('ALL');
@@ -38,6 +53,40 @@ export default function InvoicesPage() {
   const [openMenuRow, setOpenMenuRow] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const [selectedInvoiceForSub, setSelectedInvoiceForSub] = useState<any>(null);
+
+  // Modals quản lý hàng loạt
+  const [isBulkPayOpen, setIsBulkPayOpen] = useState(false);
+  const [bulkPayNote, setBulkPayNote] = useState('');
+  const [bulkPaySendEmail, setBulkPaySendEmail] = useState(true);
+  const [bulkPaySendZalo, setBulkPaySendZalo] = useState(true);
+
+  const [isBulkSubOpen, setIsBulkSubOpen] = useState(false);
+  const [bulkSubCycle, setBulkSubCycle] = useState('auto');
+  const [bulkSubNotes, setBulkSubNotes] = useState('');
+
+  // Modals hiển thị kết quả thông báo đẹp mắt
+  const [singlePayResult, setSinglePayResult] = useState<{
+    isOpen: boolean;
+    invoice?: any;
+    emailResult?: any;
+    zaloResult?: any;
+  }>({ isOpen: false });
+
+  const [bulkPayResult, setBulkPayResult] = useState<{
+    isOpen: boolean;
+    count: number;
+    totalAmount: number;
+    message: string;
+  }>({ isOpen: false, count: 0, totalAmount: 0, message: '' });
+
+  const [bulkSubResult, setBulkSubResult] = useState<{
+    isOpen: boolean;
+    count: number;
+    total: number;
+    errorsCount: number;
+    message: string;
+  }>({ isOpen: false, count: 0, total: 0, errorsCount: 0, message: '' });
+
   const searchInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -108,36 +157,105 @@ export default function InvoicesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      alert('Đã nhân bản hóa đơn thành công!');
+      toast('success', 'Nhân bản thành công', 'Đã tạo bản sao hóa đơn mới');
     },
     onError: (err: any) => {
-      alert('Lỗi nhân bản hóa đơn: ' + (err.response?.data?.message || err.message));
+      toast('error', 'Lỗi nhân bản hóa đơn', err.response?.data?.message || err.message);
     },
   });
 
-  // Xác nhận thanh toán
+  // Xác nhận thanh toán 1 hóa đơn
   const payMutation = useMutation({
     mutationFn: async ({ id, note }: { id: string; note?: string }) => {
       return api.post(`/invoices/${id}/pay`, { note });
     },
     onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      // ƯU TIÊN TỨC THÌ: Chuyển ngay sang tab "Đã thanh toán"
+      setSelectedStatus('PAID');
+
       const data = res?.data || {};
-      let msg = '🎉 Đã xác nhận thanh toán thành công!';
-      if (data.emailResult?.sent) {
-        msg += '\n• Đã gửi Email biên lai thanh toán tới khách hàng';
-      } else if (data.emailResult?.error) {
-        msg += `\n• Lưu ý Email: ${data.emailResult.error}`;
-      }
-      if (data.zaloResult?.sent) {
-        msg += '\n• Đã gửi tin nhắn Zalo xác nhận kích hoạt tới khách hàng';
-      } else if (data.zaloResult?.error) {
-        msg += `\n• Lưu ý Zalo: ${data.zaloResult.error}`;
-      }
-      alert(msg);
+      const inv = data?.invoice;
+      setSinglePayResult({
+        isOpen: true,
+        invoice: inv,
+        emailResult: data?.emailResult,
+        zaloResult: data?.zaloResult,
+      });
+      toast('success', 'Thanh toán thành công', `Hóa đơn #${inv?.invoiceNumber || ''} đã chuyển sang ĐÃ THANH TOÁN`);
     },
     onError: (err: any) => {
-      alert('Lỗi xác nhận thanh toán: ' + (err.response?.data?.message || err.message));
+      toast('error', 'Lỗi xác nhận thanh toán', err.response?.data?.message || err.message);
+    },
+  });
+
+  // Thanh toán hàng loạt hóa đơn
+  const bulkPayMutation = useMutation({
+    mutationFn: async ({
+      ids,
+      note,
+      sendEmail,
+      sendZalo,
+    }: {
+      ids: string[];
+      note?: string;
+      sendEmail?: boolean;
+      sendZalo?: boolean;
+    }) => {
+      return api.post('/invoices/bulk-pay', { ids, note, sendEmail, sendZalo });
+    },
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      const count = res.data?.count || selectedIds.length;
+      const totalAmount = res.data?.totalAmount || 0;
+      setSelectedIds([]);
+      setIsBulkPayOpen(false);
+
+      // ƯU TIÊN TỨC THÌ: Chuyển ngay sang tab "Đã thanh toán"
+      setSelectedStatus('PAID');
+
+      setBulkPayResult({
+        isOpen: true,
+        count,
+        totalAmount,
+        message: res.data?.message || `Đã xác nhận thanh toán thành công ${count} hóa đơn!`,
+      });
+      toast('success', 'Thanh toán nhiều thành công', `Đã chuyển ${count} hóa đơn sang trạng thái ĐÃ THANH TOÁN`);
+    },
+    onError: (err: any) => {
+      toast('error', 'Lỗi thanh toán hàng loạt', err.response?.data?.message || err.message);
+    },
+  });
+
+  // Chuyển thành khách hàng nhanh hàng loạt
+  const bulkSubMutation = useMutation({
+    mutationFn: async ({ ids, cycle, notes }: { ids: string[]; cycle?: string; notes?: string }) => {
+      return api.post('/subscriptions/bulk-from-invoices', {
+        ids,
+        cycle: cycle === 'auto' ? undefined : cycle,
+        notes,
+      });
+    },
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      const count = res.data?.count || 0;
+      const total = res.data?.total || selectedIds.length;
+      const errorsCount = res.data?.errorsCount || 0;
+      setSelectedIds([]);
+      setIsBulkSubOpen(false);
+
+      setBulkSubResult({
+        isOpen: true,
+        count,
+        total,
+        errorsCount,
+        message: res.data?.message || `Đã chuyển thành công ${count}/${total} khách hàng!`,
+      });
+      toast('success', 'Chuyển khách hàng thành công', `Đã lưu ${count} khách hàng vào Trang Khách Hàng`);
+    },
+    onError: (err: any) => {
+      toast('error', 'Lỗi chuyển thành khách hàng', err.response?.data?.message || err.message);
     },
   });
 
@@ -149,10 +267,10 @@ export default function InvoicesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['invoices-trash-count'] });
-      alert('Đã chuyển hóa đơn vào Thùng rác. Bạn có thể khôi phục lại bất kỳ lúc nào!');
+      toast('info', 'Đã chuyển vào Thùng rác', 'Bạn có thể khôi phục lại bất kỳ lúc nào');
     },
     onError: (err: any) => {
-      alert('Lỗi xóa hóa đơn: ' + (err.response?.data?.message || err.message));
+      toast('error', 'Lỗi xóa hóa đơn', err.response?.data?.message || err.message);
     },
   });
 
@@ -166,10 +284,10 @@ export default function InvoicesPage() {
       queryClient.invalidateQueries({ queryKey: ['invoices-trash-count'] });
       const count = res?.data?.count || selectedIds.length;
       setSelectedIds([]);
-      alert(`Đã chuyển ${count} hóa đơn đã chọn vào Thùng rác!`);
+      toast('info', 'Đã chuyển vào Thùng rác', `Đã chuyển ${count} hóa đơn đã chọn vào Thùng rác`);
     },
     onError: (err: any) => {
-      alert('Lỗi xóa nhiều hóa đơn: ' + (err.response?.data?.message || err.message));
+      toast('error', 'Lỗi xóa nhiều hóa đơn', err.response?.data?.message || err.message);
     },
   });
 
@@ -181,10 +299,10 @@ export default function InvoicesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['invoices-trash-count'] });
-      alert('Đã khôi phục hóa đơn về danh sách chính thành công!');
+      toast('success', 'Khôi phục thành công', 'Hóa đơn đã được đưa về bảng chính');
     },
     onError: (err: any) => {
-      alert('Lỗi khôi phục hóa đơn: ' + (err.response?.data?.message || err.message));
+      toast('error', 'Lỗi khôi phục hóa đơn', err.response?.data?.message || err.message);
     },
   });
 
@@ -198,10 +316,10 @@ export default function InvoicesPage() {
       queryClient.invalidateQueries({ queryKey: ['invoices-trash-count'] });
       const count = res?.data?.count || selectedIds.length;
       setSelectedIds([]);
-      alert(`Đã khôi phục thành công ${count} hóa đơn về bảng chính!`);
+      toast('success', 'Khôi phục thành công', `Đã khôi phục ${count} hóa đơn về bảng chính`);
     },
     onError: (err: any) => {
-      alert('Lỗi khôi phục nhiều hóa đơn: ' + (err.response?.data?.message || err.message));
+      toast('error', 'Lỗi khôi phục nhiều hóa đơn', err.response?.data?.message || err.message);
     },
   });
 
@@ -213,10 +331,10 @@ export default function InvoicesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['invoices-trash-count'] });
-      alert('Đã xóa vĩnh viễn hóa đơn khỏi cơ sở dữ liệu!');
+      toast('info', 'Đã xóa vĩnh viễn', 'Hóa đơn đã được gỡ bỏ khỏi cơ sở dữ liệu');
     },
     onError: (err: any) => {
-      alert('Lỗi xóa vĩnh viễn: ' + (err.response?.data?.message || err.message));
+      toast('error', 'Lỗi xóa vĩnh viễn', err.response?.data?.message || err.message);
     },
   });
 
@@ -230,10 +348,10 @@ export default function InvoicesPage() {
       queryClient.invalidateQueries({ queryKey: ['invoices-trash-count'] });
       const count = res?.data?.count || selectedIds.length;
       setSelectedIds([]);
-      alert(`Đã xóa vĩnh viễn ${count} hóa đơn đã chọn!`);
+      toast('info', 'Đã xóa vĩnh viễn', `Đã xóa vĩnh viễn ${count} hóa đơn đã chọn`);
     },
     onError: (err: any) => {
-      alert('Lỗi xóa vĩnh viễn: ' + (err.response?.data?.message || err.message));
+      toast('error', 'Lỗi xóa vĩnh viễn', err.response?.data?.message || err.message);
     },
   });
 
@@ -246,10 +364,10 @@ export default function InvoicesPage() {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['invoices-trash-count'] });
       setSelectedIds([]);
-      alert('Đã dọn sạch toàn bộ thùng rác thành công!');
+      toast('success', 'Thùng rác đã sạch', 'Đã dọn sạch toàn bộ thùng rác');
     },
     onError: (err: any) => {
-      alert('Lỗi dọn thùng rác: ' + (err.response?.data?.message || err.message));
+      toast('error', 'Lỗi dọn thùng rác', err.response?.data?.message || err.message);
     },
   });
 
@@ -266,8 +384,9 @@ export default function InvoicesPage() {
       a.download = `backup_invoices_${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
+      toast('success', 'Tải sao lưu thành công', 'File backup đã được lưu về máy');
     } catch (err: any) {
-      alert('Lỗi tải bản sao lưu: ' + (err.response?.data?.message || err.message));
+      toast('error', 'Lỗi tải bản sao lưu', err.response?.data?.message || err.message);
     }
   };
 
@@ -320,6 +439,19 @@ export default function InvoicesPage() {
     });
   }, [invoices, searchTerm, selectedStatus, selectedType, isTrashView]);
 
+  // Các hóa đơn đang được chọn trong danh sách hiện tại
+  const selectedInvoices = useMemo(() => {
+    return invoices.filter((inv) => selectedIds.includes(inv.id));
+  }, [invoices, selectedIds]);
+
+  const totalSelectedAmount = useMemo(() => {
+    return selectedInvoices.reduce((sum, inv) => sum + (Number(inv.grandTotal) || 0), 0);
+  }, [selectedInvoices]);
+
+  const unpaidSelectedInvoices = useMemo(() => {
+    return selectedInvoices.filter((inv) => inv.status !== 'PAID' && inv.status !== 'CANCELLED');
+  }, [selectedInvoices]);
+
   // Xử lý chọn nhiều (Multi-Select)
   const isAllSelected =
     filteredInvoices.length > 0 &&
@@ -340,30 +472,38 @@ export default function InvoicesPage() {
     );
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
     if (isTrashView) {
-      if (
-        confirm(
-          `Bạn có chắc chắn muốn XÓA VĨNH VIỄN ${selectedIds.length} hóa đơn đã chọn khỏi cơ sở dữ liệu?\nHành động này KHÔNG THỂ HOÀN TÁC!`
-        )
-      ) {
+      const ok = await confirm({
+        title: 'Xác nhận xóa vĩnh viễn?',
+        message: `Bạn có chắc chắn muốn XÓA VĨNH VIỄN ${selectedIds.length} hóa đơn đã chọn khỏi cơ sở dữ liệu? Hành động này KHÔNG THỂ HOÀN TÁC!`,
+        confirmLabel: 'Xóa vĩnh viễn',
+        danger: true,
+      });
+      if (ok) {
         bulkPermanentDeleteMutation.mutate(selectedIds);
       }
     } else {
-      if (
-        confirm(
-          `Bạn có chắc muốn chuyển ${selectedIds.length} hóa đơn đã chọn vào Thùng rác không? Bạn có thể khôi phục lại bất kỳ lúc nào.`
-        )
-      ) {
+      const ok = await confirm({
+        title: 'Chuyển vào thùng rác?',
+        message: `Bạn có chắc muốn chuyển ${selectedIds.length} hóa đơn đã chọn vào Thùng rác không? Bạn có thể khôi phục lại bất kỳ lúc nào.`,
+        confirmLabel: 'Chuyển thùng rác',
+      });
+      if (ok) {
         bulkDeleteMutation.mutate(selectedIds);
       }
     }
   };
 
-  const handleBulkRestore = () => {
+  const handleBulkRestore = async () => {
     if (selectedIds.length === 0) return;
-    if (confirm(`Khôi phục ${selectedIds.length} hóa đơn đã chọn về danh sách chính?`)) {
+    const ok = await confirm({
+      title: 'Khôi phục hóa đơn?',
+      message: `Khôi phục ${selectedIds.length} hóa đơn đã chọn về danh sách chính?`,
+      confirmLabel: 'Khôi phục ngay',
+    });
+    if (ok) {
       bulkRestoreMutation.mutate(selectedIds);
     }
   };
@@ -448,55 +588,55 @@ export default function InvoicesPage() {
             className="inline-flex items-center space-x-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-xl shadow-xs transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Lập Hóa Đơn Mới</span>
+            <span>Tạo Hóa Đơn Mới</span>
           </Link>
         </div>
       </div>
 
-      {/* Metric KPI Cards (Modern SaaS style) */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1: Thực Thu */}
+        {/* Metric 1: Đã Thu */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-            <span>Doanh Thu Thực Thu</span>
+            <span>Doanh Thu Thực Thu (Đã Trả)</span>
             <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-xl font-bold font-mono tabular-nums tracking-tight text-slate-900">
+          <div className="text-xl font-bold font-mono tabular-nums tracking-tight text-emerald-700">
             {formatCurrency(metrics.paidRevenue)}
           </div>
-          <div className="text-[11px] text-emerald-600 font-semibold flex items-center space-x-1">
-            <span>{metrics.paidCount} hóa đơn đã thanh toán</span>
+          <div className="text-[11px] text-slate-500 font-medium">
+            {metrics.paidCount} hóa đơn đã hoàn tất
           </div>
         </div>
 
-        {/* Metric 2: Chờ Thanh Toán */}
+        {/* Metric 2: Chờ Thu */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-            <span>Chờ Thanh Toán</span>
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+            <span>Đang Chờ Thanh Toán</span>
+            <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
               <Clock className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-xl font-bold font-mono tabular-nums tracking-tight text-blue-700">
+          <div className="text-xl font-bold font-mono tabular-nums tracking-tight text-amber-600">
             {formatCurrency(metrics.pendingRevenue)}
           </div>
-          <div className="text-[11px] text-slate-500 font-medium flex items-center space-x-1">
-            <span>{metrics.pendingCount} hóa đơn chưa thu</span>
+          <div className="text-[11px] text-slate-500 font-medium">
+            {metrics.pendingCount} hóa đơn chưa thanh toán
           </div>
         </div>
 
         {/* Metric 3: Tổng Số Hóa Đơn */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-            <span>Tổng Hóa Đơn Đã Lập</span>
-            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
+            <span>Tổng Hóa Đơn Hoạt Động</span>
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
               <FileText className="w-4 h-4" />
             </div>
           </div>
           <div className="text-xl font-bold font-mono tabular-nums tracking-tight text-slate-900">
-            {metrics.totalCount} <span className="text-xs font-sans text-slate-400 font-normal">hóa đơn</span>
+            {metrics.totalCount}
           </div>
           <div className="text-[11px] text-slate-500 font-medium">
             Bao gồm GTGT, Bán hàng & Dịch vụ
@@ -568,103 +708,101 @@ export default function InvoicesPage() {
           {/* Search Bar & Type Filter */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="relative flex-1 sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Tìm theo số HĐ, tên khách..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-8 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                placeholder="Tìm mã, khách hàng, email (Bấm '/' để gõ)..."
+                className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all placeholder:text-slate-400"
               />
-              <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 bg-white border border-slate-200 rounded-md pointer-events-none">
-                /
-              </kbd>
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
+                >
+                  ✕
+                </button>
+              )}
             </div>
 
-            {/* Bộ lọc loại hóa đơn dạng segment control */}
-            <div className="flex flex-wrap items-center bg-slate-100/80 p-1 rounded-xl gap-1">
-              {[
-                { id: 'ALL', label: 'Mọi loại' },
-                { id: 'GTGT', label: 'GTGT' },
-                { id: 'BAN_HANG', label: 'Bán hàng' },
-              ].map((tab) => {
-                const isSelected = selectedType === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setSelectedType(tab.id)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
-                      isSelected
-                        ? 'bg-white text-slate-900 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </div>
+            <select
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all cursor-pointer"
+            >
+              <option value="ALL">Tất cả loại hóa đơn</option>
+              {Object.entries(INVOICE_TYPE_CONFIG).map(([key, config]) => (
+                <option key={key} value={key}>
+                  {config.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
+
+        {/* Cảnh báo Thùng rác nếu đang ở chế độ xem Thùng rác */}
+        {isTrashView && (
+          <div className="p-3.5 bg-rose-50/80 border border-rose-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-rose-800">
+            <div className="flex items-center space-x-2">
+              <ArchiveRestore className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>
+                Bạn đang xem <strong>Thùng rác</strong> ({trashCount} hóa đơn). Hóa đơn trong này không tính vào doanh thu.
+              </span>
+            </div>
+            {trashCount > 0 && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: 'Dọn sạch thùng rác?',
+                    message: 'Bạn có chắc chắn muốn DỌN SẠCH toàn bộ thùng rác không? Tất cả các hóa đơn trong thùng rác sẽ bị xóa vĩnh viễn và không thể khôi phục.',
+                    confirmLabel: 'Dọn sạch ngay',
+                    danger: true,
+                  });
+                  if (ok) {
+                    emptyTrashMutation.mutate();
+                  }
+                }}
+                disabled={emptyTrashMutation.isPending}
+                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors cursor-pointer self-start sm:self-auto shrink-0"
+              >
+                {emptyTrashMutation.isPending ? 'Đang dọn...' : 'Dọn sạch thùng rác'}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Trash Area Notice Banner */}
-      {isTrashView && (
-        <div className="bg-rose-50/70 border border-rose-200/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center space-x-2.5 text-rose-950">
-            <Trash2 className="w-4 h-4 text-rose-600 shrink-0" />
-            <div>
-              <span className="font-bold">Khu vực Thùng rác:</span> Các hóa đơn bị xóa tạm thời lưu ở đây và không tính vào doanh thu. Bạn có thể <strong>Khôi phục</strong> về bảng chính bất cứ lúc nào hoặc <strong>Xóa vĩnh viễn</strong>.
-            </div>
-          </div>
-          {filteredInvoices.length > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                if (
-                  confirm(
-                    'Bạn có chắc chắn muốn DỌN SẠCH THÙNG RÁC không?\nTất cả hóa đơn trong thùng rác sẽ bị XÓA VĨNH VIỄN khỏi cơ sở dữ liệu và không thể hoàn tác!'
-                  )
-                ) {
-                  emptyTrashMutation.mutate();
-                }
-              }}
-              disabled={emptyTrashMutation.isPending}
-              className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-semibold rounded-xl shrink-0 transition-colors shadow-xs cursor-pointer"
-            >
-              {emptyTrashMutation.isPending ? 'Đang dọn...' : 'Dọn Sạch Thùng Rác'}
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Main Data Table */}
+      {/* Main Invoices Table */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         {isLoading ? (
-          <div className="p-12 text-center text-slate-400 text-xs">
-            <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600" />
-            <span>Đang tải danh sách hóa đơn...</span>
+          <div className="p-16 text-center text-slate-400 space-y-3">
+            <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-xs font-medium text-slate-500">Đang tải danh sách hóa đơn...</p>
           </div>
         ) : filteredInvoices.length === 0 ? (
           <div className="p-16 text-center space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+            <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto text-slate-400">
               <FileText className="w-6 h-6" />
             </div>
-            <h3 className="font-bold text-slate-800 text-sm">Chưa có hóa đơn nào</h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              {searchTerm || selectedStatus !== 'ALL' || selectedType !== 'ALL'
-                ? 'Không tìm thấy hóa đơn phù hợp với bộ lọc hiện tại.'
-                : 'Bắt đầu lập hóa đơn đầu tiên để quản lý và thu tiền tiện lợi.'}
-            </p>
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-slate-900">Không tìm thấy hóa đơn nào</p>
+              <p className="text-xs text-slate-500">
+                {searchTerm || selectedStatus !== 'ALL' || selectedType !== 'ALL'
+                  ? 'Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm'
+                  : 'Bắt đầu bằng cách tạo hóa đơn mới đầu tiên'}
+              </p>
+            </div>
             {!(searchTerm || selectedStatus !== 'ALL' || selectedType !== 'ALL') && (
               <Link
                 href="/invoices/new"
-                className="inline-flex items-center space-x-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-all mt-2"
+                className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition-all shadow-xs cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Lập hóa đơn ngay</span>
+                <span>Tạo hóa đơn ngay</span>
               </Link>
             )}
           </div>
@@ -672,8 +810,8 @@ export default function InvoicesPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-200/80 bg-slate-50/75 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="py-3.5 pl-4 pr-1 w-10 text-center">
+                <tr className="border-b border-slate-200/80 bg-slate-50/70 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  <th className="py-3 px-4 w-10 text-center">
                     <input
                       type="checkbox"
                       checked={isAllSelected}
@@ -681,121 +819,126 @@ export default function InvoicesPage() {
                         if (el) el.indeterminate = isSomeSelected;
                       }}
                       onChange={handleToggleSelectAll}
-                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
-                      title={isAllSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
-                      aria-label="Chọn tất cả hóa đơn"
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                      title="Chọn tất cả hóa đơn trang này"
                     />
                   </th>
-                  <th className="py-3.5 px-4">Số Hóa Đơn</th>
-                  <th className="py-3.5 px-4">Khách Hàng / Đơn Vị</th>
-                  <th className="py-3.5 px-4">Loại Hóa Đơn</th>
-                  <th className="py-3.5 px-4">Ngày Lập</th>
-                  <th className="py-3.5 px-4 text-right">Tổng Tiền</th>
-                  <th className="py-3.5 px-4 text-center">Trạng Thái</th>
-                  <th className="py-3.5 px-5 text-right">Thao Tác</th>
+                  <th className="py-3 px-4">Số Hóa Đơn</th>
+                  <th className="py-3 px-4">Khách Hàng / Đơn Vị</th>
+                  <th className="py-3 px-4">Loại & Hình Thức</th>
+                  <th className="py-3 px-4 text-right">Tổng Tiền</th>
+                  <th className="py-3 px-4 text-center">Trạng Thái</th>
+                  <th className="py-3 px-4">Ngày Lập</th>
+                  <th className="py-3 px-4 text-right">Thao Tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+              <tbody className="divide-y divide-slate-100 text-xs">
                 {filteredInvoices.map((inv) => {
-                  const isSelected = selectedIds.includes(inv.id);
+                  const isChecked = selectedIds.includes(inv.id);
+                  const isMenuOpen = openMenuRow === inv.id;
+                  const typeCfg =
+                    (inv.invoiceType && (INVOICE_TYPE_CONFIG as any)[inv.invoiceType]) ||
+                    (INVOICE_TYPE_CONFIG as any)[InvoiceType.BAN_HANG] || {
+                      label: inv.invoiceType || 'Bán hàng',
+                    };
+                  const formCfg =
+                    (inv.invoiceForm && (INVOICE_FORM_CONFIG as any)[inv.invoiceForm]) ||
+                    (INVOICE_FORM_CONFIG as any)[InvoiceForm.WITH_TAX_CODE] || {
+                      label: 'Có mã CQT',
+                    };
+
                   return (
                     <tr
                       key={inv.id}
-                      className={`transition-colors group ${
-                        isSelected ? 'bg-blue-50/70 hover:bg-blue-50' : 'hover:bg-slate-50/80'
+                      className={`hover:bg-slate-50/80 transition-colors ${
+                        isChecked ? 'bg-blue-50/50' : ''
                       }`}
                     >
-                      {/* Checkbox chọn hàng */}
-                      <td className="py-4 pl-4 pr-1 w-10 text-center" onClick={(e) => e.stopPropagation()}>
+                      {/* Checkbox */}
+                      <td className="py-3 px-4 text-center">
                         <input
                           type="checkbox"
-                          checked={isSelected}
+                          checked={isChecked}
                           onChange={() => handleToggleSelectRow(inv.id)}
-                          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
-                          aria-label={`Chọn hóa đơn ${inv.invoiceNumber}`}
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
                         />
                       </td>
 
                       {/* Số Hóa Đơn */}
-                      <td className="py-4 px-4">
-                      <Link
-                        href={`/invoices/${inv.id}`}
-                        className="font-mono font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center space-x-1"
-                      >
-                        <span>{inv.invoiceNumber}</span>
-                      </Link>
-                      {inv.sellerName && (
-                        <span className="text-[11px] text-slate-600 truncate block max-w-[160px]">
-                          {inv.sellerName}
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Khách Hàng */}
-                    <td className="py-4 px-4">
-                      <div className="font-semibold text-slate-900 line-clamp-1">
-                        {inv.buyerName || 'Khách vãng lai'}
-                      </div>
-                      {inv.buyerCompany ? (
-                        <div className="text-[11px] text-slate-600 line-clamp-1">
-                          {inv.buyerCompany}
+                      <td className="py-3 px-4">
+                        <div className="flex items-center space-x-2">
+                          <Link
+                            href={`/invoices/${inv.id}`}
+                            className="font-bold text-blue-600 hover:text-blue-800 font-mono hover:underline cursor-pointer"
+                          >
+                            #{inv.invoiceNumber}
+                          </Link>
+                          {inv.isDraft && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                              Nháp
+                            </span>
+                          )}
                         </div>
-                      ) : inv.buyerPhone ? (
-                        <div className="text-[11px] text-slate-600">{inv.buyerPhone}</div>
-                      ) : null}
-                    </td>
+                        {inv.paymentCode && (
+                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                            Mã: {inv.paymentCode}
+                          </div>
+                        )}
+                      </td>
 
-                    {/* Loại HĐ */}
-                    <td className="py-4 px-4">
-                      <span className="inline-flex px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-                        {inv.invoiceType ? INVOICE_TYPE_CONFIG[inv.invoiceType as InvoiceType]?.shortLabel || inv.invoiceType : 'HĐ GTGT'}
-                      </span>
-                    </td>
+                      {/* Khách Hàng */}
+                      <td className="py-3 px-4">
+                        <div className="font-semibold text-slate-900">{inv.buyerName}</div>
+                        {inv.buyerCompany && (
+                          <div className="text-[11px] text-slate-500 truncate max-w-xs">
+                            {inv.buyerCompany}
+                          </div>
+                        )}
+                        {inv.buyerEmail && (
+                          <div className="text-[11px] text-slate-400 truncate max-w-xs">
+                            {inv.buyerEmail}
+                          </div>
+                        )}
+                      </td>
 
-                    {/* Ngày Lập */}
-                    <td className="py-4 px-4 text-slate-600 font-mono text-[11.5px]">
-                      {formatVietnamDateTime(inv.issueDate || inv.createdAt)}
-                    </td>
+                      {/* Loại & Hình Thức */}
+                      <td className="py-3 px-4">
+                        <div className="flex flex-col space-y-1">
+                          <span className="text-[11px] font-medium text-slate-700">
+                            {typeCfg.label}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            {formCfg.label}
+                          </span>
+                        </div>
+                      </td>
 
-                    {/* Tổng Tiền */}
-                    <td className="py-4 px-4 text-right">
-                      <span className="font-mono tabular-nums font-bold text-slate-900 text-sm">
+                      {/* Tổng Tiền */}
+                      <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 tabular-nums">
                         {formatCurrency(inv.grandTotal)}
-                      </span>
-                    </td>
+                      </td>
 
-                    {/* Trạng Thái */}
-                    <td className="py-4 px-4 text-center">
-                      {getStatusBadge(inv.status)}
-                    </td>
+                      {/* Trạng Thái */}
+                      <td className="py-3 px-4 text-center">
+                        {getStatusBadge(inv.status)}
+                      </td>
 
-                    {/* Thao Tác: Quick Restore & Menu 3 chấm */}
-                    <td className="py-4 px-5 text-right">
-                      <div className="flex items-center justify-end space-x-2">
-                        {!isTrashView && inv.status === 'PAID' && (
-                          <button
-                            type="button"
-                            onClick={() => setSelectedInvoiceForSub(inv)}
-                            className="inline-flex items-center space-x-1 px-2.5 py-1 text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded-lg transition-colors cursor-pointer shadow-xs"
-                            title="Thêm khách hàng vào Trang Khách Hàng kèm dịch vụ & thời gian bắt đầu"
+                      {/* Ngày Lập */}
+                      <td className="py-3 px-4 text-slate-500 text-[11px]">
+                        <div>{formatVietnamDateTime(inv.issueDate || inv.createdAt)}</div>
+                      </td>
+
+                      {/* Thao Tác (Actions Menu) */}
+                      <td className="py-3 px-4 text-right relative">
+                        <div className="flex items-center justify-end space-x-1.5">
+                          <Link
+                            href={`/invoices/${inv.id}`}
+                            className="p-1.5 text-slate-500 hover:text-blue-600 rounded-lg hover:bg-slate-100 transition-colors"
+                            title="Xem chi tiết"
                           >
-                            <CalendarClock className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Khách Hàng</span>
-                          </button>
-                        )}
-                        {isTrashView && (
-                          <button
-                            type="button"
-                            onClick={() => restoreMutation.mutate(inv.id)}
-                            disabled={restoreMutation.isPending}
-                            className="inline-flex items-center space-x-1 px-2.5 py-1 text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg transition-colors cursor-pointer"
-                            title="Khôi phục về bảng chính"
-                          >
-                            <RotateCcw className="w-3 h-3" />
-                            <span>Khôi phục</span>
-                          </button>
-                        )}
-                        <div ref={openMenuRow === inv.id ? menuRef : undefined}>
+                            <Eye className="w-4 h-4" />
+                          </Link>
+
                           <button
                             type="button"
                             onClick={(e) => {
@@ -804,176 +947,167 @@ export default function InvoicesPage() {
                                 setOpenMenuRow(null);
                                 setMenuPos(null);
                               } else {
-                                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                const rect = e.currentTarget.getBoundingClientRect();
                                 setMenuPos({
-                                  top: rect.bottom + 6,
+                                  top: rect.bottom + window.scrollY + 4,
                                   right: window.innerWidth - rect.right,
                                 });
                                 setOpenMenuRow(inv.id);
                               }
                             }}
-                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                              openMenuRow === inv.id
-                                ? 'bg-slate-100 text-slate-800'
-                                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
-                            }`}
-                            title="Thao tác"
-                            aria-label="Thao tác hóa đơn"
+                            className="p-1.5 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Thao tác khác"
                           >
                             <MoreVertical className="w-4 h-4" />
                           </button>
                         </div>
-                      </div>
 
-                      {openMenuRow === inv.id && menuPos && (
-                        <div
-                          ref={menuRef}
-                          style={{
-                            position: 'fixed',
-                            top: menuPos.top,
-                            right: menuPos.right,
-                          }}
-                          className="z-[9999] w-52 bg-white rounded-xl border border-slate-200 shadow-xl py-1.5 text-left animate-in fade-in zoom-in-95 duration-100"
-                        >
-                          {isTrashView ? (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  restoreMutation.mutate(inv.id);
-                                  setOpenMenuRow(null);
-                                  setMenuPos(null);
-                                }}
-                                disabled={restoreMutation.isPending}
-                                className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition-colors text-left cursor-pointer"
-                              >
-                                <RotateCcw className="w-3.5 h-3.5 text-emerald-600" />
-                                <span>Khôi phục hóa đơn</span>
-                              </button>
-
-                              <Link
-                                href={`/invoices/${inv.id}`}
-                                onClick={() => { setOpenMenuRow(null); setMenuPos(null); }}
-                                className="flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-                              >
-                                <Eye className="w-3.5 h-3.5 text-slate-400" />
-                                <span>Xem chi tiết</span>
-                              </Link>
-
-                              <div className="my-1 border-t border-slate-100" />
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (confirm(`Bạn có chắc muốn XÓA VĨNH VIỄN hóa đơn ${inv.invoiceNumber} khỏi cơ sở dữ liệu?\nHành động này KHÔNG thể hoàn tác!`)) {
-                                    permanentDeleteMutation.mutate(inv.id);
-                                  }
-                                  setOpenMenuRow(null);
-                                  setMenuPos(null);
-                                }}
-                                disabled={permanentDeleteMutation.isPending}
-                                className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors text-left cursor-pointer"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <span>Xóa vĩnh viễn</span>
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <Link
-                                href={`/invoices/${inv.id}`}
-                                onClick={() => { setOpenMenuRow(null); setMenuPos(null); }}
-                                className="flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-                              >
-                                <Eye className="w-3.5 h-3.5 text-slate-400" />
-                                <span>Xem chi tiết</span>
-                              </Link>
-
-                              <Link
-                                href={`/invoices/${inv.id}/edit`}
-                                onClick={() => { setOpenMenuRow(null); setMenuPos(null); }}
-                                className="flex items-center space-x-2.5 px-3.5 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 transition-colors"
-                              >
-                                <Pencil className="w-3.5 h-3.5 text-amber-600" />
-                                <span>Chỉnh sửa hóa đơn</span>
-                              </Link>
-
-                              <a
-                                href={getExportPdfUrl(inv.id)}
-                                target="_blank"
-                                rel="noreferrer"
-                                onClick={() => { setOpenMenuRow(null); setMenuPos(null); }}
-                                className="flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-                              >
-                                <Download className="w-3.5 h-3.5 text-slate-400" />
-                                <span>In / Tải PDF</span>
-                              </a>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  cloneMutation.mutate(inv.id);
-                                  setOpenMenuRow(null);
-                                  setMenuPos(null);
-                                }}
-                                disabled={cloneMutation.isPending}
-                                className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors text-left cursor-pointer"
-                              >
-                                <Copy className="w-3.5 h-3.5 text-slate-400" />
-                                <span>Nhân bản hóa đơn</span>
-                              </button>
-                              {inv.status !== 'PAID' && inv.status !== 'CANCELLED' && (
+                        {/* Dropdown Menu */}
+                        {isMenuOpen && menuPos && (
+                          <div
+                            ref={menuRef}
+                            style={{
+                              position: 'fixed',
+                              top: `${menuPos.top}px`,
+                              right: `${menuPos.right}px`,
+                              zIndex: 60,
+                            }}
+                            className="w-56 bg-white rounded-2xl shadow-xl border border-slate-200/80 py-1.5 text-left animate-in fade-in zoom-in-95 duration-150"
+                          >
+                            {isTrashView ? (
+                              <>
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    payMutation.mutate({ id: inv.id });
+                                    restoreMutation.mutate(inv.id);
                                     setOpenMenuRow(null);
                                     setMenuPos(null);
                                   }}
-                                  disabled={payMutation.isPending}
-                                  className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors text-left cursor-pointer"
+                                  disabled={restoreMutation.isPending}
+                                  className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition-colors text-left cursor-pointer"
                                 >
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" />
-                                  <span>Xác nhận đã thanh toán</span>
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                  <span>Khôi phục hóa đơn</span>
                                 </button>
-                              )}
-                              {inv.status === 'PAID' && (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const ok = await confirm({
+                                      title: 'Xóa vĩnh viễn hóa đơn?',
+                                      message: `Bạn có chắc muốn XÓA VĨNH VIỄN hóa đơn ${inv.invoiceNumber} không? Thao tác này không thể hoàn tác!`,
+                                      confirmLabel: 'Xóa vĩnh viễn',
+                                      danger: true,
+                                    });
+                                    if (ok) {
+                                      permanentDeleteMutation.mutate(inv.id);
+                                    }
+                                    setOpenMenuRow(null);
+                                    setMenuPos(null);
+                                  }}
+                                  disabled={permanentDeleteMutation.isPending}
+                                  className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors text-left cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Xóa vĩnh viễn</span>
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <Link
+                                  href={`/invoices/${inv.id}/edit`}
+                                  onClick={() => { setOpenMenuRow(null); setMenuPos(null); }}
+                                  className="flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                                >
+                                  <Pencil className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>Chỉnh sửa hóa đơn</span>
+                                </Link>
+
+                                <a
+                                  href={getExportPdfUrl(inv.id)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={() => { setOpenMenuRow(null); setMenuPos(null); }}
+                                  className="flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                                >
+                                  <Download className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>In / Tải PDF</span>
+                                </a>
+
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    setSelectedInvoiceForSub(inv);
+                                    cloneMutation.mutate(inv.id);
                                     setOpenMenuRow(null);
                                     setMenuPos(null);
                                   }}
-                                  className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 transition-colors text-left cursor-pointer"
+                                  disabled={cloneMutation.isPending}
+                                  className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors text-left cursor-pointer"
                                 >
-                                  <CalendarClock className="w-3.5 h-3.5 text-indigo-600" />
-                                  <span>Thêm vào Trang Khách Hàng</span>
+                                  <Copy className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>Nhân bản hóa đơn</span>
                                 </button>
-                              )}
-                              <div className="my-1 border-t border-slate-100" />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (confirm(`Bạn có chắc muốn chuyển hóa đơn ${inv.invoiceNumber} vào Thùng rác? Bạn có thể khôi phục lại bất kỳ lúc nào.`)) {
-                                    deleteMutation.mutate(inv.id);
-                                  }
-                                  setOpenMenuRow(null);
-                                  setMenuPos(null);
-                                }}
-                                disabled={deleteMutation.isPending}
-                                className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors text-left cursor-pointer"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <span>Chuyển vào Thùng rác</span>
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+
+                                {inv.status !== 'PAID' && inv.status !== 'CANCELLED' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      payMutation.mutate({ id: inv.id });
+                                      setOpenMenuRow(null);
+                                      setMenuPos(null);
+                                    }}
+                                    disabled={payMutation.isPending}
+                                    className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition-colors text-left cursor-pointer"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span>Xác nhận đã thanh toán</span>
+                                  </button>
+                                )}
+
+                                {inv.status === 'PAID' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedInvoiceForSub(inv);
+                                      setOpenMenuRow(null);
+                                      setMenuPos(null);
+                                    }}
+                                    className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 transition-colors text-left cursor-pointer"
+                                  >
+                                    <CalendarClock className="w-3.5 h-3.5 text-indigo-600" />
+                                    <span>Thêm vào Trang Khách Hàng</span>
+                                  </button>
+                                )}
+
+                                <div className="my-1 border-t border-slate-100" />
+
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const ok = await confirm({
+                                      title: 'Chuyển vào thùng rác?',
+                                      message: `Bạn có chắc muốn chuyển hóa đơn ${inv.invoiceNumber} vào Thùng rác? Bạn có thể khôi phục lại bất kỳ lúc nào.`,
+                                      confirmLabel: 'Chuyển thùng rác',
+                                    });
+                                    if (ok) {
+                                      deleteMutation.mutate(inv.id);
+                                    }
+                                    setOpenMenuRow(null);
+                                    setMenuPos(null);
+                                  }}
+                                  disabled={deleteMutation.isPending}
+                                  className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors text-left cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Chuyển vào Thùng rác</span>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -997,23 +1131,28 @@ export default function InvoicesPage() {
         )}
       </div>
 
-      {/* Floating Batch Action Bar */}
+      {/* Floating Batch Action Bar (CẢI TIẾN: Thêm Thanh toán nhiều & Chuyển khách hàng nhanh) */}
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-200 border border-slate-800">
-          <div className="flex items-center gap-2 text-sm font-semibold">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 backdrop-blur-md text-white px-5 py-3 rounded-2xl shadow-2xl flex flex-wrap items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200 border border-slate-700/80">
+          <div className="flex items-center gap-2 text-xs font-semibold">
             <span className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-xs font-mono font-bold text-white">
               {selectedIds.length}
             </span>
             <span>Đã chọn {selectedIds.length} hóa đơn</span>
+            <span className="text-slate-400 font-mono font-normal">
+              ({formatCurrency(totalSelectedAmount)})
+            </span>
           </div>
-          <div className="h-4 w-px bg-slate-700" />
+
+          <div className="h-4 w-px bg-slate-700 hidden sm:block" />
+
           {isTrashView ? (
             <>
               <button
                 type="button"
                 onClick={handleBulkRestore}
                 disabled={bulkRestoreMutation.isPending}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-all shadow-sm cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-all shadow-sm cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>{bulkRestoreMutation.isPending ? 'Đang khôi phục...' : `Khôi phục (${selectedIds.length})`}</span>
@@ -1022,34 +1161,471 @@ export default function InvoicesPage() {
                 type="button"
                 onClick={handleBulkDelete}
                 disabled={bulkPermanentDeleteMutation.isPending}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-all shadow-sm cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-all shadow-sm cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>{bulkPermanentDeleteMutation.isPending ? 'Đang xóa...' : `Xóa vĩnh viễn (${selectedIds.length})`}</span>
               </button>
             </>
           ) : (
-            <button
-              type="button"
-              onClick={handleBulkDelete}
-              disabled={bulkDeleteMutation.isPending}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-all shadow-sm cursor-pointer"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>{bulkDeleteMutation.isPending ? 'Đang chuyển...' : `Chuyển vào Thùng rác (${selectedIds.length})`}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Nút Thanh Toán Nhiều */}
+              <button
+                type="button"
+                onClick={() => {
+                  setBulkPayNote('Xác nhận thanh toán hàng loạt');
+                  setIsBulkPayOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-md shadow-emerald-900/30 transition-all cursor-pointer"
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                <span>
+                  Thanh toán ({unpaidSelectedInvoices.length > 0 ? unpaidSelectedInvoices.length : selectedIds.length})
+                </span>
+              </button>
+
+              {/* Nút Chuyển Thành Khách Hàng Nhanh */}
+              <button
+                type="button"
+                onClick={() => {
+                  setBulkSubNotes('Thêm từ danh sách hóa đơn đã chọn');
+                  setIsBulkSubOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-md shadow-indigo-900/30 transition-all cursor-pointer"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Chuyển thành khách hàng ({selectedIds.length})</span>
+              </button>
+
+              {/* Nút Xóa Nhiều (Thùng rác) */}
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleteMutation.isPending}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-rose-700 text-slate-300 hover:text-white text-xs font-medium rounded-xl transition-all cursor-pointer border border-slate-700"
+                title="Chuyển vào Thùng rác"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                <span className="hidden sm:inline">Thùng rác</span>
+              </button>
+            </div>
           )}
+
           <button
             type="button"
             onClick={() => setSelectedIds([])}
-            className="text-xs text-slate-400 hover:text-white transition-colors cursor-pointer px-2 py-1"
+            className="text-xs text-slate-400 hover:text-white transition-colors cursor-pointer px-2 py-1 ml-auto"
           >
             Bỏ chọn
           </button>
         </div>
       )}
 
-      {/* Modal Thêm vào Trang Khách Hàng */}
+      {/* ================= MODAL: THANH TOÁN NHIỀU HÓA ĐƠN ================= */}
+      {isBulkPayOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col border border-slate-100">
+            {/* Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-2xl shadow-xs">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Xác Nhận Thanh Toán Hàng Loạt</h3>
+                  <p className="text-xs text-slate-500">
+                    Áp dụng cho <strong>{selectedIds.length}</strong> hóa đơn được chọn
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBulkPayOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-200/60 transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Nội dung */}
+            <div className="p-6 space-y-4">
+              {/* Tóm tắt số tiền */}
+              <div className="p-4 bg-emerald-50/80 rounded-2xl border border-emerald-200/80 flex items-center justify-between">
+                <div>
+                  <span className="text-xs text-emerald-800 font-semibold block">
+                    Tổng số tiền thanh toán
+                  </span>
+                  <span className="text-xs text-emerald-600">
+                    {selectedIds.length} hóa đơn ({unpaidSelectedInvoices.length} chưa thanh toán)
+                  </span>
+                </div>
+                <div className="text-lg font-bold font-mono text-emerald-700">
+                  {formatCurrency(totalSelectedAmount)}
+                </div>
+              </div>
+
+              {/* Danh sách hóa đơn tóm tắt */}
+              <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 text-xs">
+                {selectedInvoices.map((inv) => (
+                  <div
+                    key={inv.id}
+                    className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60 flex items-center justify-between"
+                  >
+                    <div>
+                      <span className="font-bold text-slate-900 font-mono">#{inv.invoiceNumber}</span>
+                      <span className="text-slate-500 ml-2">{inv.buyerName}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-semibold text-slate-800">
+                        {formatCurrency(inv.grandTotal)}
+                      </span>
+                      {inv.status === 'PAID' ? (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-700 font-bold">
+                          Đã trả
+                        </span>
+                      ) : (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-700 font-bold">
+                          Chờ trả
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Tùy chọn thông báo */}
+              <div className="space-y-2 pt-1 border-t border-slate-100 text-xs">
+                <label className="flex items-center space-x-2.5 cursor-pointer text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={bulkPaySendEmail}
+                    onChange={(e) => setBulkPaySendEmail(e.target.checked)}
+                    className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                  />
+                  <span>Tự động gửi <strong>Email biên lai thanh toán</strong> cho khách hàng</span>
+                </label>
+
+                <label className="flex items-center space-x-2.5 cursor-pointer text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={bulkPaySendZalo}
+                    onChange={(e) => setBulkPaySendZalo(e.target.checked)}
+                    className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                  />
+                  <span>Tự động gửi <strong>Tin nhắn Zalo</strong> xác nhận kích hoạt dịch vụ</span>
+                </label>
+              </div>
+
+              {/* Ghi chú */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Ghi chú thanh toán
+                </label>
+                <input
+                  type="text"
+                  value={bulkPayNote}
+                  onChange={(e) => setBulkPayNote(e.target.value)}
+                  placeholder="Ghi chú đối soát..."
+                  className="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none text-slate-800"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="pt-3 flex items-center justify-end gap-2.5 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsBulkPayOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    bulkPayMutation.mutate({
+                      ids: selectedIds,
+                      note: bulkPayNote,
+                      sendEmail: bulkPaySendEmail,
+                      sendZalo: bulkPaySendZalo,
+                    })
+                  }
+                  disabled={bulkPayMutation.isPending}
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-md shadow-emerald-200 transition-all cursor-pointer"
+                >
+                  <CheckCircle2 className={`w-4 h-4 ${bulkPayMutation.isPending ? 'animate-spin' : ''}`} />
+                  <span>
+                    {bulkPayMutation.isPending
+                      ? 'Đang xử lý thanh toán...'
+                      : `Xác Nhận Thanh Toán (${selectedIds.length})`}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: CHUYỂN THÀNH KHÁCH HÀNG NHANH ================= */}
+      {isBulkSubOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col border border-slate-100">
+            {/* Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-2xl shadow-xs">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Chuyển Nhanh Thành Khách Hàng</h3>
+                  <p className="text-xs text-slate-500">
+                    Đăng ký dịch vụ cho <strong>{selectedIds.length}</strong> hóa đơn được chọn
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBulkSubOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-200/60 transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Nội dung */}
+            <div className="p-6 space-y-4">
+              <div className="p-3 bg-indigo-50/80 rounded-2xl border border-indigo-200/80 text-xs text-indigo-900 leading-relaxed">
+                Hệ thống sẽ tự động trích xuất thông tin khách hàng, gói dịch vụ và thời gian bắt đầu (tính từ ngày thanh toán) để tạo thuê bao trên <strong>Trang Khách Hàng</strong>.
+              </div>
+
+              {/* Danh sách tóm tắt */}
+              <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 text-xs">
+                {selectedInvoices.map((inv) => (
+                  <div
+                    key={inv.id}
+                    className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60 flex items-center justify-between"
+                  >
+                    <div>
+                      <span className="font-semibold text-slate-900">{inv.buyerName}</span>
+                      <span className="text-slate-400 text-[11px] block truncate max-w-xs">
+                        {inv.items?.[0]?.name || 'Gói Dịch Vụ'}
+                      </span>
+                    </div>
+                    <span className="font-mono text-slate-500 text-[11px]">#{inv.invoiceNumber}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Cấu hình chu kỳ */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Chu kỳ gói dịch vụ áp dụng
+                </label>
+                <select
+                  value={bulkSubCycle}
+                  onChange={(e) => setBulkSubCycle(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white font-medium text-slate-800"
+                >
+                  <option value="auto">✨ Tự động nhận diện theo tên gói (Khuyên dùng)</option>
+                  <option value="1 tháng">1 tháng (30 ngày)</option>
+                  <option value="3 tháng">3 tháng (1 quý)</option>
+                  <option value="6 tháng">6 tháng</option>
+                  <option value="1 năm">1 năm (12 tháng)</option>
+                </select>
+              </div>
+
+              {/* Ghi chú */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Ghi chú cho các thuê bao
+                </label>
+                <input
+                  type="text"
+                  value={bulkSubNotes}
+                  onChange={(e) => setBulkSubNotes(e.target.value)}
+                  placeholder="Ghi chú thêm..."
+                  className="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-slate-800"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="pt-3 flex items-center justify-end gap-2.5 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsBulkSubOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    bulkSubMutation.mutate({
+                      ids: selectedIds,
+                      cycle: bulkSubCycle,
+                      notes: bulkSubNotes,
+                    })
+                  }
+                  disabled={bulkSubMutation.isPending}
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-md shadow-indigo-200 transition-all cursor-pointer"
+                >
+                  <UserPlus className={`w-4 h-4 ${bulkSubMutation.isPending ? 'animate-spin' : ''}`} />
+                  <span>
+                    {bulkSubMutation.isPending
+                      ? 'Đang chuyển đổi...'
+                      : `Chuyển Ngay (${selectedIds.length})`}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: THÔNG BÁO KẾT QUẢ THANH TOÁN 1 HÓA ĐƠN ================= */}
+      {singlePayResult.isOpen && singlePayResult.invoice && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col border border-slate-100 p-6 space-y-4">
+            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
+              <CheckCircle2 className="w-7 h-7" />
+            </div>
+
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-bold text-slate-900">
+                Xác Nhận Thanh Toán Thành Công!
+              </h3>
+              <p className="text-xs text-slate-500">
+                Hóa đơn <strong className="text-slate-800">#{singlePayResult.invoice.invoiceNumber}</strong> đã được chuyển sang tab <strong>Đã thanh toán</strong>
+              </p>
+            </div>
+
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Khách hàng:</span>
+                <span className="font-semibold text-slate-800">{singlePayResult.invoice.buyerName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Số tiền:</span>
+                <span className="font-bold text-emerald-600 font-mono">
+                  {formatCurrency(singlePayResult.invoice.grandTotal)}
+                </span>
+              </div>
+              <div className="flex justify-between pt-1 border-t border-slate-200/60">
+                <span className="text-slate-500">Email biên lai:</span>
+                <span className="text-slate-700 font-medium">
+                  {singlePayResult.emailResult?.queued ? 'Đang gửi ngầm' : 'Hoàn tất'}
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-2 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const inv = singlePayResult.invoice;
+                  setSinglePayResult({ isOpen: false });
+                  setSelectedInvoiceForSub(inv);
+                }}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-md transition-all cursor-pointer"
+              >
+                <CalendarClock className="w-4 h-4" />
+                <span>Thêm Khách Hàng Này Vào Trang Khách Hàng</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSinglePayResult({ isOpen: false })}
+                className="w-full px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer text-center"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: THÔNG BÁO KẾT QUẢ THANH TOÁN HÀNG LOẠT ================= */}
+      {bulkPayResult.isOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col border border-slate-100 p-6 space-y-4">
+            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
+              <CheckCircle2 className="w-7 h-7" />
+            </div>
+
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-bold text-slate-900">
+                Thanh Toán Hàng Loạt Hoàn Tất!
+              </h3>
+              <p className="text-xs text-slate-500">{bulkPayResult.message}</p>
+            </div>
+
+            <div className="bg-emerald-50/80 p-4 rounded-2xl border border-emerald-200 text-center space-y-1">
+              <span className="text-[11px] text-emerald-700 font-semibold block uppercase">
+                Tổng giá trị đã xác nhận thu
+              </span>
+              <span className="text-xl font-bold font-mono text-emerald-800">
+                {formatCurrency(bulkPayResult.totalAmount)}
+              </span>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setBulkPayResult({ isOpen: false, count: 0, totalAmount: 0, message: '' })}
+                className="w-full px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-md transition-all cursor-pointer text-center"
+              >
+                Xem Hóa Đơn Đã Thanh Toán
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: THÔNG BÁO KẾT QUẢ CHUYỂN KHÁCH HÀNG HÀNG LOẠT ================= */}
+      {bulkSubResult.isOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col border border-slate-100 p-6 space-y-4">
+            <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
+              <Sparkles className="w-7 h-7" />
+            </div>
+
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-bold text-slate-900">
+                Đã Lưu Vào Trang Khách Hàng!
+              </h3>
+              <p className="text-xs text-slate-500">{bulkSubResult.message}</p>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 flex justify-between">
+              <span>Khách hàng thành công:</span>
+              <span className="font-bold text-indigo-700">{bulkSubResult.count}</span>
+            </div>
+
+            <div className="pt-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setBulkSubResult({ isOpen: false, count: 0, total: 0, errorsCount: 0, message: '' })}
+                className="flex-1 px-4 py-2.5 text-slate-600 hover:bg-slate-100 text-xs font-semibold rounded-xl transition-all cursor-pointer text-center"
+              >
+                Ở lại trang này
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setBulkSubResult({ isOpen: false, count: 0, total: 0, errorsCount: 0, message: '' });
+                  router.push('/subscriptions');
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-md transition-all cursor-pointer"
+              >
+                <ExternalLink className="w-4 h-4" />
+                <span>Tới Trang Khách Hàng</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Thêm vào Trang Khách Hàng (Từng đơn) */}
       <AddSubscriptionFromInvoiceModal
         isOpen={!!selectedInvoiceForSub}
         onClose={() => setSelectedInvoiceForSub(null)}

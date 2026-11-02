@@ -614,4 +614,91 @@ export class InvoicesController {
   async deleteInvoice(@Param('id') id: string) {
     return this.invoicesService.deleteInvoice(id);
   }
+
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  @Post('bulk-pay')
+  async bulkPayInvoices(
+    @Body() body: { ids: string[]; note?: string; sendEmail?: boolean; sendZalo?: boolean; source?: string },
+    @Req() req: any,
+  ) {
+    const { ids = [], note, sendEmail, sendZalo, source } = body;
+    const result = await this.invoicesService.bulkPayInvoices(ids, note);
+
+    const appUrl = (process.env.APP_URL || 'https://invoice.share4happy.com').replace(/\/+$/, '');
+    const backendUrl = (process.env.BACKEND_URL || 'https://invoice-backend-5tbi.onrender.com').replace(/\/+$/, '');
+
+    if (sendEmail || sendZalo) {
+      for (const inv of result.invoices) {
+        const firstItem = inv.items?.[0];
+        const packageName = firstItem?.name || 'Gói Dịch Vụ AI WRITER';
+        const brandName = req?.apiKey?.name || source || 'AI WRITER';
+        const targetInfo = `${inv.buyerName} (${inv.buyerEmail || inv.buyerPhone || '---'})`;
+
+        if (sendEmail && inv.buyerEmail) {
+          await this.queueService.enqueue(
+            QueueType.DELIVERY_EMAIL,
+            {
+              invoiceId: inv.id,
+              options: {
+                note,
+                source: brandName,
+                packageName,
+              },
+              isPaymentSuccess: true,
+            },
+            {
+              priority: 3,
+              maxRetries: 5,
+              apiName: brandName,
+              endpoint: '/api/invoices/bulk-pay',
+              source: 'Thanh Toán Hàng Loạt',
+              title: `Gửi Email Biên lai thanh toán #${inv.invoiceNumber}`,
+              targetInfo,
+            },
+          ).catch(() => undefined);
+        }
+
+        if (sendZalo && inv.buyerPhone) {
+          const viewUrl = `${appUrl}/view/${inv.shareToken}`;
+          const pdfUrl = `${backendUrl}/api/delivery/public/${inv.shareToken}/pdf`;
+          await this.queueService.enqueue(
+            QueueType.DELIVERY_ZALO,
+            {
+              isPaymentSuccess: true,
+              zaloOptions: {
+                phone: inv.buyerPhone,
+                customerName: inv.buyerName,
+                invoiceNumber: inv.invoiceNumber,
+                grandTotal: inv.grandTotal,
+                packageName,
+                brandName,
+                viewUrl,
+                pdfUrl,
+                note,
+              },
+            },
+            {
+              priority: 2,
+              maxRetries: 5,
+              apiName: brandName,
+              endpoint: '/api/invoices/bulk-pay',
+              source: 'Thanh Toán Hàng Loạt',
+              title: `Gửi Zalo Xác nhận thanh toán #${inv.invoiceNumber}`,
+              targetInfo,
+            },
+          ).catch(() => undefined);
+        }
+      }
+    }
+
+    return {
+      success: true,
+      count: result.count,
+      totalAmount: result.totalAmount,
+      message: `Đã xác nhận thanh toán thành công ${result.count} hóa đơn!`,
+      invoices: result.invoices,
+    };
+  }
+
 }

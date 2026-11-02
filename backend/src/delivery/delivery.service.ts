@@ -735,15 +735,28 @@ export class DeliveryService {
         throw new Error(emailError || 'Chưa cấu hình thông tin gửi Email hợp lệ (Resend API hoặc SMTP)');
       }
 
-      // 5. Cập nhật trạng thái hóa đơn sang SENT
+      // 5. Cập nhật trạng thái hóa đơn sang SENT (ƯU TIÊN TUYỆT ĐỐI TRẠNG THÁI PAID)
+      // Nếu hóa đơn đã ở trạng thái PAID hoặc CANCELLED, TUYỆT ĐỐI KHÔNG ghi đè thành SENT!
+      const freshInvoice = await this.prisma.invoice.findUnique({
+        where: { id: invoiceId },
+        select: { status: true },
+      });
+
+      const shouldChangeToSent =
+        freshInvoice &&
+        freshInvoice.status !== 'PAID' &&
+        freshInvoice.status !== 'CANCELLED';
+
       await this.prisma.invoice.update({
         where: { id: invoiceId },
         data: {
-          status: 'SENT',
+          ...(shouldChangeToSent ? { status: 'SENT' } : {}),
           histories: {
             create: {
               action: 'SENT',
-              note: `Đã gửi email thông báo kèm file PDF tới ${recipientEmail}`,
+              note: `Đã gửi email thông báo kèm file PDF tới ${recipientEmail}${
+                freshInvoice?.status === 'PAID' ? ' (Hóa đơn đã thanh toán hoàn tất)' : ''
+              }`,
             },
           },
         },

@@ -89,4 +89,12 @@ export class SubscriptionsController {
   ) {
     return this.subscriptionsService.bulkSendExpiryAlerts(ids, subject, message);
   }
+
+  @Post('bulk-from-invoices')
+  async bulkCreateFromInvoices(
+    @Body() body: { ids: string[]; cycle?: string; notes?: string },
+  ) {
+    return this.subscriptionsService.bulkCreateFromInvoices(body.ids, body);
+  }
+
 }

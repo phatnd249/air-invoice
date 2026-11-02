@@ -617,4 +617,39 @@ export class SubscriptionsService {
       details: results,
     };
   }
+
+  async bulkCreateFromInvoices(
+    ids: string[],
+    overrides?: {
+      cycle?: string;
+      notes?: string;
+    },
+  ) {
+    if (!ids || ids.length === 0) {
+      return { success: true, count: 0, total: 0, results: [], message: 'Không có hóa đơn nào được chọn' };
+    }
+
+    const results: any[] = [];
+    const errors: any[] = [];
+
+    for (const id of ids) {
+      try {
+        const res = await this.createFromInvoice(id, overrides);
+        results.push({ id, success: true, ...res });
+      } catch (err: any) {
+        errors.push({ id, success: false, error: err.message });
+      }
+    }
+
+    return {
+      success: errors.length === 0,
+      count: results.length,
+      total: ids.length,
+      errorsCount: errors.length,
+      results,
+      errors,
+      message: `Đã chuyển thành công ${results.length}/${ids.length} khách hàng vào Trang Khách Hàng!`,
+    };
+  }
+
 }

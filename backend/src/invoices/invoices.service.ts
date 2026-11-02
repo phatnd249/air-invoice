@@ -712,4 +712,49 @@ export class InvoicesService {
       invoices,
     };
   }
+
+  async bulkPayInvoices(ids: string[], note?: string) {
+    if (!ids || ids.length === 0) return { count: 0, totalAmount: 0, invoices: [] };
+
+    const invoices = await this.prisma.invoice.findMany({
+      where: {
+        id: { in: ids },
+        status: { not: 'CANCELLED' },
+      },
+      include: { items: true },
+    });
+
+    const updatedInvoices: any[] = [];
+    let totalAmount = 0;
+
+    for (const inv of invoices) {
+      if (inv.status !== 'PAID') {
+        const updated = await this.prisma.invoice.update({
+          where: { id: inv.id },
+          data: {
+            status: 'PAID',
+            histories: {
+              create: {
+                action: 'PAID',
+                note: note || `Xác nhận thanh toán hàng loạt hóa đơn ${inv.invoiceNumber} (${inv.grandTotal.toLocaleString('vi-VN')}₫)`,
+              },
+            },
+          },
+          include: { items: true },
+        });
+        updatedInvoices.push(updated);
+        totalAmount += inv.grandTotal || 0;
+      } else {
+        updatedInvoices.push(inv);
+        totalAmount += inv.grandTotal || 0;
+      }
+    }
+
+    return {
+      count: updatedInvoices.length,
+      totalAmount,
+      invoices: updatedInvoices,
+    };
+  }
+
 }
