@@ -51,7 +51,7 @@ export default function InvoicesPage() {
   const [selectedType, setSelectedType] = useState<string>('ALL');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [openMenuRow, setOpenMenuRow] = useState<string | null>(null);
-  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
   const [selectedInvoiceForSub, setSelectedInvoiceForSub] = useState<any>(null);
 
   // Modals quản lý hàng loạt
@@ -948,8 +948,13 @@ export default function InvoicesPage() {
                                 setMenuPos(null);
                               } else {
                                 const rect = e.currentTarget.getBoundingClientRect();
+                                const menuEstimatedHeight = 260;
+                                const spaceBelow = window.innerHeight - rect.bottom;
+                                const openUpwards = spaceBelow < menuEstimatedHeight;
+
                                 setMenuPos({
-                                  top: rect.bottom + window.scrollY + 4,
+                                  top: openUpwards ? undefined : rect.bottom + 4,
+                                  bottom: openUpwards ? window.innerHeight - rect.top + 4 : undefined,
                                   right: window.innerWidth - rect.right,
                                 });
                                 setOpenMenuRow(inv.id);
@@ -962,15 +967,18 @@ export default function InvoicesPage() {
                           </button>
                         </div>
 
-                        {/* Dropdown Menu */}
+                        {/* Dropdown Menu (tự động mở lên trên nếu ở sát đáy màn hình để không bị che) */}
                         {isMenuOpen && menuPos && (
                           <div
                             ref={menuRef}
                             style={{
                               position: 'fixed',
-                              top: `${menuPos.top}px`,
+                              top: menuPos.top !== undefined ? `${menuPos.top}px` : undefined,
+                              bottom: menuPos.bottom !== undefined ? `${menuPos.bottom}px` : undefined,
                               right: `${menuPos.right}px`,
                               zIndex: 60,
+                              maxHeight: 'calc(100vh - 32px)',
+                              overflowY: 'auto',
                             }}
                             className="w-56 bg-white rounded-2xl shadow-xl border border-slate-200/80 py-1.5 text-left animate-in fade-in zoom-in-95 duration-150"
                           >

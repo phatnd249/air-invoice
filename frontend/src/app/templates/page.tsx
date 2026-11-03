@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
@@ -35,6 +35,7 @@ import InvoiceTemplateRenderer, {
 } from '@/components/InvoiceTemplateRenderer';
 import InvoiceDesignerModal from '@/components/InvoiceDesignerModal';
 import EmailVisualEditor from '@/components/EmailVisualEditor';
+import PaymentRulesConfig from '@/components/PaymentRulesConfig';
 
 const SAMPLE_INVOICE = {
   invoiceNumber: 'HD-2026-0001',
@@ -257,7 +258,17 @@ const TEMPLATE_VARIABLES = [
 
 export default function TemplatesPage() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'a4' | 'zalo' | 'email'>('a4');
+  const [activeTab, setActiveTab] = useState<'a4' | 'zalo' | 'email' | 'vietqr'>('a4');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab === 'vietqr' || tab === 'zalo' || tab === 'email' || tab === 'a4') {
+        setActiveTab(tab as any);
+      }
+    }
+  }, []);
 
   // Designer Modal for A4 Template
   const [isDesignerModalOpen, setIsDesignerModalOpen] = useState<boolean>(false);
@@ -602,7 +613,7 @@ export default function TemplatesPage() {
                 <span>Tạo Hóa Đơn</span>
               </Link>
             </div>
-          ) : (
+          ) : activeTab === 'vietqr' ? null : (
             <button
               onClick={() => openCreateMsgModal(activeTab === 'zalo' ? 'ZALO' : 'EMAIL')}
               className="inline-flex items-center justify-center space-x-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-xs transition-all"
@@ -656,6 +667,18 @@ export default function TemplatesPage() {
           <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-bold">
             {messageTemplates.filter((t) => t.channel === 'EMAIL').length}
           </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('vietqr')}
+          className={`pb-3 pt-1 px-1 border-b-2 flex items-center space-x-2 transition-all whitespace-nowrap ${
+            activeTab === 'vietqr'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-amber-500" />
+          <span>Nội Dung Chuyển Khoản (VietQR)</span>
         </button>
       </div>
 
@@ -1063,6 +1086,11 @@ export default function TemplatesPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* ================= TAB 4: NỘI DUNG CHUYỂN KHOẢN (VIETQR) ================= */}
+      {activeTab === 'vietqr' && (
+        <PaymentRulesConfig />
       )}
 
       {/* ================= MODAL TẠO / SỬA MẪU TIN NHẮN (ZALO / EMAIL) ================= */}

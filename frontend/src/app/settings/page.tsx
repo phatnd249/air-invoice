@@ -34,6 +34,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { CompanyProfile, BankAccountItem, PaymentDescriptionRule } from '@invoice/types';
+import PaymentRulesConfig from '@/components/PaymentRulesConfig';
 
 const POPULAR_BANKS = [
   { code: 'Vietcombank', name: 'Vietcombank (VCB - Ngoại thương)' },
@@ -111,7 +112,6 @@ export default function SettingsPage() {
   const settingsTabs: { id: SettingsTabId; label: string; icon: React.ElementType }[] = [
     { id: 'companies', label: 'Đơn vị cung cấp', icon: Building2 },
     { id: 'banks', label: 'Tài khoản ngân hàng', icon: CreditCard },
-    { id: 'formats', label: 'Cấu hình định dạng', icon: Sparkles },
     { id: 'rules', label: 'Đánh số & VAT', icon: Sliders },
     { id: 'notifications', label: 'Cấu hình Thông báo', icon: Bell },
   ];
@@ -980,6 +980,27 @@ export default function SettingsPage() {
       {/* === TAB: CẤU HÌNH ĐỊNH DẠNG NỘI DUNG CHUYỂN KHOẢN (VIETQR) === */}
       {activeTab === 'formats' && (
         <div className="space-y-6">
+          <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-indigo-900">
+            <div className="flex items-center gap-2.5">
+              <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+              <span>
+                Cấu hình này hiện đã có tab riêng tại mục <strong>Mẫu Tin Nhắn &amp; HĐ</strong>. Bạn có thể chỉnh sửa trực tiếp bên dưới hoặc chuyển qua trang Mẫu Tin Nhắn.
+              </span>
+            </div>
+            <Link
+              href="/templates?tab=vietqr"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-xs shrink-0 transition-colors"
+            >
+              <span>Xem Tại Mẫu Tin Nhắn</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          <PaymentRulesConfig />
+        </div>
+      )}
+
+      {/* Legacy formats block hidden */ false && activeTab === 'formats' && (
+        <div className="space-y-6">
           {/* Main Card: Quy tắc theo email */}
           <section className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
@@ -1279,6 +1300,27 @@ export default function SettingsPage() {
       {/* === TAB: CẤU HÌNH THÔNG BÁO (EMAIL & ZALO BOT) === */}
       {activeTab === 'notifications' && (
         <div className="space-y-6">
+          {/* Banner điều hướng sang Nội Dung Chuyển Khoản & Mẫu Tin Nhắn */}
+          <div className="p-4 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-indigo-900 shadow-2xs">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="font-bold text-slate-900 text-sm">Cấu hình Nội Dung Chuyển Khoản VietQR Theo Email</p>
+                <p className="text-slate-500 text-xs mt-0.5">
+                  Đã được chuyển sang quản lý tập trung tại trang <strong>Mẫu Tin Nhắn &amp; Hóa Đơn</strong> cùng các kịch bản Zalo và Email.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/templates?tab=vietqr"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-xs shrink-0 transition-colors shadow-xs"
+            >
+              <span>Mở Tab Cấu Hình VietQR</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </Link>
+          </div>
           {/* Email Notification Card */}
           <section className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-3">

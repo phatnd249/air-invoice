@@ -135,8 +135,8 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* User Info & Quick Logout Footer (cố định) */}
-      <div className="p-3.5 shrink-0 border-t border-slate-800 bg-slate-950/50 space-y-3">
+      {/* User Info & Quick Logout Footer (cố định - nâng lên một chút để tránh bị che bởi link tooltip trình duyệt) */}
+      <div className="p-3.5 pb-8 sm:pb-9 shrink-0 border-t border-slate-800 bg-slate-950/70 space-y-3">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center space-x-2.5 min-w-0">
             <div className="w-8 h-8 rounded-full bg-blue-600/30 border border-blue-500/30 flex items-center justify-center text-blue-300 font-bold text-xs shrink-0">
