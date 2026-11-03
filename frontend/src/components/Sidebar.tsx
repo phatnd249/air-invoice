@@ -123,7 +123,7 @@ export function Sidebar() {
                     </div>
 
                     {item.adminOnly && (
-                      <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 shrink-0">
+                      <span className="text-xs uppercase font-bold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 shrink-0">
                         Admin
                       </span>
                     )}

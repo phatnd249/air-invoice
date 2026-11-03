@@ -227,75 +227,75 @@ export default function QueuePage() {
     switch (status) {
       case 'PENDING':
         return retryCount > 0 ? (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-            <RotateCcw className="w-3 h-3 animate-spin text-amber-600" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+            <RotateCcw className="w-3.5 h-3.5 animate-spin text-amber-600" />
             Đợi thử lại ({retryCount}/{maxRetries})
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-            <Clock className="w-3 h-3 text-amber-500" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+            <Clock className="w-3.5 h-3.5 text-amber-500" />
             Đang chờ
           </span>
         );
       case 'PROCESSING':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-            <RefreshCw className="w-3 h-3 animate-spin text-blue-600" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+            <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-600" />
             Đang gửi tuần tự
           </span>
         );
       case 'COMPLETED':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
             Thành công
           </span>
         );
       case 'FAILED':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-            <XCircle className="w-3 h-3 text-rose-600" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+            <XCircle className="w-3.5 h-3.5 text-rose-600" />
             Đã dừng thử lại ({retryCount}/{maxRetries})
           </span>
         );
       default:
-        return <span>{status}</span>;
+        return <span className="text-xs">{status}</span>;
     }
   };
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-24">
       {/* 1. Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
         <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
-              <Clock className="w-5 h-5" />
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
+              <Clock className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                 Hàng Chờ Xử Lý Request (Queue Worker)
               </h1>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-sm text-slate-500 mt-1">
                 Ghi nhận tất cả request từ các API, chạy tuần tự từng tin nhắn. Tự động thử lại sau vài phút nếu lỗi (tối đa 5 lần rồi dừng, vẫn lưu lại).
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center flex-wrap gap-2">
+        <div className="flex items-center flex-wrap gap-2.5">
           {/* Nút Auto Refresh */}
           <button
             type="button"
             onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium border transition-colors cursor-pointer ${
               autoRefresh
                 ? 'bg-blue-50 text-blue-700 border-blue-200'
                 : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
             }`}
             title={autoRefresh ? 'Tự động làm mới mỗi 6 giây' : 'Bật tự động làm mới'}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${autoRefresh ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${autoRefresh ? 'animate-spin' : ''}`} />
             <span>{autoRefresh ? 'Auto 6s: BẬT' : 'Auto: TẮT'}</span>
           </button>
 
@@ -303,9 +303,9 @@ export default function QueuePage() {
           <button
             type="button"
             onClick={handleRefreshAll}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl transition-colors cursor-pointer"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <RefreshCw className="w-4 h-4" />
             <span>Làm mới</span>
           </button>
 
@@ -314,9 +314,9 @@ export default function QueuePage() {
             type="button"
             onClick={() => processMutation.mutate()}
             disabled={processMutation.isPending}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-all shadow-xs cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all shadow-xs cursor-pointer"
           >
-            <Play className="w-3.5 h-3.5 fill-current" />
+            <Play className="w-4 h-4 fill-current" />
             <span>{processMutation.isPending ? 'Đang kích hoạt...' : 'Xử lý ngay'}</span>
           </button>
 
@@ -330,9 +330,9 @@ export default function QueuePage() {
                 }
               }}
               disabled={clearCompletedMutation.isPending}
-              className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-medium rounded-xl border border-slate-200 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 text-sm font-medium rounded-xl border border-slate-200 transition-colors cursor-pointer"
             >
-              <Trash2 className="w-3.5 h-3.5 text-slate-400" />
+              <Trash2 className="w-4 h-4 text-slate-400" />
               <span>Dọn đã xong ({stats.completed})</span>
             </button>
           )}
@@ -340,62 +340,62 @@ export default function QueuePage() {
       </div>
 
       {/* 2. KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 text-xs font-medium mb-1">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 text-sm font-medium mb-1.5">
             <span>Tổng Request</span>
             <Inbox className="w-4 h-4 text-slate-400" />
           </div>
           <div className="text-2xl font-bold font-mono text-slate-900">{stats.total}</div>
-          <div className="text-[11px] text-slate-400 mt-1">Đã tiếp nhận qua Queue</div>
+          <div className="text-xs text-slate-400 mt-1">Đã tiếp nhận qua Queue</div>
         </div>
 
-        <div className="bg-amber-50/70 p-4 rounded-xl border border-amber-200 shadow-xs">
-          <div className="flex items-center justify-between text-amber-700 text-xs font-semibold mb-1">
+        <div className="bg-amber-50/70 p-5 rounded-2xl border border-amber-200 shadow-xs">
+          <div className="flex items-center justify-between text-amber-700 text-sm font-semibold mb-1.5">
             <span>Đang Chờ Đến Lượt</span>
             <Clock className="w-4 h-4 text-amber-600" />
           </div>
           <div className="text-2xl font-bold font-mono text-amber-900">{stats.pending}</div>
-          <div className="text-[11px] text-amber-600 mt-1">Chờ lượt hoặc chờ đến giờ gửi lại</div>
+          <div className="text-xs text-amber-600 mt-1">Chờ lượt hoặc chờ đến giờ gửi lại</div>
         </div>
 
-        <div className="bg-blue-50/70 p-4 rounded-xl border border-blue-200 shadow-xs">
-          <div className="flex items-center justify-between text-blue-700 text-xs font-semibold mb-1">
+        <div className="bg-blue-50/70 p-5 rounded-2xl border border-blue-200 shadow-xs">
+          <div className="flex items-center justify-between text-blue-700 text-sm font-semibold mb-1.5">
             <span>Đang Gửi Tuần Tự</span>
             <RefreshCw className="w-4 h-4 text-blue-600 animate-spin" />
           </div>
           <div className="text-2xl font-bold font-mono text-blue-900">{stats.processing}</div>
-          <div className="text-[11px] text-blue-600 mt-1">Đang thực thi lần lượt (1 by 1)</div>
+          <div className="text-xs text-blue-600 mt-1">Đang thực thi lần lượt (1 by 1)</div>
         </div>
 
-        <div className="bg-rose-50/70 p-4 rounded-xl border border-rose-200 shadow-xs">
-          <div className="flex items-center justify-between text-rose-700 text-xs font-semibold mb-1">
+        <div className="bg-rose-50/70 p-5 rounded-2xl border border-rose-200 shadow-xs">
+          <div className="flex items-center justify-between text-rose-700 text-sm font-semibold mb-1.5">
             <span>Đã Dừng (Thất Bại)</span>
             <AlertTriangle className="w-4 h-4 text-rose-600" />
           </div>
           <div className="text-2xl font-bold font-mono text-rose-900">{stats.failed}</div>
-          <div className="text-[11px] text-rose-600 mt-1">Vẫn để đó để kiểm tra & thử lại</div>
+          <div className="text-xs text-rose-600 mt-1">Vẫn để đó để kiểm tra & thử lại</div>
         </div>
 
-        <div className="bg-emerald-50/70 p-4 rounded-xl border border-emerald-200 shadow-xs col-span-2 md:col-span-1">
-          <div className="flex items-center justify-between text-emerald-700 text-xs font-semibold mb-1">
+        <div className="bg-emerald-50/70 p-5 rounded-2xl border border-emerald-200 shadow-xs col-span-2 md:col-span-1">
+          <div className="flex items-center justify-between text-emerald-700 text-sm font-semibold mb-1.5">
             <span>Đã Hoàn Thành</span>
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-2xl font-bold font-mono text-emerald-900">{stats.completed}</div>
-          <div className="text-[11px] text-emerald-600 mt-1">Gửi tin nhắn thành công</div>
+          <div className="text-xs text-emerald-600 mt-1">Gửi tin nhắn thành công</div>
         </div>
       </div>
 
       {/* 3. DANH SÁCH API HIỆN CÓ & SỐ REQUEST ĐANG CÓ */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5">
-        <div className="flex items-center justify-between mb-3.5">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 sm:p-6">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+            <h2 className="text-base font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
               <Key className="w-4 h-4 text-blue-600" />
               <span>Danh Sách API Hiện Có &amp; Số Request Của Từng API</span>
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-sm text-slate-500 mt-1">
               Ghi nhận từng nguồn gọi API / API Key và hiển thị số lượng request đang có trong hệ thống. Nhấp để lọc nhanh request.
             </p>
           </div>
@@ -404,7 +404,7 @@ export default function QueuePage() {
             <button
               type="button"
               onClick={() => setSelectedApi('ALL')}
-              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 rounded-lg cursor-pointer transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 rounded-lg cursor-pointer transition-colors"
             >
               <span>Xem tất cả API</span>
               <X className="w-3.5 h-3.5" />
@@ -412,9 +412,9 @@ export default function QueuePage() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
           {apis.length === 0 ? (
-            <div className="col-span-full py-8 text-center text-xs text-slate-400 italic">
+            <div className="col-span-full py-8 text-center text-sm text-slate-400 italic">
               Chưa có dữ liệu API nào được ghi nhận.
             </div>
           ) : (
@@ -424,7 +424,7 @@ export default function QueuePage() {
                 <div
                   key={apiItem.apiName}
                   onClick={() => setSelectedApi(isSelected ? 'ALL' : apiItem.apiName)}
-                  className={`p-3.5 rounded-xl border transition-all cursor-pointer text-left relative group ${
+                  className={`p-4 rounded-xl border transition-all cursor-pointer text-left relative group ${
                     isSelected
                       ? 'bg-blue-50/80 border-blue-500 ring-2 ring-blue-500/20 shadow-xs'
                       : 'bg-slate-50/60 hover:bg-slate-100/80 border-slate-200 hover:border-slate-300'
@@ -435,42 +435,42 @@ export default function QueuePage() {
                       {apiItem.apiName}
                     </div>
                     {apiItem.isApiKey ? (
-                      <span className="shrink-0 px-2 py-0.5 rounded text-[10px] font-semibold bg-violet-100 text-violet-700 border border-violet-200">
+                      <span className="shrink-0 px-2 py-0.5 rounded text-xs font-semibold bg-violet-100 text-violet-700 border border-violet-200">
                         API Key
                       </span>
                     ) : (
-                      <span className="shrink-0 px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-200 text-slate-700">
+                      <span className="shrink-0 px-2 py-0.5 rounded text-xs font-semibold bg-slate-200 text-slate-700">
                         System
                       </span>
                     )}
                   </div>
 
-                  <div className="text-[11px] text-slate-500 font-mono truncate mb-3">
+                  <div className="text-xs text-slate-500 font-mono truncate mb-3">
                     {apiItem.endpoint || '/api/invoices/quick-create'}
                   </div>
 
                   {/* Badges số request */}
-                  <div className="grid grid-cols-4 gap-1.5 text-center text-[11px] pt-2 border-t border-slate-200/60">
-                    <div className="bg-white/80 rounded py-1 border border-slate-200/60">
-                      <div className="text-[10px] text-slate-400 font-medium">Tổng</div>
-                      <div className="font-bold font-mono text-slate-800">{apiItem.total}</div>
+                  <div className="grid grid-cols-4 gap-1.5 text-center text-xs pt-2.5 border-t border-slate-200/60">
+                    <div className="bg-white/80 rounded-lg py-1.5 border border-slate-200/60">
+                      <div className="text-xs text-slate-400 font-medium">Tổng</div>
+                      <div className="font-bold font-mono text-sm text-slate-800">{apiItem.total}</div>
                     </div>
-                    <div className="bg-amber-50 rounded py-1 border border-amber-200/60">
-                      <div className="text-[10px] text-amber-600 font-medium">Chờ</div>
-                      <div className="font-bold font-mono text-amber-700">{apiItem.pending}</div>
+                    <div className="bg-amber-50 rounded-lg py-1.5 border border-amber-200/60">
+                      <div className="text-xs text-amber-600 font-medium">Chờ</div>
+                      <div className="font-bold font-mono text-sm text-amber-700">{apiItem.pending}</div>
                     </div>
-                    <div className="bg-emerald-50 rounded py-1 border border-emerald-200/60">
-                      <div className="text-[10px] text-emerald-600 font-medium">Xong</div>
-                      <div className="font-bold font-mono text-emerald-700">{apiItem.completed}</div>
+                    <div className="bg-emerald-50 rounded-lg py-1.5 border border-emerald-200/60">
+                      <div className="text-xs text-emerald-600 font-medium">Xong</div>
+                      <div className="font-bold font-mono text-sm text-emerald-700">{apiItem.completed}</div>
                     </div>
-                    <div className="bg-rose-50 rounded py-1 border border-rose-200/60">
-                      <div className="text-[10px] text-rose-600 font-medium">Lỗi</div>
-                      <div className="font-bold font-mono text-rose-700">{apiItem.failed}</div>
+                    <div className="bg-rose-50 rounded-lg py-1.5 border border-rose-200/60">
+                      <div className="text-xs text-rose-600 font-medium">Lỗi</div>
+                      <div className="font-bold font-mono text-sm text-rose-700">{apiItem.failed}</div>
                     </div>
                   </div>
 
                   {apiItem.lastRequestAt && (
-                    <div className="text-[10.5px] text-slate-400 mt-2 truncate">
+                    <div className="text-xs text-slate-400 mt-2 truncate">
                       Gần nhất: {formatVietnamDateTime(apiItem.lastRequestAt)}
                     </div>
                   )}
@@ -496,7 +496,7 @@ export default function QueuePage() {
                   setPage(1);
                 }}
                 placeholder="Tìm mã Job, tên API, số HĐ, tên người nhận, lỗi..."
-                className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
               {searchTerm && (
                 <button
@@ -518,7 +518,7 @@ export default function QueuePage() {
                 setSelectedApi(e.target.value);
                 setPage(1);
               }}
-              className="text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+              className="text-sm bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
             >
               <option value="ALL">Tất cả API ({apis.length})</option>
               {apis.map((a) => (
@@ -535,7 +535,7 @@ export default function QueuePage() {
                 setSelectedStatus(e.target.value);
                 setPage(1);
               }}
-              className="text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+              className="text-sm bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
             >
               <option value="ALL">Tất cả trạng thái</option>
               <option value="PENDING">Đang chờ (Pending)</option>
@@ -551,7 +551,7 @@ export default function QueuePage() {
                 setSelectedType(e.target.value);
                 setPage(1);
               }}
-              className="text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+              className="text-sm bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
             >
               <option value="ALL">Tất cả loại tác vụ</option>
               <option value="DELIVERY_EMAIL">Gửi Email Hóa Đơn</option>
@@ -568,15 +568,15 @@ export default function QueuePage() {
         {isLoadingJobs ? (
           <div className="py-20 text-center space-y-3">
             <RefreshCw className="w-8 h-8 text-blue-600 animate-spin mx-auto" />
-            <p className="text-xs text-slate-500">Đang tải danh sách hàng chờ...</p>
+            <p className="text-sm text-slate-500">Đang tải danh sách hàng chờ...</p>
           </div>
         ) : jobs.length === 0 ? (
           <div className="py-20 text-center space-y-3">
             <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
               <Inbox className="w-6 h-6" />
             </div>
-            <h3 className="font-bold text-slate-800 text-sm">Hàng chờ đang trống</h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            <h3 className="font-bold text-slate-800 text-base">Hàng chờ đang trống</h3>
+            <p className="text-sm text-slate-500 max-w-sm mx-auto">
               {searchTerm || selectedStatus !== 'ALL' || selectedApi !== 'ALL' || selectedType !== 'ALL'
                 ? 'Không tìm thấy request nào phù hợp với bộ lọc hiện tại.'
                 : 'Hiện không có request nào đang chờ xử lý. Các request gửi đến API sẽ được ghi nhận tại đây.'}
@@ -586,7 +586,7 @@ export default function QueuePage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-200/80 bg-slate-50/75 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                <tr className="border-b border-slate-200/80 bg-slate-50/75 text-xs font-bold text-slate-500 uppercase tracking-wider">
                   <th className="py-3.5 pl-4 pr-1 w-10 text-center">
                     <input
                       type="checkbox"
@@ -608,7 +608,7 @@ export default function QueuePage() {
                   <th className="py-3.5 px-5 text-right">Thao Tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+              <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
                 {jobs.map((job) => {
                   const isSelected = selectedIds.includes(job.id);
                   const typeCfg = TYPE_CONFIG[job.type] || TYPE_CONFIG.CUSTOM;
@@ -634,10 +634,10 @@ export default function QueuePage() {
 
                       {/* Thời gian & ID */}
                       <td className="py-4 px-4">
-                        <div className="font-mono text-slate-900 font-semibold text-[11.5px]">
+                        <div className="font-mono text-slate-900 font-semibold text-xs">
                           {formatVietnamDateTime(job.createdAt)}
                         </div>
-                        <div className="font-mono text-[10.5px] text-slate-400 mt-0.5">
+                        <div className="font-mono text-xs text-slate-400 mt-0.5">
                           ID: {job.id.slice(0, 8)}...
                         </div>
                       </td>
@@ -650,7 +650,7 @@ export default function QueuePage() {
                             {job.apiName || 'Hệ thống'}
                           </span>
                         </div>
-                        <div className="font-mono text-[10.5px] text-slate-500 mt-1 truncate max-w-[200px]" title={job.endpoint || ''}>
+                        <div className="font-mono text-xs text-slate-500 mt-1 truncate max-w-[200px]" title={job.endpoint || ''}>
                           {job.endpoint || job.source || 'Direct API'}
                         </div>
                       </td>
@@ -658,17 +658,17 @@ export default function QueuePage() {
                       {/* Tác vụ & Đối tượng */}
                       <td className="py-4 px-4">
                         <div className="font-semibold text-slate-900 flex items-center gap-1.5">
-                          <TypeIcon className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <TypeIcon className="w-4 h-4 text-blue-600 shrink-0" />
                           <span className="line-clamp-1">{job.title || typeCfg.label}</span>
                         </div>
                         {job.targetInfo && (
-                          <div className="text-[11px] text-slate-600 line-clamp-1 mt-0.5">
+                          <div className="text-xs text-slate-600 line-clamp-1 mt-0.5">
                             {job.targetInfo}
                           </div>
                         )}
                         {job.errorMessage && (
                           <div
-                            className="text-[10.5px] text-rose-600 line-clamp-1 mt-1 font-mono bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100"
+                            className="text-xs text-rose-600 line-clamp-1 mt-1 font-mono bg-rose-50 px-2 py-0.5 rounded border border-rose-100"
                             title={job.errorMessage}
                           >
                             ⚠️ {job.errorMessage}
@@ -678,11 +678,11 @@ export default function QueuePage() {
 
                       {/* Tiến độ thử lại */}
                       <td className="py-4 px-4 text-center">
-                        <div className="font-mono font-semibold text-xs text-slate-800">
+                        <div className="font-mono font-semibold text-sm text-slate-800">
                           {job.retryCount} / {job.maxRetries}
                         </div>
                         {job.retryCount > 0 && job.status === 'PENDING' && (
-                          <div className="text-[10px] text-amber-600 font-medium mt-0.5">
+                          <div className="text-xs text-amber-600 font-medium mt-0.5">
                             Gửi lại: {formatVietnamDateTime(job.nextRunAt).slice(0, 5)}
                           </div>
                         )}
@@ -745,29 +745,29 @@ export default function QueuePage() {
 
         {/* Footer phân trang */}
         {jobsData && jobsData.total > 0 && (
-          <div className="px-5 py-3 border-t border-slate-200/80 bg-slate-50/50 flex items-center justify-between text-xs text-slate-500">
+          <div className="px-5 py-3 border-t border-slate-200/80 bg-slate-50/50 flex items-center justify-between text-sm text-slate-500">
             <span>
               Hiển thị <strong>{jobs.length}</strong> / <strong>{jobsData.total}</strong> request
             </span>
 
             {jobsData.totalPages > 1 && (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="px-2.5 py-1 rounded bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
+                  className="px-3 py-1 rounded-lg text-sm bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
                 >
                   Trang trước
                 </button>
-                <span className="px-2 font-mono font-medium">
+                <span className="px-2 font-mono font-medium text-sm">
                   {page} / {jobsData.totalPages}
                 </span>
                 <button
                   type="button"
                   disabled={page >= jobsData.totalPages}
                   onClick={() => setPage((p) => Math.min(jobsData.totalPages, p + 1))}
-                  className="px-2.5 py-1 rounded bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
+                  className="px-3 py-1 rounded-lg text-sm bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
                 >
                   Trang sau
                 </button>
@@ -812,15 +812,15 @@ export default function QueuePage() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/75">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
-                  <Clock className="w-4 h-4" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                  <Clock className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 text-sm">
+                  <h3 className="font-bold text-slate-900 text-base sm:text-lg">
                     Chi Tiết Request #{detailJob.id.slice(0, 8)}
                   </h3>
-                  <div className="text-xs text-slate-500 font-mono">
+                  <div className="text-xs text-slate-500 font-mono mt-0.5">
                     API: <strong className="text-blue-600">{detailJob.apiName || 'Hệ thống'}</strong> • {detailJob.endpoint || ''}
                   </div>
                 </div>
@@ -835,37 +835,37 @@ export default function QueuePage() {
             </div>
 
             {/* Modal Content */}
-            <div className="p-6 space-y-4 overflow-y-auto text-xs">
+            <div className="p-6 space-y-4 overflow-y-auto text-sm">
               {/* Meta Grid */}
-              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200/70">
+              <div className="grid grid-cols-2 gap-3.5 bg-slate-50 p-4 rounded-xl border border-slate-200/70">
                 <div>
-                  <span className="text-slate-400 block text-[11px]">Trạng Thái:</span>
+                  <span className="text-slate-400 block text-xs">Trạng Thái:</span>
                   <div className="mt-1">
                     {getStatusBadge(detailJob.status, detailJob.retryCount, detailJob.maxRetries)}
                   </div>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[11px]">Loại Tác Vụ:</span>
+                  <span className="text-slate-400 block text-xs">Loại Tác Vụ:</span>
                   <div className="font-semibold text-slate-800 mt-1">
                     {TYPE_CONFIG[detailJob.type]?.label || detailJob.type}
                   </div>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[11px]">Số Lần Thử Lại:</span>
-                  <div className="font-mono text-slate-800 mt-0.5">
+                  <span className="text-slate-400 block text-xs">Số Lần Thử Lại:</span>
+                  <div className="font-mono text-slate-800 mt-1 font-semibold">
                     {detailJob.retryCount} / {detailJob.maxRetries} lần (Tối đa 5 lần)
                   </div>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[11px]">Thời Gian Tạo:</span>
-                  <div className="font-mono text-slate-800 mt-0.5">
+                  <span className="text-slate-400 block text-xs">Thời Gian Tạo:</span>
+                  <div className="font-mono text-slate-800 mt-1">
                     {formatVietnamDateTime(detailJob.createdAt)}
                   </div>
                 </div>
                 {detailJob.targetInfo && (
                   <div className="col-span-2">
-                    <span className="text-slate-400 block text-[11px]">Đối Tượng / Người Nhận:</span>
-                    <div className="font-medium text-slate-900 mt-0.5">{detailJob.targetInfo}</div>
+                    <span className="text-slate-400 block text-xs">Đối Tượng / Người Nhận:</span>
+                    <div className="font-medium text-slate-900 mt-1">{detailJob.targetInfo}</div>
                   </div>
                 )}
               </div>
@@ -873,11 +873,11 @@ export default function QueuePage() {
               {/* Lỗi nếu có */}
               {detailJob.errorMessage && (
                 <div>
-                  <div className="text-slate-600 font-semibold mb-1 flex items-center gap-1.5 text-rose-600">
-                    <AlertTriangle className="w-3.5 h-3.5" />
+                  <div className="text-slate-600 font-semibold mb-1.5 flex items-center gap-1.5 text-rose-600 text-sm">
+                    <AlertTriangle className="w-4 h-4" />
                     <span>Chi Tiết Lỗi Ghi Nhận:</span>
                   </div>
-                  <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-rose-800 font-mono text-[11.5px] whitespace-pre-wrap">
+                  <div className="bg-rose-50 border border-rose-200 rounded-xl p-3.5 text-rose-800 font-mono text-xs whitespace-pre-wrap">
                     {detailJob.errorMessage}
                   </div>
                 </div>
@@ -885,18 +885,18 @@ export default function QueuePage() {
 
               {/* Payload JSON */}
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-slate-700 font-semibold">Dữ Liệu Gửi Lên (Payload):</span>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-slate-700 font-semibold text-sm">Dữ Liệu Gửi Lên (Payload):</span>
                   <button
                     type="button"
                     onClick={() => copyToClipboard(JSON.stringify(detailJob.payload, null, 2), 'payload')}
-                    className="text-[11px] text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                    className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
                   >
-                    {copiedKey === 'payload' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                    {copiedKey === 'payload' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                     <span>{copiedKey === 'payload' ? 'Đã sao chép' : 'Sao chép JSON'}</span>
                   </button>
                 </div>
-                <pre className="bg-slate-900 text-slate-200 p-3.5 rounded-xl font-mono text-[11px] overflow-x-auto max-h-48 border border-slate-800">
+                <pre className="bg-slate-900 text-slate-200 p-4 rounded-xl font-mono text-xs overflow-x-auto max-h-48 border border-slate-800">
                   {JSON.stringify(detailJob.payload, null, 2)}
                 </pre>
               </div>
@@ -904,18 +904,18 @@ export default function QueuePage() {
               {/* Result JSON (nếu có) */}
               {detailJob.result && (
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-slate-700 font-semibold">Kết Quả Phản Hồi (Result):</span>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-slate-700 font-semibold text-sm">Kết Quả Phản Hồi (Result):</span>
                     <button
                       type="button"
                       onClick={() => copyToClipboard(JSON.stringify(detailJob.result, null, 2), 'result')}
-                      className="text-[11px] text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                      className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
                     >
-                      {copiedKey === 'result' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                      {copiedKey === 'result' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                       <span>{copiedKey === 'result' ? 'Đã sao chép' : 'Sao chép JSON'}</span>
                     </button>
                   </div>
-                  <pre className="bg-slate-900 text-slate-200 p-3.5 rounded-xl font-mono text-[11px] overflow-x-auto max-h-40 border border-slate-800">
+                  <pre className="bg-slate-900 text-slate-200 p-4 rounded-xl font-mono text-xs overflow-x-auto max-h-40 border border-slate-800">
                     {JSON.stringify(detailJob.result, null, 2)}
                   </pre>
                 </div>
@@ -924,7 +924,7 @@ export default function QueuePage() {
 
             {/* Modal Footer */}
             <div className="px-6 py-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
-              <span className="text-slate-400 text-[11px]">
+              <span className="text-slate-500 text-xs">
                 Cập nhật lần cuối: {formatVietnamDateTime(detailJob.updatedAt)}
               </span>
 

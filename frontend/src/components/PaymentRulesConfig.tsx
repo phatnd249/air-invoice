@@ -287,11 +287,11 @@ export default function PaymentRulesConfig() {
                     <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                       <span className="font-bold text-slate-900 text-sm">{rule.name}</span>
                       {rule.isActive ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           Đang kích hoạt
                         </span>
                       ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200">
                           Đã tạm dừng
                         </span>
                       )}
@@ -304,7 +304,7 @@ export default function PaymentRulesConfig() {
                       <div>
                         Cú pháp định dạng: <code className="px-2 py-0.5 bg-white border border-slate-200 rounded font-mono text-slate-800">{rule.descriptionTemplate}</code>
                       </div>
-                      <div className="text-[11px] text-slate-500 pt-1 flex items-center space-x-1.5 flex-wrap">
+                      <div className="text-xs text-slate-500 pt-1 flex items-center space-x-1.5 flex-wrap">
                         <span>👉 Kết quả mẫu trên VietQR:</span>
                         <strong className="font-mono text-indigo-900 bg-indigo-100/70 px-2.5 py-0.5 rounded border border-indigo-200/60">{samplePreview}</strong>
                       </div>
@@ -355,7 +355,7 @@ export default function PaymentRulesConfig() {
               <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
                 Cú pháp chuyển khoản mặc định (khi email không khớp quy tắc nào)
               </h4>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-xs text-slate-500">
                 Áp dụng cho mọi hóa đơn thanh toán nếu khách hàng không dùng email đặc thù.
               </p>
             </div>
@@ -382,7 +382,7 @@ export default function PaymentRulesConfig() {
 
           {/* Quick tags */}
           <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-600 pt-1">
-            <span className="text-[11px] text-slate-400 font-medium">Bấm chèn biến:</span>
+            <span className="text-xs text-slate-400 font-medium">Bấm chèn biến:</span>
             {[
               { tag: '{paymentCode}', desc: 'Mã thanh toán' },
               { tag: '{invoiceNumber}', desc: 'Số hóa đơn' },
@@ -393,7 +393,7 @@ export default function PaymentRulesConfig() {
                 key={item.tag}
                 type="button"
                 onClick={() => setDefaultPaymentDesc((prev) => prev + (prev.endsWith(' ') || prev === '' ? '' : ' ') + item.tag)}
-                className="px-2 py-0.5 bg-white border border-slate-200 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 rounded text-[11px] font-mono transition-colors cursor-pointer"
+                className="px-2.5 py-1 bg-white border border-slate-200 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 rounded-lg text-xs font-mono transition-colors cursor-pointer"
               >
                 {item.tag}
               </button>
@@ -413,37 +413,37 @@ export default function PaymentRulesConfig() {
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
             <div className="font-mono font-bold text-indigo-700">{'{studentId}'}</div>
             <div className="text-slate-600">Dãy số mã số sinh viên ở đầu email (hoặc toàn bộ chuỗi trước @ nếu không có số).</div>
-            <div className="text-[11px] text-slate-400 italic">Ví dụ: "124001340@lachong.edu.vn" → "124001340"</div>
+            <div className="text-xs text-slate-500 italic">Ví dụ: "124001340@lachong.edu.vn" → "124001340"</div>
           </div>
 
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
             <div className="font-mono font-bold text-indigo-700">{'{emailPrefix}'}</div>
             <div className="text-slate-600">Toàn bộ ký tự nằm phía trước dấu @ của địa chỉ email.</div>
-            <div className="text-[11px] text-slate-400 italic">Ví dụ: "thanhdat.nguyen@company.com" → "thanhdat.nguyen"</div>
+            <div className="text-xs text-slate-500 italic">Ví dụ: "thanhdat.nguyen@company.com" → "thanhdat.nguyen"</div>
           </div>
 
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
             <div className="font-mono font-bold text-indigo-700">{'{paymentCode}'}</div>
             <div className="text-slate-600">Mã thanh toán đối soát 6 ký tự ngẫu nhiên được sinh cho mỗi hóa đơn.</div>
-            <div className="text-[11px] text-slate-400 italic">Ví dụ: "A8X9K2", "M3AU0C"</div>
+            <div className="text-xs text-slate-500 italic">Ví dụ: "A8X9K2", "M3AU0C"</div>
           </div>
 
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
             <div className="font-mono font-bold text-indigo-700">{'{invoiceNumber}'}</div>
             <div className="text-slate-600">Số hiệu hóa đơn chính thức trên hệ thống.</div>
-            <div className="text-[11px] text-slate-400 italic">Ví dụ: "HD-000047", "HD-000072"</div>
+            <div className="text-xs text-slate-500 italic">Ví dụ: "HD-000047", "HD-000072"</div>
           </div>
 
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
             <div className="font-mono font-bold text-indigo-700">{'{serviceName}'}</div>
             <div className="text-slate-600">Tên dịch vụ, khóa học hoặc hàng hóa đầu tiên trong hóa đơn.</div>
-            <div className="text-[11px] text-slate-400 italic">Ví dụ: "Starter", "AI Writer Pro 1 Năm"</div>
+            <div className="text-xs text-slate-500 italic">Ví dụ: "Starter", "AI Writer Pro 1 Năm"</div>
           </div>
 
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
             <div className="font-mono font-bold text-indigo-700">{'{customerName}'}</div>
             <div className="text-slate-600">Họ và tên của khách hàng / người mua ghi trên hóa đơn.</div>
-            <div className="text-[11px] text-slate-400 italic">Ví dụ: "Phạm Phương Thảo", "Đinh Triệu Mẫn"</div>
+            <div className="text-xs text-slate-500 italic">Ví dụ: "Phạm Phương Thảo", "Đinh Triệu Mẫn"</div>
           </div>
         </div>
       </section>
@@ -502,7 +502,7 @@ export default function PaymentRulesConfig() {
                     className="w-full px-3.5 py-2 text-sm font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   Hệ thống kiểm tra nếu email khách hàng có chứa chuỗi này thì sẽ áp dụng quy tắc.
                 </p>
               </div>
@@ -532,7 +532,7 @@ export default function PaymentRulesConfig() {
                       key={it.tag}
                       type="button"
                       onClick={() => setRuleFormTemplate((prev) => prev + (prev ? ' ' : '') + it.tag)}
-                      className="px-2 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 rounded text-[11px] font-mono transition-colors cursor-pointer"
+                      className="px-2.5 py-1 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg text-xs font-mono transition-colors cursor-pointer"
                     >
                       +{it.label}
                     </button>
@@ -543,26 +543,26 @@ export default function PaymentRulesConfig() {
               {/* Live Test Preview Box */}
               <div className="p-3.5 bg-indigo-50/70 border border-indigo-200/80 rounded-2xl space-y-2 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-indigo-900 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                  <span className="font-bold text-indigo-900 flex items-center gap-1.5 text-sm">
+                    <Sparkles className="w-4 h-4 text-indigo-600" />
                     Thử nghiệm kết quả thực tế
                   </span>
                 </div>
 
                 <div>
-                  <label className="text-[11px] text-slate-500 block mb-1">Nhập thử email khách hàng:</label>
+                  <label className="text-xs text-slate-600 block mb-1">Nhập thử email khách hàng:</label>
                   <input
                     type="text"
                     value={testEmail}
                     onChange={(e) => setTestEmail(e.target.value)}
                     placeholder="VD: 124001340@lachong.edu.vn"
-                    className="w-full px-3 py-1.5 text-xs bg-white border border-indigo-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                    className="w-full px-3.5 py-2 text-sm bg-white border border-indigo-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
                   />
                 </div>
 
                 <div className="pt-1">
-                  <label className="text-[11px] text-slate-500 block mb-1">Nội dung VietQR thực tế sinh ra:</label>
-                  <div className="p-2.5 bg-white rounded-lg border border-indigo-200 text-indigo-950 font-mono font-semibold break-words">
+                  <label className="text-xs text-slate-600 block mb-1">Nội dung VietQR thực tế sinh ra:</label>
+                  <div className="p-3 bg-white rounded-lg border border-indigo-200 text-indigo-950 font-mono font-bold text-sm break-words">
                     {calculateRulePreview(testEmail, ruleFormTemplate) || '(Chưa có nội dung)'}
                   </div>
                 </div>

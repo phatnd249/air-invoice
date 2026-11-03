@@ -552,12 +552,12 @@ export default function InvoicesPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-7">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-24">
       {/* Top Title & Primary Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Quản Lý Hóa Đơn</h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-sm text-slate-500 mt-1">
             Theo dõi, phát hành và kiểm soát dòng tiền thanh toán dịch vụ
           </p>
         </div>
@@ -566,7 +566,7 @@ export default function InvoicesPage() {
           <button
             type="button"
             onClick={handleExportBackup}
-            className="inline-flex items-center space-x-1.5 px-3 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs transition-all shadow-xs cursor-pointer"
+            className="inline-flex items-center space-x-1.5 px-3.5 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold text-sm transition-all shadow-xs cursor-pointer"
             title="Tải tệp sao lưu toàn bộ dữ liệu hóa đơn về máy tính"
           >
             <Download className="w-4 h-4 text-slate-500" />
@@ -585,7 +585,7 @@ export default function InvoicesPage() {
 
           <Link
             href="/invoices/new"
-            className="inline-flex items-center space-x-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-xl shadow-xs transition-all cursor-pointer"
+            className="inline-flex items-center space-x-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl shadow-xs transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Tạo Hóa Đơn Mới</span>
@@ -597,66 +597,66 @@ export default function InvoicesPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Metric 1: Đã Thu */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
-          <div className="flex items-center justify-between text-xs font-medium text-slate-500">
+          <div className="flex items-center justify-between text-sm font-medium text-slate-500">
             <span>Doanh Thu Thực Thu (Đã Trả)</span>
             <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-xl font-bold font-mono tabular-nums tracking-tight text-emerald-700">
+          <div className="text-2xl font-bold font-mono tabular-nums tracking-tight text-emerald-700">
             {formatCurrency(metrics.paidRevenue)}
           </div>
-          <div className="text-[11px] text-slate-500 font-medium">
+          <div className="text-xs text-slate-500 font-medium">
             {metrics.paidCount} hóa đơn đã hoàn tất
           </div>
         </div>
 
         {/* Metric 2: Chờ Thu */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
-          <div className="flex items-center justify-between text-xs font-medium text-slate-500">
+          <div className="flex items-center justify-between text-sm font-medium text-slate-500">
             <span>Đang Chờ Thanh Toán</span>
             <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
               <Clock className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-xl font-bold font-mono tabular-nums tracking-tight text-amber-600">
+          <div className="text-2xl font-bold font-mono tabular-nums tracking-tight text-amber-600">
             {formatCurrency(metrics.pendingRevenue)}
           </div>
-          <div className="text-[11px] text-slate-500 font-medium">
+          <div className="text-xs text-slate-500 font-medium">
             {metrics.pendingCount} hóa đơn chưa thanh toán
           </div>
         </div>
 
         {/* Metric 3: Tổng Số Hóa Đơn */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
-          <div className="flex items-center justify-between text-xs font-medium text-slate-500">
+          <div className="flex items-center justify-between text-sm font-medium text-slate-500">
             <span>Tổng Hóa Đơn Hoạt Động</span>
             <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
               <FileText className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-xl font-bold font-mono tabular-nums tracking-tight text-slate-900">
+          <div className="text-2xl font-bold font-mono tabular-nums tracking-tight text-slate-900">
             {metrics.totalCount}
           </div>
-          <div className="text-[11px] text-slate-500 font-medium">
+          <div className="text-xs text-slate-500 font-medium">
             Bao gồm GTGT, Bán hàng & Dịch vụ
           </div>
         </div>
 
         {/* Metric 4: Tỉ Lệ Thu Tiền */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
-          <div className="flex items-center justify-between text-xs font-medium text-slate-500">
+          <div className="flex items-center justify-between text-sm font-medium text-slate-500">
             <span>Tỉ Lệ Thu Tiền</span>
             <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-xl font-bold font-mono tabular-nums tracking-tight text-slate-900">
+          <div className="text-2xl font-bold font-mono tabular-nums tracking-tight text-slate-900">
             {metrics.totalCount > 0
               ? `${Math.round((metrics.paidCount / metrics.totalCount) * 100)}%`
               : '100%'}
           </div>
-          <div className="text-[11px] text-slate-500 font-medium">
+          <div className="text-xs text-slate-500 font-medium">
             {metrics.cancelledCount > 0 ? `${metrics.cancelledCount} hóa đơn đã hủy` : 'Không có hóa đơn hủy'}
           </div>
         </div>
@@ -688,7 +688,7 @@ export default function InvoicesPage() {
                     setSelectedStatus(tab.id);
                     setSelectedIds([]);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all flex items-center space-x-1.5 cursor-pointer ${
                     isSelected
                       ? tab.isTrash
                         ? 'bg-rose-50 text-rose-700 border border-rose-200 shadow-xs'
@@ -715,7 +715,7 @@ export default function InvoicesPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Tìm mã, khách hàng, email (Bấm '/' để gõ)..."
-                className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all placeholder:text-slate-400"
+                className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all placeholder:text-slate-400"
               />
               {searchTerm && (
                 <button
@@ -731,7 +731,7 @@ export default function InvoicesPage() {
             <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all cursor-pointer"
+              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all cursor-pointer"
             >
               <option value="ALL">Tất cả loại hóa đơn</option>
               {Object.entries(INVOICE_TYPE_CONFIG).map(([key, config]) => (
@@ -810,8 +810,8 @@ export default function InvoicesPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-200/80 bg-slate-50/70 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="py-3 px-4 w-10 text-center">
+                <tr className="border-b border-slate-200/80 bg-slate-50/70 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  <th className="py-3.5 px-4 w-10 text-center">
                     <input
                       type="checkbox"
                       checked={isAllSelected}
@@ -823,16 +823,16 @@ export default function InvoicesPage() {
                       title="Chọn tất cả hóa đơn trang này"
                     />
                   </th>
-                  <th className="py-3 px-4">Số Hóa Đơn</th>
-                  <th className="py-3 px-4">Khách Hàng / Đơn Vị</th>
-                  <th className="py-3 px-4">Loại & Hình Thức</th>
-                  <th className="py-3 px-4 text-right">Tổng Tiền</th>
-                  <th className="py-3 px-4 text-center">Trạng Thái</th>
-                  <th className="py-3 px-4">Ngày Lập</th>
-                  <th className="py-3 px-4 text-right">Thao Tác</th>
+                  <th className="py-3.5 px-4">Số Hóa Đơn</th>
+                  <th className="py-3.5 px-4">Khách Hàng / Đơn Vị</th>
+                  <th className="py-3.5 px-4">Loại &amp; Hình Thức</th>
+                  <th className="py-3.5 px-4 text-right">Tổng Tiền</th>
+                  <th className="py-3.5 px-4 text-center">Trạng Thái</th>
+                  <th className="py-3.5 px-4">Ngày Lập</th>
+                  <th className="py-3.5 px-4 text-right">Thao Tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-xs">
+              <tbody className="divide-y divide-slate-100 text-sm">
                 {filteredInvoices.map((inv) => {
                   const isChecked = selectedIds.includes(inv.id);
                   const isMenuOpen = openMenuRow === inv.id;
@@ -855,7 +855,7 @@ export default function InvoicesPage() {
                       }`}
                     >
                       {/* Checkbox */}
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3.5 px-4 text-center">
                         <input
                           type="checkbox"
                           checked={isChecked}
@@ -865,66 +865,66 @@ export default function InvoicesPage() {
                       </td>
 
                       {/* Số Hóa Đơn */}
-                      <td className="py-3 px-4">
+                      <td className="py-3.5 px-4">
                         <div className="flex items-center space-x-2">
                           <Link
                             href={`/invoices/${inv.id}`}
-                            className="font-bold text-blue-600 hover:text-blue-800 font-mono hover:underline cursor-pointer"
+                            className="font-bold text-blue-600 hover:text-blue-800 font-mono text-sm hover:underline cursor-pointer"
                           >
                             #{inv.invoiceNumber}
                           </Link>
                           {inv.isDraft && (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                            <span className="px-2 py-0.5 rounded text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
                               Nháp
                             </span>
                           )}
                         </div>
                         {inv.paymentCode && (
-                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                          <div className="text-xs text-slate-400 font-mono mt-0.5">
                             Mã: {inv.paymentCode}
                           </div>
                         )}
                       </td>
 
                       {/* Khách Hàng */}
-                      <td className="py-3 px-4">
-                        <div className="font-semibold text-slate-900">{inv.buyerName}</div>
+                      <td className="py-3.5 px-4">
+                        <div className="font-semibold text-slate-900 text-sm">{inv.buyerName}</div>
                         {inv.buyerCompany && (
-                          <div className="text-[11px] text-slate-500 truncate max-w-xs">
+                          <div className="text-xs text-slate-500 truncate max-w-sm mt-0.5">
                             {inv.buyerCompany}
                           </div>
                         )}
                         {inv.buyerEmail && (
-                          <div className="text-[11px] text-slate-400 truncate max-w-xs">
+                          <div className="text-xs text-slate-400 truncate max-w-sm mt-0.5">
                             {inv.buyerEmail}
                           </div>
                         )}
                       </td>
 
                       {/* Loại & Hình Thức */}
-                      <td className="py-3 px-4">
-                        <div className="flex flex-col space-y-1">
-                          <span className="text-[11px] font-medium text-slate-700">
+                      <td className="py-3.5 px-4">
+                        <div className="flex flex-col space-y-0.5">
+                          <span className="text-xs font-semibold text-slate-700">
                             {typeCfg.label}
                           </span>
-                          <span className="text-[10px] text-slate-400">
+                          <span className="text-xs text-slate-400">
                             {formCfg.label}
                           </span>
                         </div>
                       </td>
 
                       {/* Tổng Tiền */}
-                      <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 tabular-nums">
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-900 tabular-nums text-sm">
                         {formatCurrency(inv.grandTotal)}
                       </td>
 
                       {/* Trạng Thái */}
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3.5 px-4 text-center">
                         {getStatusBadge(inv.status)}
                       </td>
 
                       {/* Ngày Lập */}
-                      <td className="py-3 px-4 text-slate-500 text-[11px]">
+                      <td className="py-3.5 px-4 text-slate-600 text-xs">
                         <div>{formatVietnamDateTime(inv.issueDate || inv.createdAt)}</div>
                       </td>
 
@@ -948,7 +948,7 @@ export default function InvoicesPage() {
                                 setMenuPos(null);
                               } else {
                                 const rect = e.currentTarget.getBoundingClientRect();
-                                const menuEstimatedHeight = 260;
+                                const menuEstimatedHeight = 330;
                                 const spaceBelow = window.innerHeight - rect.bottom;
                                 const openUpwards = spaceBelow < menuEstimatedHeight;
 
@@ -980,7 +980,7 @@ export default function InvoicesPage() {
                               maxHeight: 'calc(100vh - 32px)',
                               overflowY: 'auto',
                             }}
-                            className="w-56 bg-white rounded-2xl shadow-xl border border-slate-200/80 py-1.5 text-left animate-in fade-in zoom-in-95 duration-150"
+                            className="w-60 bg-white rounded-2xl shadow-xl border border-slate-200/80 py-1.5 text-left animate-in fade-in zoom-in-95 duration-150"
                           >
                             {isTrashView ? (
                               <>
@@ -992,9 +992,9 @@ export default function InvoicesPage() {
                                     setMenuPos(null);
                                   }}
                                   disabled={restoreMutation.isPending}
-                                  className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition-colors text-left cursor-pointer"
+                                  className="w-full flex items-center space-x-2.5 px-3.5 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 transition-colors text-left cursor-pointer"
                                 >
-                                  <RotateCcw className="w-3.5 h-3.5" />
+                                  <RotateCcw className="w-4 h-4" />
                                   <span>Khôi phục hóa đơn</span>
                                 </button>
                                 <button
@@ -1013,9 +1013,9 @@ export default function InvoicesPage() {
                                     setMenuPos(null);
                                   }}
                                   disabled={permanentDeleteMutation.isPending}
-                                  className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors text-left cursor-pointer"
+                                  className="w-full flex items-center space-x-2.5 px-3.5 py-2.5 text-sm font-semibold text-rose-600 hover:bg-rose-50 transition-colors text-left cursor-pointer"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <Trash2 className="w-4 h-4" />
                                   <span>Xóa vĩnh viễn</span>
                                 </button>
                               </>
@@ -1024,9 +1024,9 @@ export default function InvoicesPage() {
                                 <Link
                                   href={`/invoices/${inv.id}/edit`}
                                   onClick={() => { setOpenMenuRow(null); setMenuPos(null); }}
-                                  className="flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                                  className="flex items-center space-x-2.5 px-3.5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
                                 >
-                                  <Pencil className="w-3.5 h-3.5 text-slate-400" />
+                                  <Pencil className="w-4 h-4 text-slate-400" />
                                   <span>Chỉnh sửa hóa đơn</span>
                                 </Link>
 
@@ -1035,9 +1035,9 @@ export default function InvoicesPage() {
                                   target="_blank"
                                   rel="noreferrer"
                                   onClick={() => { setOpenMenuRow(null); setMenuPos(null); }}
-                                  className="flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                                  className="flex items-center space-x-2.5 px-3.5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
                                 >
-                                  <Download className="w-3.5 h-3.5 text-slate-400" />
+                                  <Download className="w-4 h-4 text-slate-400" />
                                   <span>In / Tải PDF</span>
                                 </a>
 
@@ -1049,9 +1049,9 @@ export default function InvoicesPage() {
                                     setMenuPos(null);
                                   }}
                                   disabled={cloneMutation.isPending}
-                                  className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors text-left cursor-pointer"
+                                  className="w-full flex items-center space-x-2.5 px-3.5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors text-left cursor-pointer"
                                 >
-                                  <Copy className="w-3.5 h-3.5 text-slate-400" />
+                                  <Copy className="w-4 h-4 text-slate-400" />
                                   <span>Nhân bản hóa đơn</span>
                                 </button>
 
@@ -1064,9 +1064,9 @@ export default function InvoicesPage() {
                                       setMenuPos(null);
                                     }}
                                     disabled={payMutation.isPending}
-                                    className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition-colors text-left cursor-pointer"
+                                    className="w-full flex items-center space-x-2.5 px-3.5 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 transition-colors text-left cursor-pointer"
                                   >
-                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                                     <span>Xác nhận đã thanh toán</span>
                                   </button>
                                 )}
@@ -1079,9 +1079,9 @@ export default function InvoicesPage() {
                                       setOpenMenuRow(null);
                                       setMenuPos(null);
                                     }}
-                                    className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 transition-colors text-left cursor-pointer"
+                                    className="w-full flex items-center space-x-2.5 px-3.5 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 transition-colors text-left cursor-pointer"
                                   >
-                                    <CalendarClock className="w-3.5 h-3.5 text-indigo-600" />
+                                    <CalendarClock className="w-4 h-4 text-indigo-600" />
                                     <span>Thêm vào Trang Khách Hàng</span>
                                   </button>
                                 )}
@@ -1103,9 +1103,9 @@ export default function InvoicesPage() {
                                     setMenuPos(null);
                                   }}
                                   disabled={deleteMutation.isPending}
-                                  className="w-full flex items-center space-x-2.5 px-3.5 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors text-left cursor-pointer"
+                                  className="w-full flex items-center space-x-2.5 px-3.5 py-2.5 text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors text-left cursor-pointer"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <Trash2 className="w-4 h-4" />
                                   <span>Chuyển vào Thùng rác</span>
                                 </button>
                               </>
@@ -1123,13 +1123,13 @@ export default function InvoicesPage() {
 
         {/* Table Footer Summary */}
         {filteredInvoices.length > 0 && (
-          <div className="px-5 py-3 border-t border-slate-200/80 bg-slate-50/50 flex items-center justify-between text-xs text-slate-500">
+          <div className="px-6 py-3.5 border-t border-slate-200/80 bg-slate-50/50 flex items-center justify-between text-sm text-slate-500">
             <span>
               Hiển thị <strong>{filteredInvoices.length}</strong> / <strong>{invoices.length}</strong> hóa đơn
             </span>
             <span className="font-mono tabular-nums font-medium">
               Tổng tiền trang này:{' '}
-              <strong className="text-slate-900">
+              <strong className="text-slate-900 font-bold">
                 {formatCurrency(
                   filteredInvoices.reduce((acc, it) => acc + (Number(it.grandTotal) || 0), 0)
                 )}
@@ -1141,8 +1141,8 @@ export default function InvoicesPage() {
 
       {/* Floating Batch Action Bar (CẢI TIẾN: Thêm Thanh toán nhiều & Chuyển khách hàng nhanh) */}
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 backdrop-blur-md text-white px-5 py-3 rounded-2xl shadow-2xl flex flex-wrap items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200 border border-slate-700/80">
-          <div className="flex items-center gap-2 text-xs font-semibold">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 backdrop-blur-md text-white px-6 py-3.5 rounded-2xl shadow-2xl flex flex-wrap items-center gap-3.5 animate-in fade-in slide-in-from-bottom-4 duration-200 border border-slate-700/80">
+          <div className="flex items-center gap-2.5 text-sm font-semibold">
             <span className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-xs font-mono font-bold text-white">
               {selectedIds.length}
             </span>
@@ -1184,9 +1184,9 @@ export default function InvoicesPage() {
                   setBulkPayNote('Xác nhận thanh toán hàng loạt');
                   setIsBulkPayOpen(true);
                 }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-md shadow-emerald-900/30 transition-all cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl shadow-md shadow-emerald-900/30 transition-all cursor-pointer"
               >
-                <CreditCard className="w-3.5 h-3.5" />
+                <CreditCard className="w-4 h-4" />
                 <span>
                   Thanh toán ({unpaidSelectedInvoices.length > 0 ? unpaidSelectedInvoices.length : selectedIds.length})
                 </span>
@@ -1199,9 +1199,9 @@ export default function InvoicesPage() {
                   setBulkSubNotes('Thêm từ danh sách hóa đơn đã chọn');
                   setIsBulkSubOpen(true);
                 }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-md shadow-indigo-900/30 transition-all cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-md shadow-indigo-900/30 transition-all cursor-pointer"
               >
-                <UserPlus className="w-3.5 h-3.5" />
+                <UserPlus className="w-4 h-4" />
                 <span>Chuyển thành khách hàng ({selectedIds.length})</span>
               </button>
 
@@ -1210,10 +1210,10 @@ export default function InvoicesPage() {
                 type="button"
                 onClick={handleBulkDelete}
                 disabled={bulkDeleteMutation.isPending}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-rose-700 text-slate-300 hover:text-white text-xs font-medium rounded-xl transition-all cursor-pointer border border-slate-700"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-rose-700 text-slate-300 hover:text-white text-sm font-medium rounded-xl transition-all cursor-pointer border border-slate-700"
                 title="Chuyển vào Thùng rác"
               >
-                <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                <Trash2 className="w-4 h-4 text-rose-400" />
                 <span className="hidden sm:inline">Thùng rác</span>
               </button>
             </div>
@@ -1222,7 +1222,7 @@ export default function InvoicesPage() {
           <button
             type="button"
             onClick={() => setSelectedIds([])}
-            className="text-xs text-slate-400 hover:text-white transition-colors cursor-pointer px-2 py-1 ml-auto"
+            className="text-sm text-slate-400 hover:text-white transition-colors cursor-pointer px-2.5 py-1.5 ml-auto"
           >
             Bỏ chọn
           </button>

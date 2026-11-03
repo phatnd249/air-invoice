@@ -717,7 +717,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-6">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-24">
       {/* Header */}
       <div className="pb-6 border-b border-slate-200">
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Cài Đặt Hệ Thống</h1>
@@ -801,14 +801,14 @@ export default function SettingsPage() {
                         )}
                         <div>
                           <h4 className="font-bold text-slate-900 text-sm line-clamp-1">{comp.name}</h4>
-                          <span className="text-[11px] font-mono text-slate-500">
+                          <span className="text-xs font-mono text-slate-500">
                             MST: <strong className="text-slate-700">{comp.taxCode || 'Chưa cập nhật'}</strong>
                           </span>
                         </div>
                       </div>
 
                       {comp.isDefault ? (
-                        <span className="inline-flex items-center space-x-1 bg-blue-600 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full shadow-xs shrink-0">
+                        <span className="inline-flex items-center space-x-1 bg-blue-600 text-white text-xs font-bold px-2.5 py-0.5 rounded-full shadow-xs shrink-0">
                           <Star className="w-3 h-3 fill-white" />
                           <span>Mặc định</span>
                         </span>
@@ -816,7 +816,7 @@ export default function SettingsPage() {
                         <button
                           type="button"
                           onClick={() => handleSetDefaultCompany(comp.id)}
-                          className="text-[11px] text-slate-500 hover:text-blue-600 hover:underline shrink-0"
+                          className="text-xs text-slate-500 hover:text-blue-600 hover:underline shrink-0"
                         >
                           Đặt làm mặc định
                         </button>
@@ -841,7 +841,7 @@ export default function SettingsPage() {
                       {linkedBank && (
                         <div className="flex items-center space-x-1.5 text-blue-700 bg-blue-50/60 px-2 py-1 rounded-lg border border-blue-100/60 mt-1">
                           <CreditCard className="w-3.5 h-3.5 shrink-0" />
-                          <span className="font-medium text-[11px]">
+                          <span className="font-medium text-xs">
                             TK liên kết: {linkedBank.bankCode} - {linkedBank.bankAccount}
                           </span>
                         </div>
@@ -914,7 +914,7 @@ export default function SettingsPage() {
                     </span>
 
                     {acc.isDefault ? (
-                      <span className="inline-flex items-center space-x-1 bg-blue-600 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full shadow-xs">
+                      <span className="inline-flex items-center space-x-1 bg-blue-600 text-white text-xs font-bold px-2.5 py-0.5 rounded-full shadow-xs">
                         <Star className="w-3 h-3 fill-white" />
                         <span>Mặc định</span>
                       </span>
@@ -922,7 +922,7 @@ export default function SettingsPage() {
                       <button
                         type="button"
                         onClick={() => handleSetDefaultBank(acc.id)}
-                        className="text-[11px] text-slate-500 hover:text-blue-600 hover:underline"
+                        className="text-xs text-slate-500 hover:text-blue-600 hover:underline"
                       >
                         Đặt làm mặc định
                       </button>

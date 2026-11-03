@@ -56,7 +56,7 @@ export function TopBar() {
   return (
     <header className="h-16 shrink-0 bg-white border-b border-slate-200/80 z-30 flex items-center justify-between px-6 lg:px-8 select-none transition-all">
       {/* Left: Breadcrumbs */}
-      <div className="flex items-center space-x-2 text-xs">
+      <div className="flex items-center space-x-2 text-sm">
         {currentRoute.parent && (
           <>
             <span className="text-slate-600 font-medium">{currentRoute.parent}</span>
@@ -82,7 +82,7 @@ export function TopBar() {
         {pathname !== '/invoices/new' && (
           <Link
             href="/invoices/new"
-            className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-all cursor-pointer"
+            className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-xs transition-all cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Lập HĐ Mới</span>
@@ -98,7 +98,7 @@ export function TopBar() {
             <div className="font-semibold text-slate-800 leading-none truncate max-w-[120px]">
               {user?.name || 'Admin'}
             </div>
-            <span className="text-[10px] text-slate-600 font-medium">
+            <span className="text-xs text-slate-500 font-medium">
               {user?.role === 'ADMIN' ? 'Quản trị viên' : 'Nhân viên'}
             </span>
           </div>

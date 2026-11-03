@@ -251,7 +251,7 @@ export default function AddSubscriptionFromInvoiceModal({
                     <h4 className="text-sm font-bold text-emerald-900">
                       Đã lưu vào Trang Khách Hàng!
                     </h4>
-                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
+                    <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full uppercase tracking-wider">
                       Đang hoạt động
                     </span>
                   </div>
@@ -263,7 +263,7 @@ export default function AddSubscriptionFromInvoiceModal({
 
               {/* Tóm tắt chi tiết gói thuê bao */}
               <div className="bg-slate-50/90 rounded-2xl border border-slate-200/80 p-4 space-y-2.5 text-xs">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 pb-1 border-b border-slate-200/60 flex items-center justify-between">
+                <div className="text-xs font-bold uppercase tracking-wider text-slate-400 pb-1 border-b border-slate-200/60 flex items-center justify-between">
                   <span>Thông tin thuê bao kích hoạt</span>
                   <span className="text-indigo-600 font-semibold lowercase">
                     {cycle}
@@ -272,17 +272,17 @@ export default function AddSubscriptionFromInvoiceModal({
 
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <div>
-                    <span className="text-slate-500 block text-[11px]">Khách hàng</span>
+                    <span className="text-slate-500 block text-xs">Khách hàng</span>
                     <span className="font-semibold text-slate-900 block truncate">{invoice.buyerName}</span>
                     {invoice.buyerEmail && (
-                      <span className="text-[11px] text-slate-500 block truncate">{invoice.buyerEmail}</span>
+                      <span className="text-xs text-slate-500 block truncate">{invoice.buyerEmail}</span>
                     )}
                   </div>
 
                   <div>
-                    <span className="text-slate-500 block text-[11px]">Gói dịch vụ</span>
+                    <span className="text-slate-500 block text-xs">Gói dịch vụ</span>
                     <span className="font-semibold text-indigo-700 block truncate">{serviceName}</span>
-                    <span className="text-[11px] text-emerald-600 font-bold block">{formatCurrency(invoice.grandTotal)}</span>
+                    <span className="text-xs text-emerald-600 font-bold block">{formatCurrency(invoice.grandTotal)}</span>
                   </div>
                 </div>
 
@@ -290,7 +290,7 @@ export default function AddSubscriptionFromInvoiceModal({
                   <div className="flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <div>
-                      <span className="text-[10px] text-slate-500 block uppercase">Bắt đầu</span>
+                      <span className="text-xs text-slate-500 block uppercase font-medium">Bắt đầu</span>
                       <span className="font-semibold text-slate-800">{formatVNDate(startDate)}</span>
                     </div>
                   </div>
@@ -298,7 +298,7 @@ export default function AddSubscriptionFromInvoiceModal({
                   <div className="flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                     <div>
-                      <span className="text-[10px] text-slate-500 block uppercase">Hết hạn</span>
+                      <span className="text-xs text-slate-500 block uppercase font-medium">Hết hạn</span>
                       <span className="font-semibold text-indigo-600">{formatVNDate(endDate)}</span>
                     </div>
                   </div>

@@ -346,7 +346,7 @@ export default function ServicesPage() {
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-24">
       {/* Toast thông báo kéo thả */}
       {dragToast && (
         <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center space-x-2 text-sm animate-in slide-in-from-bottom duration-200">
@@ -363,7 +363,7 @@ export default function ServicesPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Danh Mục Gói Dịch Vụ</h1>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-sm text-slate-500 mt-1">
               Quản lý gói dịch vụ theo từng nhóm website/dự án và hỗ trợ kéo thả tiện lợi
             </p>
           </div>
@@ -374,26 +374,26 @@ export default function ServicesPage() {
           <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button
               onClick={() => setViewMode('kanban')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
                 viewMode === 'kanban'
                   ? 'bg-white text-blue-600 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
               title="Xem theo nhóm & Kéo thả (Kanban)"
             >
-              <Kanban className="w-3.5 h-3.5" />
+              <Kanban className="w-4 h-4" />
               <span>Theo Nhóm</span>
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
                 viewMode === 'table'
                   ? 'bg-white text-blue-600 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
               title="Xem bảng chi tiết"
             >
-              <TableIcon className="w-3.5 h-3.5" />
+              <TableIcon className="w-4 h-4" />
               <span>Bảng Giá</span>
             </button>
           </div>
@@ -401,16 +401,16 @@ export default function ServicesPage() {
           {/* Thêm Nhóm Gói Mới */}
           <button
             onClick={openCreateGroupModal}
-            className="inline-flex items-center px-3.5 py-2 bg-slate-800 hover:bg-slate-900 active:bg-slate-950 text-white text-xs font-semibold rounded-xl shadow-xs space-x-1.5 transition-all"
+            className="inline-flex items-center px-4 py-2.5 bg-slate-800 hover:bg-slate-900 active:bg-slate-950 text-white text-sm font-semibold rounded-xl shadow-xs space-x-1.5 transition-all cursor-pointer"
           >
-            <FolderPlus className="w-3.5 h-3.5 text-blue-400" />
+            <FolderPlus className="w-4 h-4 text-blue-400" />
             <span>+ Nhóm Gói (Web)</span>
           </button>
 
           {/* Thêm Gói Dịch Vụ */}
           <button
             onClick={() => openCreateServiceModal()}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-xl shadow-xs space-x-1.5 transition-all"
+            className="inline-flex items-center px-4.5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold rounded-xl shadow-xs space-x-1.5 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>+ Gói Dịch Vụ</span>
@@ -783,19 +783,19 @@ export default function ServicesPage() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 text-sm">
                 {services.map((svc) => (
                   <tr key={svc.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="px-5 py-3.5">
-                      <span className="font-semibold text-slate-900 block">{svc.name}</span>
+                      <span className="font-semibold text-slate-900 block text-sm">{svc.name}</span>
                       {svc.metaInfo && (
-                        <span className="text-[11px] text-slate-500 block">{svc.metaInfo}</span>
+                        <span className="text-xs text-slate-500 block mt-0.5">{svc.metaInfo}</span>
                       )}
                     </td>
                     <td className="px-5 py-3.5">
                       {svc.group ? (
                         <span
-                          className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                          className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold"
                           style={{
                             backgroundColor: `${svc.group.color || '#2563eb'}15`,
                             color: svc.group.color || '#2563eb',
@@ -812,15 +812,15 @@ export default function ServicesPage() {
                         <span className="text-xs text-slate-400 italic">Chưa nhóm</span>
                       )}
                     </td>
-                    <td className="px-5 py-3.5 text-slate-600 text-xs hidden sm:table-cell max-w-[260px] truncate">
+                    <td className="px-5 py-3.5 text-slate-600 text-sm hidden sm:table-cell max-w-[280px] truncate">
                       {svc.description || '—'}
                     </td>
                     <td className="px-5 py-3.5 text-center">
-                      <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-md border border-blue-200">
+                      <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-md border border-blue-200">
                         {svc.unit}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 text-right font-mono tabular-nums font-bold text-slate-900 whitespace-nowrap">
+                    <td className="px-5 py-3.5 text-right font-mono tabular-nums font-bold text-slate-900 whitespace-nowrap text-sm">
                       {formatCurrency(svc.unitPrice)}
                     </td>
                     <td className="px-5 py-3.5 text-center">

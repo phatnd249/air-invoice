@@ -6,7 +6,7 @@ import { ApiIntegrationPanel } from '@/components/ApiIntegrationPanel';
 
 export default function IntegrationsPage() {
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-24">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
         <div className="flex items-center space-x-3.5">

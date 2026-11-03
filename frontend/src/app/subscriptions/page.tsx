@@ -508,7 +508,7 @@ export default function SubscriptionsPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-7">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-24">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -552,7 +552,7 @@ export default function SubscriptionsPage() {
           <div className="text-2xl font-bold font-mono text-slate-900">
             {metrics.total} <span className="text-sm font-sans text-slate-400 font-normal">gói</span>
           </div>
-          <div className="text-xs text-slate-500">Bao gồm toàn bộ khách hàng</div>
+          <div className="text-sm text-slate-500">Bao gồm toàn bộ khách hàng</div>
         </div>
 
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
@@ -565,7 +565,7 @@ export default function SubscriptionsPage() {
           <div className="text-2xl font-bold font-mono text-emerald-600">
             {metrics.active} <span className="text-sm font-sans text-slate-400 font-normal">gói</span>
           </div>
-          <div className="text-xs text-emerald-600 font-medium">Hạn sử dụng còn dài</div>
+          <div className="text-sm text-emerald-600 font-medium">Hạn sử dụng còn dài</div>
         </div>
 
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
@@ -578,7 +578,7 @@ export default function SubscriptionsPage() {
           <div className="text-2xl font-bold font-mono text-amber-600">
             {metrics.expiringSoon} <span className="text-sm font-sans text-slate-400 font-normal">gói</span>
           </div>
-          <div className="text-xs text-amber-600 font-medium">Cần chuẩn bị gửi thông báo</div>
+          <div className="text-sm text-amber-600 font-medium">Cần chuẩn bị gửi thông báo</div>
         </div>
 
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
@@ -591,7 +591,7 @@ export default function SubscriptionsPage() {
           <div className="text-2xl font-bold font-mono text-rose-600">
             {metrics.expired} <span className="text-sm font-sans text-slate-400 font-normal">gói</span>
           </div>
-          <div className="text-xs text-rose-600 font-medium">Nguy cơ gián đoạn dịch vụ</div>
+          <div className="text-sm text-rose-600 font-medium">Nguy cơ gián đoạn dịch vụ</div>
         </div>
       </div>
 

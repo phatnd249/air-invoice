@@ -134,7 +134,7 @@ export default function HistoryPage() {
   const updateCount = histories.filter((h) => h.action === 'UPDATED').length;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-24">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between pb-6 border-b border-slate-200">
         <div>
@@ -213,7 +213,7 @@ export default function HistoryPage() {
               <button
                 key={tab.id}
                 onClick={() => setSelectedAction(tab.id)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                className={`px-3.5 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all cursor-pointer ${
                   selectedAction === tab.id
                     ? 'bg-white text-slate-900 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -232,7 +232,7 @@ export default function HistoryPage() {
               placeholder="Tìm theo số HĐ, khách hàng, nội dung..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50"
+              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50"
             />
           </div>
         </div>
@@ -241,8 +241,8 @@ export default function HistoryPage() {
       {/* History Activity List Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-600">
-            <thead className="bg-slate-50/80 text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
+          <table className="w-full text-left text-sm text-slate-700">
+            <thead className="bg-slate-50/80 text-xs uppercase font-bold text-slate-500 border-b border-slate-200 tracking-wider">
               <tr>
                 <th className="px-6 py-4">Thời gian</th>
                 <th className="px-6 py-4">Hành động</th>
@@ -291,10 +291,10 @@ export default function HistoryPage() {
                     <tr key={record.id} className="hover:bg-slate-50/70 transition-colors">
                       {/* Timestamp */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-xs font-semibold text-slate-900">
+                        <div className="text-sm font-semibold text-slate-900">
                           {formatTimeAgo(record.createdAt)}
                         </div>
-                        <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                        <div className="text-xs text-slate-500 font-mono mt-0.5">
                           {date.toLocaleString('vi-VN', {
                             day: '2-digit',
                             month: '2-digit',
@@ -308,7 +308,7 @@ export default function HistoryPage() {
                       {/* Action Badge */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${cfg.badgeBg}`}
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${cfg.badgeBg}`}
                         >
                           <Icon className="w-3.5 h-3.5 mr-1.5" />
                           {cfg.label}
@@ -321,20 +321,20 @@ export default function HistoryPage() {
                           <div>
                             <Link
                               href={`/invoices/${record.invoice.id}`}
-                              className="font-bold text-blue-600 hover:text-blue-800 font-mono text-xs flex items-center space-x-1"
+                              className="font-bold text-blue-600 hover:text-blue-800 font-mono text-sm flex items-center space-x-1 hover:underline"
                             >
                               <span>{record.invoice.invoiceNumber}</span>
-                              <ArrowRight className="w-3 h-3" />
+                              <ArrowRight className="w-3.5 h-3.5" />
                             </Link>
-                            <div className="text-xs text-slate-800 font-medium mt-0.5">
+                            <div className="text-sm text-slate-800 font-medium mt-0.5">
                               {record.invoice.buyerName}
                             </div>
                             {record.invoice.buyerCompany && (
-                              <div className="text-[11px] text-slate-400 truncate max-w-xs">
+                              <div className="text-xs text-slate-500 truncate max-w-sm mt-0.5">
                                 {record.invoice.buyerCompany}
                               </div>
                             )}
-                            <div className="text-xs font-mono tabular-nums font-semibold text-slate-900 mt-1">
+                            <div className="text-sm font-mono tabular-nums font-bold text-slate-900 mt-1">
                               {formatCurrency(record.invoice.grandTotal)}
                             </div>
                           </div>
@@ -345,7 +345,7 @@ export default function HistoryPage() {
 
                       {/* Note / Details */}
                       <td className="px-6 py-4">
-                        <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                        <p className="text-sm text-slate-700 leading-relaxed font-medium">
                           {record.note || '---'}
                         </p>
                         {record.actor && (

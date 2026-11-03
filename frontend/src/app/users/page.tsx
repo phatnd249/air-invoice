@@ -169,7 +169,7 @@ export default function UsersPage() {
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-24">
       {/* Toast Success Message */}
       {successMessage && (
         <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top duration-300">
@@ -356,7 +356,7 @@ export default function UsersPage() {
                                 {item.name || 'Chưa đặt tên'}
                               </span>
                               {isSelf && (
-                                <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-1.5 py-0.2 rounded border border-blue-200">
+                                <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-0.5 rounded-full border border-blue-200">
                                   Bạn
                                 </span>
                               )}
@@ -365,7 +365,7 @@ export default function UsersPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 text-slate-600 text-xs font-mono">
+                      <td className="px-5 py-3.5 text-slate-700 text-sm font-mono">
                         {item.email}
                       </td>
                       <td className="px-5 py-3.5 text-center">
