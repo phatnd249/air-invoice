@@ -12,14 +12,11 @@ import {
   X,
   Package,
   Save,
-  AlertTriangle,
   Globe,
   GripVertical,
   FolderPlus,
   Folder,
   Check,
-  Tag,
-  ExternalLink,
   Kanban,
   Table as TableIcon,
 } from 'lucide-react';
@@ -112,7 +109,6 @@ export default function ServicesPage() {
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [serviceFormData, setServiceFormData] = useState<ServiceFormData>(emptyServiceForm);
-  const [deleteConfirmServiceId, setDeleteConfirmServiceId] = useState<string | null>(null);
 
   // Group Modal state
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
@@ -172,7 +168,6 @@ export default function ServicesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
       queryClient.invalidateQueries({ queryKey: ['service-groups'] });
-      setDeleteConfirmServiceId(null);
     },
   });
 

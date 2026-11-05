@@ -337,16 +337,6 @@ export class DeliveryService {
   }
 
   /**
-   * Tương thích ngược: tải danh sách buffer
-   */
-  private async resolveAttachmentBuffers(
-    attachments: any[],
-  ): Promise<Array<{ filename: string; content: Buffer; contentType?: string }>> {
-    const { binaryAttachments } = await this.processAttachments(attachments);
-    return binaryAttachments;
-  }
-
-  /**
    * Nhúng danh sách tài liệu & liên kết đính kèm vào nội dung email
    */
   private injectAttachmentLinks(htmlBody: string, linkAttachments: Array<{ name: string; url: string }>): string {

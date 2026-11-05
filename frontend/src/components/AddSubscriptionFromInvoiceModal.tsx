@@ -10,7 +10,6 @@ import {
   User,
   Mail,
   Phone,
-  Package,
   Calendar,
   Clock,
   CheckCircle2,
@@ -19,9 +18,6 @@ import {
   AlertCircle,
   XCircle,
   RefreshCw,
-  Sparkles,
-  ArrowRight,
-  ShieldCheck,
 } from 'lucide-react';
 
 interface Props {
@@ -48,7 +44,6 @@ export default function AddSubscriptionFromInvoiceModal({
   const [viewState, setViewState] = useState<'FORM' | 'SUCCESS' | 'ERROR'>('FORM');
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const [createdSub, setCreatedSub] = useState<any>(null);
 
   // Tự động khởi tạo dữ liệu khi mở modal
   useEffect(() => {
@@ -57,7 +52,6 @@ export default function AddSubscriptionFromInvoiceModal({
     setViewState('FORM');
     setSuccessMessage('');
     setErrorMessage('');
-    setCreatedSub(null);
 
     const firstItem = invoice.items?.[0] || {};
     const pkgName = firstItem.name || 'Gói Dịch Vụ';
@@ -161,7 +155,6 @@ export default function AddSubscriptionFromInvoiceModal({
     onSuccess: (data: any) => {
       setViewState('SUCCESS');
       setSuccessMessage(data?.message || 'Đã thêm khách hàng vào Trang Khách Hàng thành công!');
-      setCreatedSub(data?.subscription);
       queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
       queryClient.invalidateQueries({ queryKey: ['invoice', invoice.id] });
       queryClient.invalidateQueries({ queryKey: ['invoices'] });

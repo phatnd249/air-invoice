@@ -11,7 +11,6 @@ import {
   QrCode,
   FileSignature,
   Save,
-  Check,
   Eye,
   Sparkles,
   Info,

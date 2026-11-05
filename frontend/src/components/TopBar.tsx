@@ -4,14 +4,9 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Search,
   Plus,
-  Bell,
   ChevronRight,
-  ShieldCheck,
   Building,
-  Sparkles,
-  Layers,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useQuery } from '@tanstack/react-query';

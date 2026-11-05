@@ -10,29 +10,16 @@ import {
   Trash2,
   ArrowLeft,
   Eye,
-  QrCode,
-  CreditCard,
-  Banknote,
-  Smartphone,
-  RefreshCw,
-  Maximize2,
   User,
-  ShieldCheck,
   Receipt,
-  Building,
   Search,
   X,
   Layers,
-  FileCheck,
-  Building2,
-  CheckCircle2,
-  ExternalLink,
   Save,
-  Pencil,
 } from 'lucide-react';
 import Link from 'next/link';
 import InvoiceTemplateRenderer from '@/components/InvoiceTemplateRenderer';
-import { INVOICE_TYPE_CONFIG, INVOICE_FORM_CONFIG, InvoiceType, InvoiceForm } from '@invoice/types';
+import { INVOICE_TYPE_CONFIG, InvoiceType, InvoiceForm } from '@invoice/types';
 
 interface CatalogService {
   id: string;
@@ -49,10 +36,7 @@ export default function EditInvoicePage() {
   const id = params?.id as string;
   const queryClient = useQueryClient();
 
-  const [paymentMethod, setPaymentMethod] = useState<'TRANSFER' | 'CASH' | 'CARD'>('TRANSFER');
-  const [cashGiven, setCashGiven] = useState<number | ''>('');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [isQrZoomed, setIsQrZoomed] = useState(false);
   const [selectedBankId, setSelectedBankId] = useState<string>('');
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [catalogSearch, setCatalogSearch] = useState('');

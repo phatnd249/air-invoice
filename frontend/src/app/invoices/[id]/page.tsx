@@ -25,7 +25,6 @@ import {
   Copy,
   MessageSquare,
   CalendarClock,
-  UserPlus,
 } from 'lucide-react';
 import Link from 'next/link';
 import InvoiceTemplateRenderer from '@/components/InvoiceTemplateRenderer';

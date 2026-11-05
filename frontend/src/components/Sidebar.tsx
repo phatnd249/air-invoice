@@ -13,7 +13,6 @@ import {
   User,
   Users,
   CalendarClock,
-  Sparkles,
   Receipt,
   Clock,
   Code2,

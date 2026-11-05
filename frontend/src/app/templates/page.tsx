@@ -18,13 +18,9 @@ import {
   Copy,
   Sparkles,
   Save,
-  AlertTriangle,
-  Send,
   Upload,
   Link as LinkIcon,
   X,
-  Layers,
-  ChevronDown,
   Info,
   Maximize2,
   Minimize2,
@@ -302,10 +298,6 @@ export default function TemplatesPage() {
   });
 
   const effectiveTemplates = invoiceDesignTemplates.length > 0 ? invoiceDesignTemplates : DEFAULT_PRESET_TEMPLATES;
-
-  // Preview Modal for A4 Template
-  const [selectedPreviewTemplate, setSelectedPreviewTemplate] = useState<string>('standard-classic');
-  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState<boolean>(false);
 
   // Message Template Filter
   const [triggerFilter, setTriggerFilter] = useState<string>('all');

@@ -8,18 +8,13 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
-  Heading1,
-  Heading2,
   Code,
   Eye,
   Palette,
   Sparkles,
   Smartphone,
   Monitor,
-  RotateCcw,
   PlusCircle,
-  HelpCircle,
-  Check,
   ChevronDown,
 } from 'lucide-react';
 
@@ -53,7 +48,6 @@ export default function EmailVisualEditor({
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showTagDropdown, setShowTagDropdown] = useState(false);
-  const [showTemplatePresets, setShowTemplatePresets] = useState(false);
 
   // Form state cho chế độ "Soạn Thảo Nhanh Bằng Form" (Dành cho người không biết code)
   const [formData, setFormData] = useState({
