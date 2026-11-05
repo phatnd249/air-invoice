@@ -1,60 +1,20 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useToast } from '@/context/ToastContext';
-import {
-  Building2,
-  CreditCard,
-  Save,
-  Plus,
-  Trash2,
-  Star,
-  QrCode,
-  Sliders,
-  Edit2,
-  Phone,
-  MapPin,
-  Bell,
-  Mail,
-  MessageSquare,
-  Bot,
-  Key,
-  Eye,
-  EyeOff,
-  Send,
-  CheckCircle2,
-  AlertCircle,
-  RefreshCw,
-  Info,
-  Sparkles,
-  ExternalLink,
-} from 'lucide-react';
-import { CompanyProfile, BankAccountItem, PaymentDescriptionRule } from '@invoice/types';
-import PaymentRulesConfig from '@/components/PaymentRulesConfig';
-
-const POPULAR_BANKS = [
-  { code: 'Vietcombank', name: 'Vietcombank (VCB - Ngoại thương)' },
-  { code: 'MBBank', name: 'MB Bank (Quân Đội)' },
-  { code: 'Techcombank', name: 'Techcombank (TCB - Kỹ Thương)' },
-  { code: 'ACB', name: 'ACB (Á Châu)' },
-  { code: 'VPBank', name: 'VPBank (Việt Nam Thịnh Vượng)' },
-  { code: 'TPBank', name: 'TPBank (Tiên Phong)' },
-  { code: 'BIDV', name: 'BIDV (Đầu tư & Phát triển)' },
-  { code: 'VietinBank', name: 'VietinBank (Công Thương)' },
-  { code: 'Agribank', name: 'Agribank (Nông Nghiệp)' },
-  { code: 'Sacombank', name: 'Sacombank (Sài Gòn Thương Tín)' },
-  { code: 'HDBank', name: 'HDBank (Phát triển TP.HCM)' },
-  { code: 'VIB', name: 'VIB (Quốc Tế)' },
-  { code: 'MSB', name: 'MSB (Hàng Hải)' },
-  { code: 'SeABank', name: 'SeABank (Đông Nam Á)' },
-  { code: 'OCB', name: 'OCB (Phương Đông)' },
-];
-
-type SettingsTabId = 'companies' | 'banks' | 'formats' | 'rules' | 'notifications';
+import { CompanyProfile, BankAccountItem } from '@invoice/types';
+import { SettingsTabId } from '@/components/settings/types';
+import { SettingsTabsNav } from '@/components/settings/SettingsTabsNav';
+import { CompaniesTab } from '@/components/settings/CompaniesTab';
+import { CompanyModal } from '@/components/settings/CompanyModal';
+import { BanksTab } from '@/components/settings/BanksTab';
+import { BankModal } from '@/components/settings/BankModal';
+import { FormatsTab } from '@/components/settings/FormatsTab';
+import { InvoiceRulesTab } from '@/components/settings/InvoiceRulesTab';
+import { NotificationsTab } from '@/components/settings/NotificationsTab';
+import { ZaloConfigModal } from '@/components/settings/ZaloConfigModal';
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
@@ -72,18 +32,6 @@ export default function SettingsPage() {
   const [editingAccount, setEditingAccount] = useState<BankAccountItem | null>(null);
   const [isBankModalOpen, setIsBankModalOpen] = useState(false);
 
-  // State Cấu hình Quy tắc Chuyển khoản VietQR theo Email
-  const [paymentRules, setPaymentRules] = useState<PaymentDescriptionRule[]>([]);
-  const [defaultPaymentDesc, setDefaultPaymentDesc] = useState<string>('{paymentCode} - {serviceName}');
-  const [editingRule, setEditingRule] = useState<PaymentDescriptionRule | null>(null);
-  const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
-  const [ruleFormName, setRuleFormName] = useState('');
-  const [ruleFormPattern, setRuleFormPattern] = useState('');
-  const [ruleFormTemplate, setRuleFormTemplate] = useState('');
-  const [ruleFormActive, setRuleFormActive] = useState(true);
-  const [testEmail, setTestEmail] = useState('124001340@lachong.edu.vn');
-  const [isSyncingQr, setIsSyncingQr] = useState(false);
-
   // State Cấu hình Thông báo (Email & Zalo Bot)
   const [enableEmail, setEnableEmail] = useState<boolean>(true);
   const [enableZalo, setEnableZalo] = useState<boolean>(false);
@@ -100,66 +48,16 @@ export default function SettingsPage() {
 
   // State Modal Zalo
   const [isZaloModalOpen, setIsZaloModalOpen] = useState(false);
-  const [modalBotId, setModalBotId] = useState('');
-  const [modalApiKey, setModalApiKey] = useState('');
-  const [modalBaseUrl, setModalBaseUrl] = useState('https://sms-service.talab.io.vn/api/gateway/v1.0');
-  const [modalAutoFriend, setModalAutoFriend] = useState(false);
-  const [modalAliasPrefix, setModalAliasPrefix] = useState('KH_');
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [testPhone, setTestPhone] = useState('');
-  const [isTestingZalo, setIsTestingZalo] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string; raw?: any } | null>(null);
-  const settingsTabs: { id: SettingsTabId; label: string; icon: React.ElementType }[] = [
-    { id: 'companies', label: 'Đơn vị cung cấp', icon: Building2 },
-    { id: 'banks', label: 'Tài khoản ngân hàng', icon: CreditCard },
-    { id: 'rules', label: 'Đánh số & VAT', icon: Sliders },
-    { id: 'notifications', label: 'Cấu hình Thông báo', icon: Bell },
-  ];
 
-  // Form quy tắc (prefix, số tiếp theo, VAT)
-  const rulesForm = useForm({
-    defaultValues: {
-      invoicePrefix: '',
-      nextInvoiceNumber: 0,
-      defaultVatRate: 10,
-    },
-  });
-
-  // Form modal đơn vị cung cấp
-  const {
-    register: registerCompany,
-    handleSubmit: handleCompanySubmit,
-    reset: resetCompany,
-  } = useForm<CompanyProfile>({
-    defaultValues: {
-      id: '',
-      name: '',
-      taxCode: '',
-      address: '',
-      phone: '',
-      email: '',
-      logoUrl: '',
-      bankAccountId: '',
-      isDefault: false,
-    },
-  });
-
-  // Form modal ngân hàng
-  const {
-    register: registerBank,
-    handleSubmit: handleBankSubmit,
-    reset: resetBank,
-    watch: watchBank,
-  } = useForm<BankAccountItem>({
-    defaultValues: {
-      id: '',
-      bankCode: 'Vietcombank',
-      bankAccount: '',
-      bankAccountName: '',
-      label: '',
-      qrTemplate: 'compact',
-      isDefault: false,
-    },
+  // State quy tắc hóa đơn & thuế
+  const [invoiceRules, setInvoiceRules] = useState<{
+    invoicePrefix: string;
+    nextInvoiceNumber: number;
+    defaultVatRate: number;
+  }>({
+    invoicePrefix: 'HD',
+    nextInvoiceNumber: 1,
+    defaultVatRate: 10,
   });
 
   const { data: settings, isLoading } = useQuery({
@@ -172,7 +70,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (settings) {
-      rulesForm.reset({
+      setInvoiceRules({
         invoicePrefix: settings.invoicePrefix || 'HD',
         nextInvoiceNumber: settings.nextInvoiceNumber || 1,
         defaultVatRate: settings.defaultVatRate ?? 10,
@@ -213,33 +111,6 @@ export default function SettingsPage() {
         ]);
       }
 
-      // Quy tắc chuyển khoản VietQR theo email
-      let loadedRules = settings.paymentRules;
-      if (typeof loadedRules === 'string') {
-        try {
-          loadedRules = JSON.parse(loadedRules);
-        } catch (e) {
-          loadedRules = null;
-        }
-      }
-      if (Array.isArray(loadedRules) && loadedRules.length > 0) {
-        setPaymentRules(loadedRules);
-      } else if (settings.paymentRules === undefined) {
-        setPaymentRules([
-          {
-            id: 'rule-lachong',
-            name: 'Sinh viên Trường Đại Học Lạc Hồng',
-            emailPattern: 'lachong.edu.vn',
-            descriptionTemplate: '{studentId} / Trường Đại Học Lạc Hồng',
-            isActive: true,
-          },
-        ]);
-      }
-
-      if (settings.defaultPaymentDescription) {
-        setDefaultPaymentDesc(settings.defaultPaymentDescription);
-      }
-
       // Cấu hình thông báo
       setEnableEmail(settings.enableEmailNotification ?? true);
       setEnableZalo(settings.enableZaloNotification ?? false);
@@ -254,7 +125,6 @@ export default function SettingsPage() {
       if (settings.emailAlertSubject != null) setEmailAlertSubject(settings.emailAlertSubject);
       if (settings.emailAlertBody != null) setEmailAlertBody(settings.emailAlertBody);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings]);
 
   // Đóng modal khi bấm phím Escape
@@ -286,163 +156,18 @@ export default function SettingsPage() {
     }
   };
 
-  // --- XỬ LÝ QUY TẮC CHUYỂN KHOẢN THEO EMAIL (tự lưu) ---
-  const calculateRulePreview = (email: string, template: string) => {
-    const clean = (email || '').trim().toLowerCase();
-    const prefix = clean ? clean.split('@')[0].trim() : '';
-    const matchNumber = prefix.match(/^(\d+)/);
-    const studentId = matchNumber ? matchNumber[1] : prefix;
-    return (template || '')
-      .replace(/{studentId}/gi, studentId || '124001340')
-      .replace(/{emailPrefix}/gi, prefix || '124001340')
-      .replace(/{paymentCode}/gi, 'A8X9K2')
-      .replace(/{invoiceNumber}/gi, 'HD-000047')
-      .replace(/{serviceName}/gi, 'AI Writer Pro')
-      .replace(/{customerName}/gi, 'Nguyễn Văn A');
-  };
-
-  const autoSavePaymentRules = (updated: PaymentDescriptionRule[], defaultDesc?: string) => {
-    setPaymentRules(updated);
-    const payload: any = { paymentRules: updated };
-    if (defaultDesc !== undefined) {
-      payload.defaultPaymentDescription = defaultDesc;
-    }
-    persist(payload, 'Đã lưu quy tắc và tự động cập nhật lại mã QR cho các hóa đơn chưa thanh toán');
-  };
-
-  const handleSyncUnpaidQr = async () => {
-    try {
-      setIsSyncingQr(true);
-      const res = await api.post('/settings/sync-unpaid-qr');
-      const { updatedCount, totalUnpaid } = res.data || {};
-      toast(
-        'success',
-        'Đồng bộ mã QR thành công',
-        `Đã cập nhật lại mã QR cho ${updatedCount}/${totalUnpaid} hóa đơn chưa thanh toán.`
-      );
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['settings'] });
-    } catch (err: any) {
-      toast('error', 'Lỗi đồng bộ mã QR', err.response?.data?.message || err.message);
-    } finally {
-      setIsSyncingQr(false);
-    }
-  };
-
-  const handleOpenAddRule = () => {
-    setEditingRule(null);
-    setRuleFormName('');
-    setRuleFormPattern('');
-    setRuleFormTemplate('{studentId} / Trường Đại Học Lạc Hồng');
-    setRuleFormActive(true);
-    setTestEmail('124001340@lachong.edu.vn');
-    setIsRuleModalOpen(true);
-  };
-
-  const handleOpenEditRule = (rule: PaymentDescriptionRule) => {
-    setEditingRule(rule);
-    setRuleFormName(rule.name);
-    setRuleFormPattern(rule.emailPattern);
-    setRuleFormTemplate(rule.descriptionTemplate);
-    setRuleFormActive(rule.isActive ?? true);
-    setTestEmail(rule.emailPattern ? '124001340@' + rule.emailPattern : '124001340@lachong.edu.vn');
-    setIsRuleModalOpen(true);
-  };
-
-  const handleToggleRuleActive = (ruleId: string) => {
-    const updated = paymentRules.map((r) =>
-      r.id === ruleId ? { ...r, isActive: !r.isActive } : r
-    );
-    autoSavePaymentRules(updated);
-  };
-
-  const handleDeleteRule = async (ruleId: string) => {
-    const isOk = await confirm({
-      title: 'Xóa quy tắc nội dung chuyển khoản',
-      message: 'Bạn có chắc chắn muốn xóa quy tắc này? Hành động này sẽ không thể hoàn tác.',
-      confirmLabel: 'Xóa quy tắc',
-      cancelLabel: 'Hủy',
-      danger: true,
-    });
-    if (!isOk) return;
-
-    const updated = paymentRules.filter((r) => r.id !== ruleId);
-    autoSavePaymentRules(updated);
-  };
-
-  const handleSaveRuleModal = () => {
-    if (!ruleFormName.trim()) {
-      toast('error', 'Lỗi nhập liệu', 'Vui lòng nhập tên quy tắc');
-      return;
-    }
-    if (!ruleFormPattern.trim()) {
-      toast('error', 'Lỗi nhập liệu', 'Vui lòng nhập từ khóa/tên miền email nhận diện (VD: lachong.edu.vn)');
-      return;
-    }
-    if (!ruleFormTemplate.trim()) {
-      toast('error', 'Lỗi nhập liệu', 'Vui lòng nhập cú pháp nội dung chuyển khoản');
-      return;
-    }
-
-    let updated: PaymentDescriptionRule[] = [];
-    if (editingRule) {
-      updated = paymentRules.map((r) =>
-        r.id === editingRule.id
-          ? {
-              ...r,
-              name: ruleFormName.trim(),
-              emailPattern: ruleFormPattern.trim().toLowerCase(),
-              descriptionTemplate: ruleFormTemplate.trim(),
-              isActive: ruleFormActive,
-            }
-          : r
-      );
-    } else {
-      const newRule: PaymentDescriptionRule = {
-        id: 'rule-' + Date.now(),
-        name: ruleFormName.trim(),
-        emailPattern: ruleFormPattern.trim().toLowerCase(),
-        descriptionTemplate: ruleFormTemplate.trim(),
-        isActive: ruleFormActive,
-      };
-      updated = [...paymentRules, newRule];
-    }
-
-    autoSavePaymentRules(updated);
-    setIsRuleModalOpen(false);
-  };
-
-  const handleSaveDefaultDesc = () => {
-    persist(
-      { defaultPaymentDescription: defaultPaymentDesc },
-      'Đã lưu cú pháp mặc định và tự động cập nhật lại mã QR cho các hóa đơn chưa thanh toán'
-    );
-  };
-
-    // --- XỬ LÝ CÔNG TY / ĐƠN VỊ CUNG CẤP (tự lưu) ---
+  // --- XỬ LÝ CÔNG TY / ĐƠN VỊ CUNG CẤP ---
   const autoSaveCompanies = (updated: CompanyProfile[]) => {
     setCompanies(updated);
     persist({ companies: updated }, 'Đã lưu danh sách đơn vị cung cấp');
   };
 
   const handleOpenAddCompany = () => {
-    resetCompany({
-      id: 'comp-' + Date.now(),
-      name: '',
-      taxCode: '',
-      address: '',
-      phone: '',
-      email: '',
-      logoUrl: '',
-      bankAccountId: bankAccounts[0]?.id || '',
-      isDefault: companies.length === 0,
-    });
     setEditingCompany(null);
     setIsCompanyModalOpen(true);
   };
 
   const handleOpenEditCompany = (comp: CompanyProfile) => {
-    resetCompany(comp);
     setEditingCompany(comp);
     setIsCompanyModalOpen(true);
   };
@@ -468,7 +193,8 @@ export default function SettingsPage() {
     autoSaveCompanies(updated);
   };
 
-  const handleSetDefaultCompany = (id: string) => {
+  const handleSetDefaultCompany = (id?: string) => {
+    if (!id) return;
     const updated = companies.map((c) => ({
       ...c,
       isDefault: c.id === id,
@@ -476,7 +202,8 @@ export default function SettingsPage() {
     autoSaveCompanies(updated);
   };
 
-  const handleDeleteCompany = async (id: string) => {
+  const handleDeleteCompany = async (id?: string) => {
+    if (!id) return;
     if (companies.length <= 1) {
       toast('warning', 'Không thể xóa', 'Bạn cần giữ lại ít nhất 1 đơn vị cung cấp.');
       return;
@@ -495,28 +222,18 @@ export default function SettingsPage() {
     autoSaveCompanies(updated);
   };
 
-  // --- XỬ LÝ TÀI KHOẢN NGÂN HÀNG (tự lưu) ---
+  // --- XỬ LÝ TÀI KHOẢN NGÂN HÀNG ---
   const autoSaveBanks = (updated: BankAccountItem[]) => {
     setBankAccounts(updated);
     persist({ bankAccounts: updated }, 'Đã lưu danh sách tài khoản ngân hàng');
   };
 
   const handleOpenAddBank = () => {
-    resetBank({
-      id: 'acc-' + Date.now(),
-      bankCode: 'Vietcombank',
-      bankAccount: '',
-      bankAccountName: companies[0]?.name || 'AI ROBOTIC',
-      label: 'Tài khoản mới',
-      qrTemplate: 'compact',
-      isDefault: bankAccounts.length === 0,
-    });
     setEditingAccount(null);
     setIsBankModalOpen(true);
   };
 
   const handleOpenEditBank = (acc: BankAccountItem) => {
-    resetBank(acc);
     setEditingAccount(acc);
     setIsBankModalOpen(true);
   };
@@ -542,7 +259,8 @@ export default function SettingsPage() {
     autoSaveBanks(updated);
   };
 
-  const handleSetDefaultBank = (id: string) => {
+  const handleSetDefaultBank = (id?: string) => {
+    if (!id) return;
     const updated = bankAccounts.map((a) => ({
       ...a,
       isDefault: a.id === id,
@@ -550,7 +268,8 @@ export default function SettingsPage() {
     autoSaveBanks(updated);
   };
 
-  const handleDeleteBank = async (id: string) => {
+  const handleDeleteBank = async (id?: string) => {
+    if (!id) return;
     if (bankAccounts.length === 1) {
       toast('warning', 'Không thể xóa', 'Bạn cần giữ lại ít nhất 1 tài khoản ngân hàng để sinh mã VietQR.');
       return;
@@ -563,7 +282,7 @@ export default function SettingsPage() {
     });
     if (!ok) return;
     let updated = bankAccounts.filter((a) => a.id !== id);
-    if (!updated.some((a) => a.isDefault) && updated.length > 0) {
+    if (!updated.some((c) => c.isDefault) && updated.length > 0) {
       updated[0].isDefault = true;
     }
     autoSaveBanks(updated);
@@ -581,7 +300,7 @@ export default function SettingsPage() {
   const handleToggleZalo = async (checked: boolean) => {
     if (checked && (!zaloBotId || !zaloApiKey)) {
       toast('warning', 'Chưa cấu hình Zalo Bot', 'Vui lòng điền Bot ID và API Key trước khi bật.');
-      handleOpenZaloModal();
+      setIsZaloModalOpen(true);
       return;
     }
     setEnableZalo(checked);
@@ -591,95 +310,23 @@ export default function SettingsPage() {
     );
   };
 
-  const handleOpenZaloModal = () => {
-    setModalBotId(zaloBotId);
-    setModalApiKey(zaloApiKey);
-    setModalBaseUrl(zaloApiBaseUrl || 'https://sms-service.talab.io.vn/api/gateway/v1.0');
-    setModalAutoFriend(zaloAutoFriendRequest);
-    setModalAliasPrefix(zaloAliasPrefix || 'KH_');
-    setTestResult(null);
-    setIsZaloModalOpen(true);
+  const handleSaveZaloConfig = async (config: {
+    zaloBotId: string;
+    zaloApiKey: string;
+    zaloApiBaseUrl: string;
+    zaloAutoFriendRequest: boolean;
+    zaloAliasPrefix: string;
+  }) => {
+    setZaloBotId(config.zaloBotId);
+    setZaloApiKey(config.zaloApiKey);
+    setZaloApiBaseUrl(config.zaloApiBaseUrl);
+    setZaloAutoFriendRequest(config.zaloAutoFriendRequest);
+    setZaloAliasPrefix(config.zaloAliasPrefix);
+    await persist(config, 'Đã lưu cấu hình Zalo Bot');
   };
 
-  const handleSaveZaloConfig = async () => {
-    let botId = modalBotId.trim();
-    let apiKey = modalApiKey.trim();
-
-    // Tự động nhận diện & hoán đổi nếu dán nhầm API Key vào ô Bot ID
-    if (botId.startsWith('zlite_') || (!apiKey.startsWith('zlite_') && botId.includes('zlite_'))) {
-      const temp = botId;
-      botId = apiKey;
-      apiKey = temp;
-      setModalBotId(botId);
-      setModalApiKey(apiKey);
-    }
-
-    const payload = {
-      zaloBotId: botId,
-      zaloApiKey: apiKey,
-      zaloApiBaseUrl: modalBaseUrl.trim() || 'https://sms-service.talab.io.vn/api/gateway/v1.0',
-      zaloAutoFriendRequest: modalAutoFriend,
-      zaloAliasPrefix: modalAliasPrefix.trim() || 'KH_',
-    };
-    setZaloBotId(payload.zaloBotId);
-    setZaloApiKey(payload.zaloApiKey);
-    setZaloApiBaseUrl(payload.zaloApiBaseUrl);
-    setZaloAutoFriendRequest(payload.zaloAutoFriendRequest);
-    setZaloAliasPrefix(payload.zaloAliasPrefix);
-    await persist(payload, 'Đã lưu cấu hình Zalo Bot');
-    setIsZaloModalOpen(false);
-  };
-
-  const handleTestZalo = async () => {
-    let botId = modalBotId.trim();
-    let apiKey = modalApiKey.trim();
-
-    // Tự động hoán đổi nếu dán nhầm
-    if (botId.startsWith('zlite_') || (!apiKey.startsWith('zlite_') && botId.includes('zlite_'))) {
-      const temp = botId;
-      botId = apiKey;
-      apiKey = temp;
-      setModalBotId(botId);
-      setModalApiKey(apiKey);
-    }
-
-    if (!botId || !apiKey) {
-      toast('warning', 'Thiếu thông tin Bot', 'Vui lòng nhập Bot ID và API Key trước khi gửi thử.');
-      return;
-    }
-    if (!testPhone) {
-      toast('warning', 'Thiếu số điện thoại', 'Vui lòng nhập số điện thoại người nhận thử.');
-      return;
-    }
-    setIsTestingZalo(true);
-    setTestResult(null);
-    try {
-      const res = await api.post('/delivery/test-zalo', {
-        baseUrl: modalBaseUrl || 'https://sms-service.talab.io.vn/api/gateway/v1.0',
-        botId,
-        apiKey,
-        testPhone: testPhone.trim(),
-      });
-      setTestResult(res.data);
-      if (res.data?.success) {
-        toast('success', 'Gửi tin nhắn thử thành công!', 'Kiểm tra thông báo Zalo trên điện thoại.');
-      } else {
-        toast('error', 'Gửi không thành công', res.data?.message || 'Có lỗi xảy ra');
-      }
-    } catch (err: any) {
-      const msg = err.response?.data?.message || err.message;
-      setTestResult({ success: false, message: msg });
-      toast('error', 'Lỗi kết nối Zalo Gateway', msg);
-    } finally {
-      setIsTestingZalo(false);
-    }
-  };
-
-  const handleSaveTemplate = async () => {
-    await persist(
-      { zaloMessageTemplate },
-      'Đã lưu mẫu tin nhắn Zalo'
-    );
+  const handleSaveZaloTemplate = async () => {
+    await persist({ zaloMessageTemplate }, 'Đã lưu mẫu tin nhắn Zalo');
   };
 
   const handleSaveEmailTemplate = async () => {
@@ -689,8 +336,13 @@ export default function SettingsPage() {
     );
   };
 
-  // --- XỬ LÝ QUY TẮC (cần nút xác nhận) ---
-  const onSaveRules = async (data: any) => {
+  // --- XỬ LÝ QUY TẮC ĐÁNH SỐ & THUẾ ---
+  const onSaveInvoiceRules = async (data: {
+    invoicePrefix: string;
+    nextInvoiceNumber: number;
+    defaultVatRate: number;
+  }) => {
+    setInvoiceRules(data);
     await persist(
       {
         invoicePrefix: data.invoicePrefix,
@@ -700,12 +352,6 @@ export default function SettingsPage() {
       'Đã lưu quy tắc đánh số hóa đơn & thuế'
     );
   };
-
-  const watchedBankModal = watchBank();
-  const testQrUrl =
-    watchedBankModal.bankCode && watchedBankModal.bankAccount
-      ? `https://qr.sepay.vn/img?bank=${watchedBankModal.bankCode}&acc=${watchedBankModal.bankAccount}&template=compact&amount=500000&des=TEST%20SEPAY`
-      : '';
 
   if (isLoading) {
     return (
@@ -718,7 +364,7 @@ export default function SettingsPage() {
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-24">
-      {/* Header */}
+      {/* 1. Header */}
       <div className="pb-6 border-b border-slate-200">
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Cài Đặt Hệ Thống</h1>
         <p className="text-sm sm:text-base text-slate-500 mt-1.5">
@@ -726,1598 +372,98 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      {/* Sticky Tab Navigation */}
-      <div className="sticky top-16 z-20 bg-slate-50/90 -mx-2 px-2 pb-2 backdrop-blur">
-        <nav className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-2xl p-1.5 shadow-xs flex-wrap">
-          {settingsTabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-      </div>
+      {/* 2. Sticky Tab Navigation */}
+      <SettingsTabsNav activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      {/* === TAB: ĐƠN VỊ CUNG CẤP === */}
+      {/* 3. Tab: Đơn Vị Cung Cấp */}
       {activeTab === 'companies' && (
-        <section className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-3">
-            <div className="flex items-center space-x-2.5 text-slate-900 font-bold text-base">
-              <Building2 className="w-5 h-5 text-blue-600" />
-              <span>Danh Sách Đơn Vị Cung Cấp (Người Bán)</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleOpenAddCompany}
-              className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-xl border border-blue-200 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Thêm Đơn Vị Mới</span>
-            </button>
-          </div>
-
-          <p className="text-xs text-slate-500">
-            Cấu hình một hoặc nhiều pháp nhân/chi nhánh xuất hóa đơn. Thay đổi được lưu tự động ngay khi thêm, sửa, xóa hoặc đổi đơn vị mặc định.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {companies.map((comp, idx) => {
-              const linkedBank = bankAccounts.find((b) => b.id === comp.bankAccountId);
-              return (
-                <div
-                  key={comp.id || idx}
-                  className={`p-5 rounded-2xl border transition-all relative flex flex-col justify-between ${comp.isDefault
-                      ? 'border-blue-600 bg-blue-50/20 ring-2 ring-blue-600/20 shadow-sm'
-                      : 'border-slate-200 bg-slate-50/50 hover:border-slate-300'
-                    }`}
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center space-x-2.5">
-                        {comp.logoUrl ? (
-                          <img
-                            src={comp.logoUrl}
-                            alt="Logo"
-                            className="w-9 h-9 object-contain rounded-lg border border-slate-200 bg-white p-0.5"
-                          />
-                        ) : (
-                          <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">
-                            {comp.name ? comp.name.charAt(0).toUpperCase() : 'C'}
-                          </div>
-                        )}
-                        <div>
-                          <h4 className="font-bold text-slate-900 text-sm line-clamp-1">{comp.name}</h4>
-                          <span className="text-xs font-mono text-slate-500">
-                            MST: <strong className="text-slate-700">{comp.taxCode || 'Chưa cập nhật'}</strong>
-                          </span>
-                        </div>
-                      </div>
-
-                      {comp.isDefault ? (
-                        <span className="inline-flex items-center space-x-1 bg-blue-600 text-white text-xs font-bold px-2.5 py-0.5 rounded-full shadow-xs shrink-0">
-                          <Star className="w-3 h-3 fill-white" />
-                          <span>Mặc định</span>
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleSetDefaultCompany(comp.id)}
-                          className="text-xs text-slate-500 hover:text-blue-600 hover:underline shrink-0"
-                        >
-                          Đặt làm mặc định
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="space-y-1 text-xs text-slate-600 pt-1 border-t border-slate-100">
-                      {comp.address && (
-                        <div className="flex items-start space-x-1.5">
-                          <MapPin className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
-                          <span className="line-clamp-2">{comp.address}</span>
-                        </div>
-                      )}
-                      {comp.phone && (
-                        <div className="flex items-center space-x-1.5">
-                          <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span>{comp.phone}</span>
-                          {comp.email && <span className="text-slate-300">|</span>}
-                          {comp.email && <span>{comp.email}</span>}
-                        </div>
-                      )}
-                      {linkedBank && (
-                        <div className="flex items-center space-x-1.5 text-blue-700 bg-blue-50/60 px-2 py-1 rounded-lg border border-blue-100/60 mt-1">
-                          <CreditCard className="w-3.5 h-3.5 shrink-0" />
-                          <span className="font-medium text-xs">
-                            TK liên kết: {linkedBank.bankCode} - {linkedBank.bankAccount}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-end space-x-2 pt-3 mt-3 border-t border-slate-200/70">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEditCompany(comp)}
-                      className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                      title="Chỉnh sửa đơn vị"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteCompany(comp.id)}
-                      className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                      title="Xóa đơn vị"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
+        <CompaniesTab
+          companies={companies}
+          bankAccounts={bankAccounts}
+          onOpenAdd={handleOpenAddCompany}
+          onOpenEdit={handleOpenEditCompany}
+          onDelete={handleDeleteCompany}
+          onSetDefault={handleSetDefaultCompany}
+        />
       )}
 
-      {/* === TAB: TÀI KHOẢN & VIETQR === */}
+      {/* 4. Tab: Tài Khoản VietQR */}
       {activeTab === 'banks' && (
-        <section className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-3">
-            <div className="flex items-center space-x-2.5 text-slate-900 font-bold text-base">
-              <CreditCard className="w-5 h-5 text-blue-600" />
-              <span>Danh Sách Tài Khoản Chuyển Khoản & VietQR (SePay)</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleOpenAddBank}
-              className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-xl border border-blue-200 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Thêm Tài Khoản Ngân Hàng</span>
-            </button>
-          </div>
-
-          <p className="text-xs text-slate-500">
-            Thêm nhiều tài khoản để lựa chọn linh hoạt khi lập hóa đơn. Thay đổi được lưu tự động ngay khi thêm, sửa, xóa hoặc đổi tài khoản mặc định.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {bankAccounts.map((acc, idx) => (
-              <div
-                key={acc.id || idx}
-                className={`p-5 rounded-2xl border transition-all relative flex flex-col justify-between ${acc.isDefault
-                    ? 'border-blue-600 bg-blue-50/30 ring-2 ring-blue-600/20 shadow-sm'
-                    : 'border-slate-200 bg-slate-50/50 hover:border-slate-300'
-                  }`}
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-bold text-slate-900 text-sm flex items-center space-x-1.5">
-                      <span>{acc.label || acc.bankCode}</span>
-                    </span>
-
-                    {acc.isDefault ? (
-                      <span className="inline-flex items-center space-x-1 bg-blue-600 text-white text-xs font-bold px-2.5 py-0.5 rounded-full shadow-xs">
-                        <Star className="w-3 h-3 fill-white" />
-                        <span>Mặc định</span>
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleSetDefaultBank(acc.id)}
-                        className="text-xs text-slate-500 hover:text-blue-600 hover:underline"
-                      >
-                        Đặt làm mặc định
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="space-y-1 text-xs text-slate-600">
-                    <div>
-                      Ngân hàng: <strong className="text-slate-800">{acc.bankCode}</strong>
-                    </div>
-                    <div>
-                      Số tài khoản:{' '}
-                      <strong className="font-mono text-sm text-blue-700 font-bold">
-                        {acc.bankAccount}
-                      </strong>
-                    </div>
-                    <div>
-                      Chủ tài khoản:{' '}
-                      <strong className="text-slate-800 uppercase">{acc.bankAccountName}</strong>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-200/70">
-                  <span className="text-[11px] text-slate-400 font-mono">
-                    Template: {acc.qrTemplate || 'compact'}
-                  </span>
-
-                  <div className="flex items-center space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEditBank(acc)}
-                      className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                      title="Chỉnh sửa"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteBank(acc.id)}
-                      className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                      title="Xóa tài khoản"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+        <BanksTab
+          bankAccounts={bankAccounts}
+          onOpenAdd={handleOpenAddBank}
+          onOpenEdit={handleOpenEditBank}
+          onDelete={handleDeleteBank}
+          onSetDefault={handleSetDefaultBank}
+        />
       )}
 
-      {/* === TAB: CẤU HÌNH ĐỊNH DẠNG NỘI DUNG CHUYỂN KHOẢN (VIETQR) === */}
-      {activeTab === 'formats' && (
-        <div className="space-y-6">
-          <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-indigo-900">
-            <div className="flex items-center gap-2.5">
-              <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
-              <span>
-                Cấu hình này hiện đã có tab riêng tại mục <strong>Mẫu Tin Nhắn &amp; HĐ</strong>. Bạn có thể chỉnh sửa trực tiếp bên dưới hoặc chuyển qua trang Mẫu Tin Nhắn.
-              </span>
-            </div>
-            <Link
-              href="/templates?tab=vietqr"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-xs shrink-0 transition-colors"
-            >
-              <span>Xem Tại Mẫu Tin Nhắn</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-          <PaymentRulesConfig />
-        </div>
-      )}
+      {/* 5. Tab: Định Dạng Nội Dung */}
+      {activeTab === 'formats' && <FormatsTab />}
 
-      {/* Legacy formats block hidden */ false && activeTab === 'formats' && (
-        <div className="space-y-6">
-          {/* Main Card: Quy tắc theo email */}
-          <section className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
-              <div>
-                <div className="flex items-center space-x-2.5 text-slate-900 font-bold text-base">
-                  <Sparkles className="w-5 h-5 text-indigo-600" />
-                  <span>Quy Tắc Định Dạng Nội Dung Chuyển Khoản Theo Email (VietQR)</span>
-                </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  Tự động nhận diện email khách hàng (sinh viên trường đại học, tổ chức, đối tác...) để sinh nội dung thanh toán mã QR chuẩn xác.
-                </p>
-              </div>
-
-              <div className="flex items-center space-x-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={handleSyncUnpaidQr}
-                  disabled={isSyncingQr}
-                  className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 text-indigo-700 text-xs font-semibold rounded-xl border border-indigo-200 transition-colors shadow-xs cursor-pointer"
-                  title="Cập nhật lại mã QR SePay cho toàn bộ hóa đơn chưa thanh toán (ISSUED, SENT)"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingQr ? 'animate-spin' : ''}`} />
-                  <span>{isSyncingQr ? 'Đang đồng bộ...' : 'Đồng Bộ QR HĐ Chưa Trả'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleOpenAddRule}
-                  className="inline-flex items-center space-x-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Thêm Quy Tắc Mới</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-800 flex items-center space-x-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>
-                <strong>Tự động đồng bộ:</strong> Khi bạn lưu quy tắc hoặc cú pháp chuyển khoản mới, hệ thống tự động cập nhật lại mã QR cho toàn bộ hóa đơn chưa thanh toán (trạng thái Chờ thanh toán / Đã gửi).
-              </span>
-            </div>
-
-            {/* Danh sách quy tắc */}
-            <div className="space-y-3">
-              {paymentRules.length === 0 ? (
-                <div className="text-center py-10 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 text-sm space-y-2">
-                  <p>Chưa có quy tắc riêng theo email nào.</p>
-                  <p className="text-xs text-slate-400">Bấm nút "Thêm Quy Tắc Mới" phía trên để tạo quy tắc cho trường học hoặc đối tác.</p>
-                </div>
-              ) : (
-                paymentRules.map((rule) => {
-                  const sampleEmail = '124001340@' + (rule.emailPattern || 'lachong.edu.vn');
-                  const samplePreview = calculateRulePreview(sampleEmail, rule.descriptionTemplate);
-
-                  return (
-                    <div
-                      key={rule.id}
-                      className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                        rule.isActive
-                          ? 'border-indigo-200 bg-indigo-50/20 shadow-xs'
-                          : 'border-slate-200 bg-slate-50/60 opacity-60'
-                      }`}
-                    >
-                      <div className="space-y-2 flex-1">
-                        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                          <span className="font-bold text-slate-900 text-sm">{rule.name}</span>
-                          {rule.isActive ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              Đang kích hoạt
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
-                              Đã tạm dừng
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="text-xs text-slate-600 space-y-1">
-                          <div>
-                            Điều kiện email chứa: <code className="px-2 py-0.5 bg-white border border-slate-200 rounded font-mono text-indigo-700 font-semibold">{rule.emailPattern}</code>
-                          </div>
-                          <div>
-                            Cú pháp định dạng: <code className="px-2 py-0.5 bg-white border border-slate-200 rounded font-mono text-slate-800">{rule.descriptionTemplate}</code>
-                          </div>
-                          <div className="text-[11px] text-slate-500 pt-1 flex items-center space-x-1.5 flex-wrap">
-                            <span>👉 Kết quả mẫu trên VietQR:</span>
-                            <strong className="font-mono text-indigo-900 bg-indigo-100/70 px-2.5 py-0.5 rounded border border-indigo-200/60">{samplePreview}</strong>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-200/60">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleRuleActive(rule.id)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                            rule.isActive
-                              ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200'
-                              : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
-                          }`}
-                        >
-                          {rule.isActive ? 'Tạm dừng' : 'Kích hoạt'}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditRule(rule)}
-                          className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer border border-transparent hover:border-indigo-200"
-                          title="Chỉnh sửa quy tắc"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteRule(rule.id)}
-                          className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer border border-transparent hover:border-rose-200"
-                          title="Xóa quy tắc"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Cú pháp chuyển khoản mặc định */}
-            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div>
-                  <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
-                    Cú pháp chuyển khoản mặc định (khi email không khớp quy tắc nào)
-                  </h4>
-                  <p className="text-[11px] text-slate-500">
-                    Áp dụng cho mọi hóa đơn thanh toán nếu khách hàng không dùng email đặc thù.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleSaveDefaultDesc}
-                  disabled={saveSettings.isPending}
-                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer shrink-0"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  <span>{saveSettings.isPending ? 'Đang lưu...' : 'Lưu Cú Pháp Mặc Định'}</span>
-                </button>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <input
-                  type="text"
-                  value={defaultPaymentDesc}
-                  onChange={(e) => setDefaultPaymentDesc(e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
-                  placeholder="{paymentCode} - {serviceName}"
-                />
-              </div>
-
-              {/* Quick tags */}
-              <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-600 pt-1">
-                <span className="text-[11px] text-slate-400 font-medium">Bấm chèn biến:</span>
-                {[
-                  { tag: '{paymentCode}', desc: 'Mã thanh toán' },
-                  { tag: '{invoiceNumber}', desc: 'Số hóa đơn' },
-                  { tag: '{serviceName}', desc: 'Tên dịch vụ' },
-                  { tag: '{customerName}', desc: 'Tên khách hàng' },
-                ].map((item) => (
-                  <button
-                    key={item.tag}
-                    type="button"
-                    onClick={() => setDefaultPaymentDesc((prev) => prev + (prev.endsWith(' ') || prev === '' ? '' : ' ') + item.tag)}
-                    className="px-2 py-0.5 bg-white border border-slate-200 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 rounded text-[11px] font-mono transition-colors cursor-pointer"
-                  >
-                    {item.tag}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          {/* Guide Card: Bảng tra cứu các biến */}
-          <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-            <div className="flex items-center space-x-2.5 text-slate-900 font-bold text-sm">
-              <Info className="w-4 h-4 text-indigo-600" />
-              <span>Bảng Tra Cứu Các Biến Tự Động Trong Định Dạng Chuyển Khoản</span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-                <div className="font-mono font-bold text-indigo-700">{'{studentId}'}</div>
-                <div className="text-slate-600">Dãy số mã số sinh viên ở đầu email (hoặc toàn bộ chuỗi trước @ nếu không có số).</div>
-                <div className="text-[11px] text-slate-400 italic">Ví dụ: "124001340@lachong.edu.vn" → "124001340"</div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-                <div className="font-mono font-bold text-indigo-700">{'{emailPrefix}'}</div>
-                <div className="text-slate-600">Toàn bộ ký tự nằm phía trước dấu @ của địa chỉ email.</div>
-                <div className="text-[11px] text-slate-400 italic">Ví dụ: "thanhdat.nguyen@company.com" → "thanhdat.nguyen"</div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-                <div className="font-mono font-bold text-indigo-700">{'{paymentCode}'}</div>
-                <div className="text-slate-600">Mã thanh toán đối soát 6 ký tự ngẫu nhiên được sinh cho mỗi hóa đơn.</div>
-                <div className="text-[11px] text-slate-400 italic">Ví dụ: "A8X9K2", "M3AU0C"</div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-                <div className="font-mono font-bold text-indigo-700">{'{invoiceNumber}'}</div>
-                <div className="text-slate-600">Số hiệu hóa đơn chính thức trên hệ thống.</div>
-                <div className="text-[11px] text-slate-400 italic">Ví dụ: "HD-000047", "HD-000072"</div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-                <div className="font-mono font-bold text-indigo-700">{'{serviceName}'}</div>
-                <div className="text-slate-600">Tên dịch vụ, khóa học hoặc hàng hóa đầu tiên trong hóa đơn.</div>
-                <div className="text-[11px] text-slate-400 italic">Ví dụ: "Starter", "AI Writer Pro 1 Năm"</div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-                <div className="font-mono font-bold text-indigo-700">{'{customerName}'}</div>
-                <div className="text-slate-600">Họ và tên của khách hàng / người mua ghi trên hóa đơn.</div>
-                <div className="text-[11px] text-slate-400 italic">Ví dụ: "Phạm Phương Thảo", "Đinh Triệu Mẫn"</div>
-              </div>
-            </div>
-          </section>
-        </div>
-      )}
-
-      {/* === TAB: ĐÁNH SỐ & VAT === */}
+      {/* 6. Tab: Đánh Số & Thuế */}
       {activeTab === 'rules' && (
-        <section className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-5">
-          <div className="flex items-center space-x-2.5 text-slate-900 font-bold text-base pb-3 border-b border-slate-100">
-            <Sliders className="w-5 h-5 text-blue-600" />
-            <span>Quy Tắc Đánh Số Hóa Đơn & Thuế Mặc Định</span>
-          </div>
-
-          <p className="text-xs text-slate-500">
-            Các quy tắc này cần xác nhận lại trước khi lưu để tránh thay đổi số hóa đơn ngoài ý muốn.
-          </p>
-
-          <form onSubmit={rulesForm.handleSubmit(onSaveRules)} className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
-                  Tiền Tố Số HĐ (Prefix)
-                </label>
-                <input
-                  {...rulesForm.register('invoicePrefix')}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
-                  placeholder="HD"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
-                  Số Hóa Đơn Tiếp Theo
-                </label>
-                <input
-                  type="number"
-                  {...rulesForm.register('nextInvoiceNumber')}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
-                  placeholder="1"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
-                  Thuế Suất VAT Mặc Định (%)
-                </label>
-                <input
-                  type="number"
-                  {...rulesForm.register('defaultVatRate')}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  placeholder="10"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-1">
-              <button
-                type="submit"
-                disabled={saveSettings.isPending}
-                className="inline-flex items-center px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl shadow-sm space-x-2 transition-all cursor-pointer"
-              >
-                <Save className="w-4 h-4" />
-                <span>{saveSettings.isPending ? 'Đang lưu...' : 'Lưu Quy Tắc'}</span>
-              </button>
-            </div>
-          </form>
-        </section>
+        <InvoiceRulesTab
+          initialValues={invoiceRules}
+          onSave={onSaveInvoiceRules}
+          isSaving={saveSettings.isPending}
+        />
       )}
 
-      {/* === TAB: CẤU HÌNH THÔNG BÁO (EMAIL & ZALO BOT) === */}
+      {/* 7. Tab: Cấu Hình Thông Báo */}
       {activeTab === 'notifications' && (
-        <div className="space-y-6">
-          {/* Banner điều hướng sang Nội Dung Chuyển Khoản & Mẫu Tin Nhắn */}
-          <div className="p-4 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-indigo-900 shadow-2xs">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="font-bold text-slate-900 text-sm">Cấu hình Nội Dung Chuyển Khoản VietQR Theo Email</p>
-                <p className="text-slate-500 text-xs mt-0.5">
-                  Đã được chuyển sang quản lý tập trung tại trang <strong>Mẫu Tin Nhắn &amp; Hóa Đơn</strong> cùng các kịch bản Zalo và Email.
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/templates?tab=vietqr"
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-xs shrink-0 transition-colors shadow-xs"
-            >
-              <span>Mở Tab Cấu Hình VietQR</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-          {/* Email Notification Card */}
-          <section className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-3">
-              <div className="flex items-center space-x-3">
-                <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
-                  <Mail className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-                    <span>Gửi Hóa Đơn Tự Động Qua Email (SMTP)</span>
-                    <span
-                      className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                        enableEmail
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : 'bg-slate-100 text-slate-500'
-                      }`}
-                    >
-                      {enableEmail ? 'Đang Bật' : 'Đang Tắt'}
-                    </span>
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Tự động gửi hóa đơn kèm mã QR thanh toán và đường dẫn xem online đến email khách hàng khi tạo hóa đơn.
-                  </p>
-                </div>
-              </div>
-
-              {/* Toggle Switch */}
-              <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                <input
-                  type="checkbox"
-                  checked={enableEmail}
-                  onChange={(e) => handleToggleEmail(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
-            </div>
-
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-600">
-              <div className="space-y-1">
-                <div className="font-semibold text-slate-800 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>Dịch vụ SMTP Máy Chủ Đã Sẵn Sàng</span>
-                </div>
-                <p className="text-slate-500">
-                  Cấu hình gửi mail được quản lý an toàn qua biến môi trường máy chủ (SMTP host, port, user, pass).
-                </p>
-              </div>
-              <span className="text-[11px] text-slate-400 font-mono">Template: invoice-notification.html</span>
-            </div>
-          </section>
-
-          {/* Zalo Bot Notification Card */}
-          <section className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-3">
-              <div className="flex items-center space-x-3">
-                <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
-                  <MessageSquare className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-                    <span>Gửi Hóa Đơn Qua Zalo Bot (SMS-Service / Talab)</span>
-                    <span
-                      className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                        enableZalo && zaloBotId && zaloApiKey
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : 'bg-amber-50 text-amber-700 border border-amber-200'
-                      }`}
-                    >
-                      {enableZalo && zaloBotId && zaloApiKey
-                        ? 'Đang Bật'
-                        : !zaloBotId || !zaloApiKey
-                        ? 'Chưa Cấu Hình Bot'
-                        : 'Đang Tắt'}
-                    </span>
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Gửi tin nhắn trực tiếp đến Zalo của khách hàng bằng số điện thoại. Hỗ trợ tự động kết bạn (Batch Friend Request).
-                  </p>
-                </div>
-              </div>
-
-              {/* Toggle Switch */}
-              <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                <input
-                  type="checkbox"
-                  checked={enableZalo}
-                  onChange={(e) => handleToggleZalo(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
-            </div>
-
-            {/* Zalo Status & Config Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-2">
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Thông Tin Bot & Kết Nối</div>
-                <div className="text-xs space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Zalo Bot ID:</span>
-                    <strong className="font-mono text-slate-800">
-                      {zaloBotId ? zaloBotId : <span className="text-amber-600 font-normal">Chưa thiết lập</span>}
-                    </strong>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">x-api-key:</span>
-                    <strong className="font-mono text-slate-800">
-                      {zaloApiKey ? `${zaloApiKey.slice(0, 6)}••••••••` : <span className="text-amber-600 font-normal">Chưa thiết lập</span>}
-                    </strong>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Tự động kết bạn:</span>
-                    <span className={`font-semibold ${zaloAutoFriendRequest ? 'text-emerald-600' : 'text-slate-500'}`}>
-                      {zaloAutoFriendRequest ? `Bật (Tiền tố: ${zaloAliasPrefix || 'KH_'})` : 'Tắt'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 flex flex-col justify-between space-y-3">
-                <div>
-                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Cổng API Gateway</div>
-                  <p className="text-xs font-mono text-slate-700 truncate" title={zaloApiBaseUrl}>
-                    {zaloApiBaseUrl || 'https://sms-service.talab.io.vn/api/gateway/v1.0'}
-                  </p>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    API Nhắn tin & Kết Bạn Batch hỗ trợ gửi cho người lạ không cần qua OA ZNS.
-                  </p>
-                </div>
-
-                <div className="pt-2 flex items-center justify-end">
-                  <button
-                    type="button"
-                    onClick={handleOpenZaloModal}
-                    className="inline-flex items-center space-x-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
-                  >
-                    <Key className="w-4 h-4" />
-                    <span>Cấu Hình Zalo Bot (API Key & Bot ID)</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Custom Template Box */}
-            <div className="pt-2 border-t border-slate-100 space-y-3">
-              {/* Thông báo điều hướng sang Mẫu Tin Nhắn */}
-              <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-xl text-xs text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-start gap-2.5">
-                  <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold">Đã có trang quản lý Mẫu Tin Nhắn riêng:</span>{' '}
-                    <span>
-                      Hệ thống hiện đã hỗ trợ quản lý kịch bản Zalo &amp; Email theo từng gói dịch vụ, kèm xem trước và đính kèm file tại menu{' '}
-                      <strong>Mẫu Tin Nhắn</strong>. Khung bên dưới chỉ đóng vai trò dự phòng cơ bản nếu không tìm thấy mẫu nào.
-                    </span>
-                  </div>
-                </div>
-                <Link
-                  href="/templates"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold text-xs shrink-0 transition-colors shadow-2xs"
-                >
-                  <span>Mẫu Tin Nhắn</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    Mẫu Tin Nhắn Zalo Gửi Khách Hàng (Dự Phòng Fallback)
-                  </h4>
-                  <p className="text-xs text-slate-500">
-                    Bấm vào các thẻ biến bên dưới để chèn vào nội dung tin nhắn. Để trống để sử dụng mẫu chuẩn mặc định.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSaveTemplate}
-                  disabled={saveSettings.isPending}
-                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  <span>{saveSettings.isPending ? 'Đang lưu...' : 'Lưu Mẫu'}</span>
-                </button>
-              </div>
-
-              {/* Variable Chips */}
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  { tag: '{{customerName}}', desc: 'Tên người nhận' },
-                  { tag: '{{invoiceNumber}}', desc: 'Mã số hóa đơn' },
-                  { tag: '{{totalAmount}}', desc: 'Tổng tiền thanh toán' },
-                  { tag: '{{viewUrl}}', desc: 'Link xem online' },
-                  { tag: '{{pdfUrl}}', desc: 'Link tải PDF' },
-                ].map((item) => (
-                  <button
-                    key={item.tag}
-                    type="button"
-                    onClick={() => {
-                      setZaloMessageTemplate((prev) => (prev ? `${prev} ${item.tag}` : item.tag));
-                    }}
-                    className="inline-flex items-center space-x-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-mono transition-colors"
-                    title={item.desc}
-                  >
-                    <span>{item.tag}</span>
-                    <span className="text-[10px] text-blue-400 font-sans">({item.desc})</span>
-                  </button>
-                ))}
-              </div>
-
-              <textarea
-                value={zaloMessageTemplate}
-                onChange={(e) => setZaloMessageTemplate(e.target.value)}
-                rows={4}
-                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm font-sans focus:ring-2 focus:ring-blue-500 focus:outline-none bg-slate-50/50"
-                placeholder={`[Thông báo Hóa đơn]
-Kính gửi {{customerName}},
-Hệ thống xin gửi Quý khách hóa đơn {{invoiceNumber}} với số tiền thanh toán là {{totalAmount}}.
-
-Xem chi tiết và mã VietQR thanh toán tại:
-{{viewUrl}}
-
-Tải file PDF trực tiếp:
-{{pdfUrl}}
-
-Trân trọng!`}
-              />
-            </div>
-          </section>
-
-          {/* Email Alert & Subscription Reminder Template Card */}
-          <section className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-3">
-              <div className="flex items-center space-x-3">
-                <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
-                  <Mail className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-base">
-                    Mẫu Tin Nhắn Email Cảnh Báo & Nhắc Hạn Dịch Vụ
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Cấu hình tiêu đề và lời nhắn mở đầu email gửi khách hàng khi dịch vụ / hợp đồng sắp hết hạn.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleSaveEmailTemplate}
-                disabled={saveSettings.isPending}
-                className="inline-flex items-center space-x-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer shrink-0"
-              >
-                <Save className="w-4 h-4" />
-                <span>{saveSettings.isPending ? 'Đang lưu...' : 'Lưu Mẫu Email'}</span>
-              </button>
-            </div>
-
-            {/* Placeholders */}
-            <div className="bg-blue-50/70 border border-blue-100 rounded-xl p-4 text-xs text-slate-600 space-y-2">
-              <div className="font-bold text-blue-900 flex items-center gap-1.5">
-                <Info className="w-4 h-4 text-blue-600" />
-                <span>Các biến tự động chèn dữ liệu (bấm để thêm vào nội dung):</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {[
-                  { tag: '{customerName}', desc: 'Tên KH' },
-                  { tag: '{serviceName}', desc: 'Tên gói' },
-                  { tag: '{daysRemaining}', desc: 'Số ngày còn' },
-                  { tag: '{endDate}', desc: 'Ngày hết hạn' },
-                  { tag: '{servicePrice}', desc: 'Giá gói' },
-                  { tag: '{staffName}', desc: 'Người phụ trách' },
-                  { tag: '{companyName}', desc: 'Tên công ty' },
-                  { tag: '{hotline}', desc: 'Hotline' },
-                ].map((item) => (
-                  <button
-                    key={item.tag}
-                    type="button"
-                    onClick={() => setEmailAlertBody((prev) => (prev ? `${prev} ${item.tag}` : item.tag))}
-                    className="inline-flex items-center space-x-1 px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-mono transition-colors"
-                    title={`Chèn ${item.tag} (${item.desc})`}
-                  >
-                    <span>{item.tag}</span>
-                    <span className="text-[10px] text-blue-400 font-sans">({item.desc})</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">
-                  Tiêu Đề Email Mặc Định
-                </label>
-                <input
-                  type="text"
-                  value={emailAlertSubject}
-                  onChange={(e) => setEmailAlertSubject(e.target.value)}
-                  placeholder='VD: [THÔNG BÁO GIA HẠN DỊCH VỤ] Gói "{serviceName}" của {customerName} {daysRemaining}'
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Nếu để trống, hệ thống sẽ tự động dùng tiêu đề tiêu chuẩn.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">
-                  Nội Dung / Lời Nhắn Mở Đầu Email
-                </label>
-                <textarea
-                  rows={4}
-                  value={emailAlertBody}
-                  onChange={(e) => setEmailAlertBody(e.target.value)}
-                  placeholder="VD: Kính gửi Quý khách hàng, hệ thống xin thông báo gói dịch vụ của Quý khách sắp đến thời hạn gia hạn. Quý khách vui lòng kiểm tra và liên hệ hỗ trợ để dịch vụ không bị gián đoạn..."
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none leading-relaxed"
-                />
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Nội dung này sẽ hiển thị trang trọng ở phần đầu email gửi đến khách hàng kèm bảng chi tiết gói dịch vụ và thông tin người phụ trách.
-                </p>
-              </div>
-            </div>
-          </section>
-        </div>
+        <NotificationsTab
+          enableEmail={enableEmail}
+          onToggleEmail={handleToggleEmail}
+          enableZalo={enableZalo}
+          onToggleZalo={handleToggleZalo}
+          zaloBotId={zaloBotId}
+          zaloApiKey={zaloApiKey}
+          zaloApiBaseUrl={zaloApiBaseUrl}
+          zaloAutoFriendRequest={zaloAutoFriendRequest}
+          zaloAliasPrefix={zaloAliasPrefix}
+          onOpenZaloModal={() => setIsZaloModalOpen(true)}
+          zaloMessageTemplate={zaloMessageTemplate}
+          setZaloMessageTemplate={setZaloMessageTemplate}
+          onSaveZaloTemplate={handleSaveZaloTemplate}
+          isSavingZaloTemplate={saveSettings.isPending}
+          emailAlertSubject={emailAlertSubject}
+          setEmailAlertSubject={setEmailAlertSubject}
+          emailAlertBody={emailAlertBody}
+          setEmailAlertBody={setEmailAlertBody}
+          onSaveEmailTemplate={handleSaveEmailTemplate}
+          isSavingEmailTemplate={saveSettings.isPending}
+        />
       )}
 
-      {/* POPUP THÊM / SỬA ĐƠN VỊ CUNG CẤP */}
-      {isCompanyModalOpen && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsCompanyModalOpen(false);
-          }}
-          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto cursor-pointer"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 cursor-default"
-          >
-            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
-                  <Building2 className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-base">
-                    {editingCompany ? 'Chỉnh Sửa Đơn Vị Cung Cấp' : 'Thêm Đơn Vị Cung Cấp Mới'}
-                  </h3>
-                  <p className="text-xs text-slate-500">Thông tin sẽ được lưu tự động khi hoàn tất</p>
-                </div>
-              </div>
+      {/* Modal: Đơn Vị Cung Cấp */}
+      <CompanyModal
+        isOpen={isCompanyModalOpen}
+        onClose={() => setIsCompanyModalOpen(false)}
+        editingCompany={editingCompany}
+        bankAccounts={bankAccounts}
+        onSave={handleSaveCompany}
+      />
 
-              <button
-                type="button"
-                onClick={() => setIsCompanyModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-200 transition-all font-bold text-sm"
-              >
-                ✕
-              </button>
-            </div>
+      {/* Modal: Tài Khoản Ngân Hàng */}
+      <BankModal
+        isOpen={isBankModalOpen}
+        onClose={() => setIsBankModalOpen(false)}
+        editingAccount={editingAccount}
+        onSave={handleSaveBankAccount}
+      />
 
-            <div className="p-6 space-y-4 overflow-y-auto max-h-[75vh]">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Tên Doanh Nghiệp / Đơn Vị Phát Hành *
-                </label>
-                <input
-                  type="text"
-                  placeholder="VD: CÔNG TY TNHH GIÁO DỤC AI ROBOTIC"
-                  {...registerCompany('name', { required: true })}
-                  className="w-full px-3.5 py-2 text-sm font-semibold border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Mã Số Thuế (MST)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="VD: 3603893101"
-                    {...registerCompany('taxCode')}
-                    className="w-full px-3.5 py-2 text-sm font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Hotline / Số Điện Thoại
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="VD: 0900000000"
-                    {...registerCompany('phone')}
-                    className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Email Liên Hệ
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="VD: contact@airobotics.edu.vn"
-                    {...registerCompany('email')}
-                    className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Logo URL (Tùy chọn)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="VD: https://domain.com/logo.png"
-                    {...registerCompany('logoUrl')}
-                    className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Địa Chỉ Doanh Nghiệp / Xuất Hóa Đơn
-                </label>
-                <input
-                  type="text"
-                  placeholder="VD: Số 10 Huỳnh Văn Nghệ, P. Trấn Biên, TP. Biên Hòa, Đồng Nai"
-                  {...registerCompany('address')}
-                  className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Tài Khoản Ngân Hàng Mặc Định Cho Đơn Vị Này
-                </label>
-                <select
-                  {...registerCompany('bankAccountId')}
-                  className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
-                >
-                  <option value="">-- Chọn tài khoản ngân hàng liên kết --</option>
-                  {bankAccounts.map((acc) => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.label ? `${acc.label} (${acc.bankCode} - ${acc.bankAccount})` : `${acc.bankCode} - ${acc.bankAccount}`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center space-x-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="isDefaultComp"
-                  {...registerCompany('isDefault')}
-                  className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
-                />
-                <label htmlFor="isDefaultComp" className="text-xs font-medium text-slate-700 cursor-pointer">
-                  Đặt làm đơn vị cung cấp mặc định cho các hóa đơn mới
-                </label>
-              </div>
-            </div>
-
-            <div className="p-4 border-t border-slate-200 bg-white flex justify-end items-center space-x-3">
-              <button
-                type="button"
-                onClick={() => setIsCompanyModalOpen(false)}
-                className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                onClick={handleCompanySubmit(handleSaveCompany)}
-                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
-              >
-                {editingCompany ? 'Lưu Thay Đổi' : 'Thêm Đơn Vị'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* POPUP THÊM / SỬA QUY TẮC CHUYỂN KHOẢN THEO EMAIL */}
-      {isRuleModalOpen && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsRuleModalOpen(false);
-          }}
-          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto cursor-pointer"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl shadow-2xl max-w-xl w-full flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 cursor-default"
-          >
-            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
-                  <Sparkles className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-base">
-                    {editingRule ? 'Chỉnh Sửa Quy Tắc Chuyển Khoản' : 'Thêm Quy Tắc Chuyển Khoản Theo Email'}
-                  </h3>
-                  <p className="text-xs text-slate-500">Cấu hình định dạng nội dung VietQR tự động theo email</p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setIsRuleModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-200 transition-all font-bold text-sm"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4 overflow-y-auto max-h-[75vh]">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Tên Quy Tắc Gợi Nhớ <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="VD: Sinh viên Trường Đại Học Lạc Hồng, Đối tác Viettel..."
-                  value={ruleFormName}
-                  onChange={(e) => setRuleFormName(e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Tên Miền Hoặc Từ Khóa Trong Email Khách Hàng <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="VD: lachong.edu.vn, ueh.edu.vn, @fpt.com.vn..."
-                  value={ruleFormPattern}
-                  onChange={(e) => setRuleFormPattern(e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                />
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Hệ thống tự động so khớp khi email người mua có chứa chuỗi này (không phân biệt chữ hoa thường).
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Cú Pháp Nội Dung Chuyển Khoản (VietQR) <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="VD: {studentId} / Trường Đại Học Lạc Hồng"
-                  value={ruleFormTemplate}
-                  onChange={(e) => setRuleFormTemplate(e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                />
-
-                {/* Quick tags */}
-                <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-600 mt-2">
-                  <span className="text-[11px] text-slate-400 font-medium">Bấm chèn biến:</span>
-                  {[
-                    { tag: '{studentId}', label: 'Mã số SV (dãy số đầu)' },
-                    { tag: '{emailPrefix}', label: 'Phần trước @' },
-                    { tag: '{paymentCode}', label: 'Mã TT (6 ký tự)' },
-                    { tag: '{invoiceNumber}', label: 'Số hóa đơn' },
-                    { tag: '{serviceName}', label: 'Tên dịch vụ' },
-                    { tag: '{customerName}', label: 'Tên KH' },
-                  ].map((item) => (
-                    <button
-                      key={item.tag}
-                      type="button"
-                      onClick={() => setRuleFormTemplate((prev) => prev + (prev.endsWith(' ') || prev === '' ? '' : ' ') + item.tag)}
-                      className="px-2 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300 border border-slate-200 rounded text-[11px] font-mono transition-colors cursor-pointer"
-                      title={item.label}
-                    >
-                      {item.tag}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="ruleFormActive"
-                  checked={ruleFormActive}
-                  onChange={(e) => setRuleFormActive(e.target.checked)}
-                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                />
-                <label htmlFor="ruleFormActive" className="text-xs font-medium text-slate-700 cursor-pointer">
-                  Kích hoạt quy tắc này ngay sau khi lưu
-                </label>
-              </div>
-
-              {/* Khung Test Trực Quan */}
-              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 space-y-2 mt-2">
-                <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                  <span className="flex items-center gap-1.5">
-                    <Info className="w-4 h-4 text-indigo-600" />
-                    <span>Xem trước kết quả thử nghiệm trực quan:</span>
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <label className="text-[11px] text-slate-500 block mb-1">Email khách hàng thử nghiệm:</label>
-                    <input
-                      type="text"
-                      value={testEmail}
-                      onChange={(e) => setTestEmail(e.target.value)}
-                      className="w-full px-2.5 py-1.5 text-xs font-mono border border-slate-300 rounded-lg bg-white focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-slate-500 block mb-1">Nội dung VietQR thực tế sinh ra:</label>
-                    <div className="px-2.5 py-1.5 text-xs font-mono font-bold text-indigo-900 bg-indigo-100/60 border border-indigo-200 rounded-lg break-all min-h-[32px] flex items-center">
-                      {calculateRulePreview(testEmail, ruleFormTemplate) || '(Chưa có nội dung)'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-5 border-t border-slate-200 bg-slate-50 flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={() => setIsRuleModalOpen(false)}
-                className="px-4 py-2 border border-slate-300 rounded-xl text-slate-700 text-xs font-semibold hover:bg-slate-100 transition-colors cursor-pointer"
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveRuleModal}
-                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
-              >
-                {editingRule ? 'Cập Nhật Quy Tắc' : 'Lưu Quy Tắc Mới'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-            {/* POPUP THÊM / SỬA TÀI KHOẢN NGÂN HÀNG */}
-      {isBankModalOpen && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsBankModalOpen(false);
-          }}
-          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto cursor-pointer"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 cursor-default"
-          >
-            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
-                  <CreditCard className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-base">
-                    {editingAccount ? 'Chỉnh Sửa Tài Khoản Ngân Hàng' : 'Thêm Tài Khoản Ngân Hàng Mới'}
-                  </h3>
-                  <p className="text-xs text-slate-500">Thông tin sẽ được lưu tự động khi hoàn tất</p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setIsBankModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-200 transition-all font-bold text-sm"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-6 space-y-5 overflow-y-auto max-h-[75vh]">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Tên Gợi Nhớ / Nhãn Tài Khoản
-                </label>
-                <input
-                  type="text"
-                  placeholder="VD: Tài khoản chính Vietcombank, MB Bank thu tiền..."
-                  {...registerBank('label', { required: true })}
-                  className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Ngân Hàng (Bank Code) *
-                  </label>
-                  <select
-                    {...registerBank('bankCode', { required: true })}
-                    className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white font-medium"
-                  >
-                    {POPULAR_BANKS.map((b) => (
-                      <option key={b.code} value={b.code}>
-                        {b.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Số Tài Khoản / Alias *
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="VD: SHYNNERI hoặc 0123456789"
-                    {...registerBank('bankAccount', { required: true })}
-                    className="w-full px-3.5 py-2 text-sm font-mono font-bold border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Tên Chủ Tài Khoản (In Hoa Không Dấu) *
-                </label>
-                <input
-                  type="text"
-                  placeholder="VD: NGUYEN VAN A hoặc AI ROBOTIC"
-                  {...registerBank('bankAccountName', { required: true })}
-                  className="w-full px-3.5 py-2 text-sm font-semibold uppercase border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="flex items-center space-x-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="isDefaultAcc"
-                  {...registerBank('isDefault')}
-                  className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
-                />
-                <label htmlFor="isDefaultAcc" className="text-xs font-medium text-slate-700 cursor-pointer">
-                  Đặt làm tài khoản nhận tiền mặc định cho hóa đơn mới
-                </label>
-              </div>
-
-              {testQrUrl && (
-                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center space-x-4">
-                  <img src={testQrUrl} alt="VietQR Test" className="w-24 h-24 rounded-lg border bg-white p-1" />
-                  <div className="text-xs text-slate-600 space-y-1">
-                    <span className="font-bold text-slate-900 block text-xs flex items-center space-x-1">
-                      <QrCode className="w-3.5 h-3.5 text-blue-600" />
-                      <span>Xem thử mã VietQR</span>
-                    </span>
-                    <div>Ngân hàng: <strong>{watchedBankModal.bankCode}</strong></div>
-                    <div>Số TK: <strong className="font-mono text-blue-700">{watchedBankModal.bankAccount}</strong></div>
-                    <div>Chủ TK: <strong>{watchedBankModal.bankAccountName}</strong></div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="p-4 border-t border-slate-200 bg-white flex justify-end items-center space-x-3">
-              <button
-                type="button"
-                onClick={() => setIsBankModalOpen(false)}
-                className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                onClick={handleBankSubmit(handleSaveBankAccount)}
-                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
-              >
-                {editingAccount ? 'Lưu Thay Đổi' : 'Thêm Tài Khoản'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* POPUP CẤU HÌNH ZALO BOT (API KEY & BOT ID) */}
-      {isZaloModalOpen && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsZaloModalOpen(false);
-          }}
-          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto cursor-pointer"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl shadow-2xl max-w-xl w-full flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 cursor-default"
-          >
-            {/* Header */}
-            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
-                  <Bot className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-base">
-                    Cấu Hình Zalo Bot Gateway
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Kết nối SMS-Service Gateway (https://sms-service.talab.io.vn)
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setIsZaloModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-200 transition-all font-bold text-sm"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="p-6 space-y-4 overflow-y-auto max-h-[75vh]">
-              {/* Guidance Banner */}
-              <div className="p-3.5 bg-blue-50/80 border border-blue-200/80 rounded-xl text-xs text-blue-900 flex items-start space-x-2.5">
-                <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                <div className="text-[11px] leading-relaxed space-y-1">
-                  <div className="font-semibold text-blue-950">Quy tắc định dạng của Talab SMS Gateway:</div>
-                  <div>• <strong className="text-blue-950">Zalo Bot ID:</strong> Mã UUID định danh Bot (VD: <code className="px-1 py-0.5 bg-blue-100/80 text-blue-900 rounded font-mono font-bold">ae32c723-1a7a-4e22-985f-eb3e8876f2cc</code>)</div>
-                  <div>• <strong className="text-blue-950">API Key:</strong> Khóa bí mật luôn bắt đầu bằng tiền tố <code className="px-1 py-0.5 bg-blue-100/80 text-blue-900 rounded font-mono font-bold">zlite_...</code> (VD: <code className="px-1 py-0.5 bg-blue-100/80 text-blue-900 rounded font-mono">zlite_31d757...</code>)</div>
-                  <div className="text-slate-500 italic mt-0.5">💡 Hệ thống tự động nhận diện và đảo chuẩn xác nếu bạn vô tình dán ngược giữa 2 ô.</div>
-                </div>
-              </div>
-
-              {/* Bot ID */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Zalo Bot ID (bot_id) * <span className="font-normal text-slate-400">— Mã định danh Bot (UUID)</span>
-                </label>
-                <input
-                  type="text"
-                  value={modalBotId}
-                  onChange={(e) => setModalBotId(e.target.value)}
-                  placeholder="VD: ae32c723-1a7a-4e22-985f-eb3e8876f2cc"
-                  className="w-full px-3.5 py-2 text-sm font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-              </div>
-
-              {/* API Key */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  API Key (x-api-key) * <span className="font-normal text-slate-400">— Khóa truy cập (bắt đầu bằng zlite_)</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type={showApiKey ? 'text' : 'password'}
-                    value={modalApiKey}
-                    onChange={(e) => setModalApiKey(e.target.value)}
-                    placeholder="VD: zlite_31d7572529b37294b69ce96881a9c2ce78ac7280"
-                    className="w-full px-3.5 py-2 pr-10 text-sm font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Gateway URL */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Gateway API Base URL
-                </label>
-                <input
-                  type="text"
-                  value={modalBaseUrl}
-                  onChange={(e) => setModalBaseUrl(e.target.value)}
-                  placeholder="https://sms-service.talab.io.vn/api/gateway/v1.0"
-                  className="w-full px-3.5 py-2 text-xs font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-              </div>
-
-              {/* Friend Request Settings */}
-              <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/40 space-y-3">
-                <div className="flex items-start space-x-2.5">
-                  <input
-                    type="checkbox"
-                    id="autoFriendCheck"
-                    checked={modalAutoFriend}
-                    onChange={(e) => setModalAutoFriend(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 mt-0.5"
-                  />
-                  <label htmlFor="autoFriendCheck" className="text-xs text-slate-700 cursor-pointer font-medium">
-                    Tự động gửi lời mời kết bạn (Batch Friend Request) khi nhắn tin cho số lạ
-                    <span className="block text-[11px] text-slate-500 font-normal mt-0.5">
-                      Giúp khách hàng dễ nhận thông báo và tin nhắn không bị đưa vào thư mục người lạ.
-                    </span>
-                  </label>
-                </div>
-
-                {modalAutoFriend && (
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                      Tiền Tố Đổi Tên Gợi Nhớ (alias_prefix)
-                    </label>
-                    <input
-                      type="text"
-                      value={modalAliasPrefix}
-                      onChange={(e) => setModalAliasPrefix(e.target.value)}
-                      placeholder="KH_"
-                      className="w-32 px-2.5 py-1.5 text-xs font-mono border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
-                    />
-                    <span className="text-[11px] text-slate-400 ml-2">VD: KH_Nguyễn Văn A</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Test Message Box */}
-              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
-                <div className="flex items-center space-x-2 text-xs font-bold text-slate-800">
-                  <Send className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Thử Nghiệm Gửi Tin Nhắn Zalo Thực Tế</span>
-                </div>
-
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={testPhone}
-                    onChange={(e) => setTestPhone(e.target.value)}
-                    placeholder="Nhập số điện thoại Zalo thử (VD: 0334551531)"
-                    className="flex-1 px-3 py-2 text-xs font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleTestZalo}
-                    disabled={isTestingZalo}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-colors shrink-0 flex items-center space-x-1"
-                  >
-                    {isTestingZalo ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        <span>Đang gửi...</span>
-                      </>
-                    ) : (
-                      <span>Gửi Thử</span>
-                    )}
-                  </button>
-                </div>
-
-                {testResult && (
-                  <div
-                    className={`p-3 rounded-xl text-xs space-y-1 ${
-                      testResult.success
-                        ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
-                        : 'bg-rose-50 border border-rose-200 text-rose-800'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-1.5 font-bold">
-                      {testResult.success ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      ) : (
-                        <AlertCircle className="w-4 h-4 text-rose-600" />
-                      )}
-                      <span>{testResult.success ? 'Gửi thành công!' : 'Gửi thất bại'}</span>
-                    </div>
-                    <p className="text-[11px]">{testResult.message}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="p-4 border-t border-slate-200 bg-white flex justify-end items-center space-x-3">
-              <button
-                type="button"
-                onClick={() => setIsZaloModalOpen(false)}
-                className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveZaloConfig}
-                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
-              >
-                Lưu Cấu Hình
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* Modal: Cấu Hình Zalo Bot */}
+      <ZaloConfigModal
+        isOpen={isZaloModalOpen}
+        onClose={() => setIsZaloModalOpen(false)}
+        zaloBotId={zaloBotId}
+        zaloApiKey={zaloApiKey}
+        zaloApiBaseUrl={zaloApiBaseUrl}
+        zaloAutoFriendRequest={zaloAutoFriendRequest}
+        zaloAliasPrefix={zaloAliasPrefix}
+        onSave={handleSaveZaloConfig}
+      />
     </div>
   );
 }
