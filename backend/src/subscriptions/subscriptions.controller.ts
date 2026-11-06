@@ -26,8 +26,9 @@ export class SubscriptionsController {
   async findAll(
     @Query('search') search?: string,
     @Query('status') status?: string,
+    @Query('serviceName') serviceName?: string,
   ) {
-    return this.subscriptionsService.findAll(search, status);
+    return this.subscriptionsService.findAll(search, status, serviceName);
   }
 
   @Get(':id')
@@ -88,6 +89,20 @@ export class SubscriptionsController {
     @Body('message') message?: string,
   ) {
     return this.subscriptionsService.bulkSendExpiryAlerts(ids, subject, message);
+  }
+
+  @Post('bulk-send-message')
+  async bulkSendMessage(
+    @Body()
+    body: {
+      ids: string[];
+      channels: ('EMAIL' | 'ZALO')[];
+      subject?: string;
+      message: string;
+      attachments?: Array<{ name: string; url: string; size?: number; type?: string }>;
+    },
+  ) {
+    return this.subscriptionsService.bulkSendMessage(body);
   }
 
   @Post('bulk-from-invoices')

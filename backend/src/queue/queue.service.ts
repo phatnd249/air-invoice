@@ -231,7 +231,10 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
   private async dispatchHandler(type: QueueType, payload: any): Promise<any> {
     switch (type) {
       case QueueType.DELIVERY_EMAIL: {
-        const { invoiceId, options, isPaymentSuccess } = payload;
+        const { invoiceId, options, isPaymentSuccess, directEmail, to, subject, html, attachments } = payload;
+        if (directEmail || (to && html)) {
+          return await this.deliveryService.sendRawEmail({ to, subject, html, attachments });
+        }
         if (!invoiceId) throw new Error('Thiếu invoiceId trong dữ liệu DELIVERY_EMAIL');
         if (isPaymentSuccess) {
           return await this.deliveryService.sendPaymentSuccessEmail(invoiceId, options);
@@ -241,7 +244,16 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
       }
 
       case QueueType.DELIVERY_ZALO: {
-        const { isPaymentSuccess, zaloOptions } = payload;
+        const { isPaymentSuccess, zaloOptions, directZalo, phone, customerName, message } = payload;
+        if (directZalo || (phone && message)) {
+          const res = await this.zaloService.sendInvoiceZalo({
+            phone,
+            customerName,
+            customMessage: message,
+          });
+          if (!res.success) throw new Error(res.error || 'Lỗi gửi tin nhắn Zalo');
+          return res;
+        }
         if (isPaymentSuccess) {
           const res = await this.zaloService.sendPaymentSuccessZalo(zaloOptions);
           if (!res.success) throw new Error(res.error || 'Lỗi gửi tin nhắn Zalo thanh toán');

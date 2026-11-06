@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import {
@@ -17,7 +18,14 @@ import {
   AlertCircle,
   RefreshCw,
   Edit3,
+  Layers,
+  MessageSquare,
+  ExternalLink,
 } from 'lucide-react';
+import {
+  SubscriptionMessageModal,
+  SubscriptionRecipient,
+} from '@/components/subscriptions/SubscriptionMessageModal';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -137,27 +145,34 @@ export default function SubscriptionsPage() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [serviceFilter, setServiceFilter] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<SubscriptionItem | null>(null);
   const [formData, setFormData] = useState<FormData>(emptyForm);
 
-  // Email Alert Modal
+  // Message Modal & Bulk Selection
+  const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
+  const [messageRecipients, setMessageRecipients] = useState<SubscriptionRecipient[]>([]);
+  const [successNotice, setSuccessNotice] = useState<string | null>(null);
+
+  // Legacy Email Alert Modal states (kept for backward compatibility)
   const [alertModalItem, setAlertModalItem] = useState<SubscriptionItem | null>(null);
   const [customSubject, setCustomSubject] = useState('');
   const [customMessage, setCustomMessage] = useState('');
-
-  // Bulk selection để gửi email hàng loạt
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBulkSend, setIsBulkSend] = useState(false);
   const [bulkSendIds, setBulkSendIds] = useState<string[]>([]);
 
-  // 1. Lấy danh sách subscriptions
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  // 1. Lấy danh sách subscriptions (hỗ trợ lọc theo trạng thái, từ khóa & gói dịch vụ)
   const { data: subscriptions = [], isLoading, refetch, isFetching } = useQuery<SubscriptionItem[]>({
-    queryKey: ['subscriptions', statusFilter, searchTerm],
+    queryKey: ['subscriptions', statusFilter, searchTerm, serviceFilter],
     queryFn: async () => {
       const params: any = {};
       if (statusFilter !== 'ALL') params.status = statusFilter;
       if (searchTerm) params.search = searchTerm;
+      if (serviceFilter !== 'ALL') params.serviceName = serviceFilter;
       const res = await api.get('/subscriptions', { params });
       return res.data;
     },
@@ -266,6 +281,45 @@ export default function SubscriptionsPage() {
     return { total, active, expiringSoon, expired };
   }, [subscriptions]);
 
+  // Tổng hợp danh sách các dịch vụ duy nhất để lọc nhanh
+  const serviceOptions = useMemo(() => {
+    const set = new Set<string>();
+    services.forEach((s) => {
+      if (s.name?.trim()) set.add(s.name.trim());
+    });
+    subscriptions.forEach((sub) => {
+      if (sub.serviceName?.trim()) set.add(sub.serviceName.trim());
+    });
+    return Array.from(set).sort();
+  }, [services, subscriptions]);
+
+  const handleOpenMessageModal = (customItems?: SubscriptionItem[]) => {
+    let itemsToMessage: SubscriptionItem[] = [];
+    if (customItems && customItems.length > 0) {
+      itemsToMessage = customItems;
+    } else if (selectedIds.length > 0) {
+      itemsToMessage = subscriptions.filter((s) => selectedIds.includes(s.id));
+    }
+
+    if (itemsToMessage.length === 0) {
+      alert('Vui lòng chọn ít nhất một khách hàng để gửi tin nhắn');
+      return;
+    }
+
+    const recipients: SubscriptionRecipient[] = itemsToMessage.map((s) => ({
+      id: s.id,
+      customerName: s.customerName,
+      customerEmail: s.customerEmail,
+      customerPhone: s.customerPhone,
+      customerCompany: s.customerCompany,
+      serviceName: s.serviceName,
+      endDate: s.endDate,
+    }));
+
+    setMessageRecipients(recipients);
+    setIsMessageModalOpen(true);
+  };
+
   const handleOpenAdd = () => {
     setEditingItem(null);
     setFormData(emptyForm);
@@ -305,11 +359,7 @@ export default function SubscriptionsPage() {
   };
 
   const handleOpenAlertModal = (sub: SubscriptionItem) => {
-    setAlertModalItem(sub);
-    setIsBulkSend(false);
-    setBulkSendIds([]);
-    setCustomSubject(settings?.emailAlertSubject || '');
-    setCustomMessage(settings?.emailAlertBody || '');
+    handleOpenMessageModal([sub]);
   };
 
   const formatCurrency = (val: number) => {
@@ -583,6 +633,34 @@ export default function SubscriptionsPage() {
         </div>
       </div>
 
+      {/* Banner thông báo kết quả gửi tin nhắn / hàng đợi */}
+      {successNotice && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between gap-3 text-emerald-800 text-sm animate-in fade-in duration-200 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <div>
+              <span>{successNotice}</span>
+              <span className="ml-2 font-medium">
+                Theo dõi tiến trình gửi thực tế tại{' '}
+                <Link
+                  href="/queue"
+                  className="font-bold underline text-emerald-700 hover:text-emerald-900 inline-flex items-center gap-1"
+                >
+                  Hàng Đợi Xử Lý <ExternalLink className="w-3.5 h-3.5" />
+                </Link>
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSuccessNotice(null)}
+            className="text-emerald-500 hover:text-emerald-700 p-1 cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Filter & Toolbar */}
       <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm px-4 py-3">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -612,54 +690,96 @@ export default function SubscriptionsPage() {
             })}
           </div>
 
-          {/* Search Input */}
-          <div className="relative w-full lg:w-80 shrink-0">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Tìm theo tên KH, công ty, email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full h-11 pl-10 pr-4 text-sm bg-slate-50 border border-slate-200 rounded-xl placeholder:text-slate-400 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-colors duration-150"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                aria-label="Xóa tìm kiếm"
+          {/* Service Filter & Search Input */}
+          <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full lg:w-auto">
+            {/* Bộ lọc Dịch Vụ */}
+            <div className="relative w-full sm:w-64 shrink-0">
+              <Layers className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <select
+                value={serviceFilter}
+                onChange={(e) => setServiceFilter(e.target.value)}
+                className="w-full h-11 pl-10 pr-8 text-sm bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-700 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-colors duration-150 cursor-pointer appearance-none truncate"
+                title="Lọc theo gói dịch vụ"
               >
-                <X className="w-4 h-4" />
-              </button>
-            )}
+                <option value="ALL">Tất cả gói dịch vụ</option>
+                {serviceOptions.map((svcName) => (
+                  <option key={svcName} value={svcName}>
+                    {svcName}
+                  </option>
+                ))}
+              </select>
+              {serviceFilter !== 'ALL' && (
+                <button
+                  type="button"
+                  onClick={() => setServiceFilter('ALL')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                  title="Xóa lọc dịch vụ"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Search Input */}
+            <div className="relative w-full sm:w-72 shrink-0">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Tìm theo tên KH, công ty, email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full h-11 pl-10 pr-8 text-sm bg-slate-50 border border-slate-200 rounded-xl placeholder:text-slate-400 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-colors duration-150"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  aria-label="Xóa tìm kiếm"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Bulk Action Toolbar */}
       {selectedCount > 0 && (
-        <div className="bg-blue-50/70 border border-blue-200 rounded-2xl px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in duration-150">
-          <div className="flex items-center space-x-2.5 text-sm font-semibold text-blue-900">
-            <CheckCircle2 className="w-5 h-5 text-blue-600" />
-            <span>
-              Đã chọn <strong className="font-bold">{selectedCount}</strong> khách hàng
-            </span>
+        <div className="bg-blue-50/80 border border-blue-200 rounded-2xl px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in duration-150 shadow-xs">
+          <div className="flex flex-wrap items-center gap-3 text-sm font-semibold text-blue-900">
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-5 h-5 text-blue-600 shrink-0" />
+              <span>
+                Đã chọn <strong className="font-bold text-blue-700">{selectedCount}</strong> / {subscriptions.length} khách hàng
+              </span>
+            </div>
+            {selectedCount < subscriptions.length && (
+              <button
+                type="button"
+                onClick={() => setSelectedIds(subscriptions.map((s) => s.id))}
+                className="text-xs font-semibold text-blue-700 bg-white hover:bg-blue-100/70 border border-blue-200 px-3 py-1 rounded-lg transition-all cursor-pointer shadow-2xs"
+              >
+                Chọn tất cả {subscriptions.length} khách hàng đang lọc
+              </button>
+            )}
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 shrink-0">
             <button
               type="button"
               onClick={() => setSelectedIds([])}
-              className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-600 text-sm font-semibold rounded-xl transition-all cursor-pointer"
+              className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-600 text-sm font-semibold rounded-xl transition-all cursor-pointer shadow-2xs"
             >
               Bỏ chọn
             </button>
             <button
               type="button"
-              onClick={handleOpenBulkSend}
-              className="inline-flex items-center space-x-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-xs transition-all cursor-pointer"
+              onClick={() => handleOpenMessageModal()}
+              className="inline-flex items-center space-x-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-bold rounded-xl shadow-xs transition-all cursor-pointer"
             >
-              <Mail className="w-4 h-4" />
-              <span>Gửi email nhắc hạn hàng loạt</span>
+              <Send className="w-4 h-4" />
+              <span>Gửi Tin Nhắn (Zalo / Email)</span>
             </button>
           </div>
         </div>
@@ -787,11 +907,11 @@ export default function SubscriptionsPage() {
                           <div className="inline-flex items-center justify-end gap-1">
                             <button
                               type="button"
-                              onClick={() => handleOpenAlertModal(sub)}
+                              onClick={() => handleOpenMessageModal([sub])}
                               className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-150 cursor-pointer"
-                              title="Gửi email nhắc hạn cho khách"
+                              title="Gửi tin nhắn (Email / Zalo) cho khách hàng"
                             >
-                              <Mail className="w-[18px] h-[18px]" />
+                              <Send className="w-[18px] h-[18px]" />
                             </button>
 
                             <button
@@ -1059,118 +1179,26 @@ export default function SubscriptionsPage() {
         </div>
       )}
 
-      {/* POPUP GỬI EMAIL NHẮC HẠN */}
-      {(alertModalItem || isBulkSend) && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
-                  <Mail className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-base">
-                    {isBulkSend ? 'Gửi Email Nhắc Hạn Hàng Loạt' : 'Gửi Email Cảnh Báo Gia Hạn'}
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    {isBulkSend
-                      ? `Gửi tới ${bulkSendIds.length} khách hàng được chọn`
-                      : `Gửi tới: ${alertModalItem?.customerEmail}`}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setAlertModalItem(null);
-                  setIsBulkSend(false);
-                  setBulkSendIds([]);
-                }}
-                className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-200 transition-all font-bold text-sm"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4 overflow-y-auto max-h-[70vh]">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Tiêu Đề Email
-                </label>
-                <input
-                  type="text"
-                  value={customSubject}
-                  onChange={(e) => setCustomSubject(e.target.value)}
-                  placeholder="Để trống sẽ tự dùng tiêu đề tiêu chuẩn"
-                  className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Nội Dung Lời Nhắn Mở Đầu Email
-                </label>
-                <textarea
-                  rows={4}
-                  value={customMessage}
-                  onChange={(e) => setCustomMessage(e.target.value)}
-                  placeholder="Để trống sẽ tự dùng mẫu tiêu chuẩn đã lưu trong Cài Đặt..."
-                  className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none leading-relaxed"
-                />
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Bảng chi tiết thông tin gói dịch vụ, giá tiền và thông tin liên hệ sẽ tự động được hệ thống đính kèm vào email gửi khách.
-                </p>
-              </div>
-
-              {/* Template Preview */}
-              {settings?.emailAlertSubject && (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
-                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                    <span>Template Xem Trước</span>
-                    <span className="text-slate-400 normal-case font-medium">Mẫu lưu trong Cài Đặt</span>
-                  </div>
-                  <div className="text-xs font-semibold text-slate-800 border-b border-slate-200 pb-2">
-                    {customSubject || settings.emailAlertSubject}
-                  </div>
-                  <p className="text-xs text-slate-600 line-clamp-3 leading-relaxed">
-                    {(customMessage || settings.emailAlertBody || '').replace(/\n/g, ' ')}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="p-4 border-t border-slate-200 bg-white flex justify-end items-center space-x-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setAlertModalItem(null);
-                  setIsBulkSend(false);
-                  setBulkSendIds([]);
-                }}
-                className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                onClick={handleSendEmail}
-                disabled={bulkSendMutation.isPending || sendEmailMutation.isPending}
-                className="inline-flex items-center space-x-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>
-                  {bulkSendMutation.isPending || sendEmailMutation.isPending
-                    ? 'Đang gửi...'
-                    : isBulkSend
-                    ? `Gửi tới ${bulkSendIds.length} khách hàng`
-                    : 'Gửi Email Ngay'}
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* MODAL GỬI TIN NHẮN & THÔNG BÁO KHÁCH HÀNG (ZALO / EMAIL / QUEUE) */}
+      <SubscriptionMessageModal
+        isOpen={isMessageModalOpen}
+        onClose={() => setIsMessageModalOpen(false)}
+        recipients={messageRecipients}
+        defaultServiceName={serviceFilter !== 'ALL' ? serviceFilter : (messageRecipients[0]?.serviceName || '')}
+        onRemoveRecipient={(id) => {
+          setMessageRecipients((prev) => prev.filter((r) => r.id !== id));
+        }}
+        onSuccess={(result) => {
+          const detail = [];
+          if (result.queuedEmailCount > 0) detail.push(`${result.queuedEmailCount} Email`);
+          if (result.queuedZaloCount > 0) detail.push(`${result.queuedZaloCount} tin Zalo`);
+          setSuccessNotice(
+            `Đã đưa thành công ${detail.length > 0 ? detail.join(' và ') : 'tin nhắn'} vào hàng đợi xử lý cho ${result.totalRecipients} khách hàng!`
+          );
+          setSelectedIds([]);
+          refetch();
+        }}
+      />
     </div>
   );
 }

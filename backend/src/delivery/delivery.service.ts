@@ -1281,6 +1281,74 @@ export class DeliveryService {
     }
   }
 
+  /**
+   * Gửi email tùy biến trực tiếp (hỗ trợ Resend API & SMTP)
+   */
+  async sendRawEmail(options: {
+    to: string;
+    subject: string;
+    html: string;
+    fromName?: string;
+    attachments?: Array<{ filename: string; content?: any; path?: string }>;
+  }): Promise<{ success: boolean; message: string }> {
+    const to = (options.to || '').trim();
+    if (!to) throw new Error('Thiếu email người nhận');
+
+    const settings = await this.prisma.setting.findUnique({ where: { id: 'default' } });
+    const companyName = options.fromName || settings?.companyName || 'Invoice-AIR';
+
+    let fromEmail = (process.env.SMTP_FROM || '').trim().replace(/^["']|["']$/g, '');
+    if (!fromEmail || fromEmail.includes('onboarding@resend.dev') || fromEmail.includes('your-email') || !fromEmail.includes('@invoice.share4happy.com')) {
+      fromEmail = `"${companyName}" <billing@invoice.share4happy.com>`;
+    } else if (!fromEmail.includes('<') && fromEmail.includes('@')) {
+      fromEmail = `"${companyName}" <${fromEmail}>`;
+    }
+
+    try {
+      if (process.env.RESEND_API_KEY) {
+        const payload: any = {
+          from: fromEmail,
+          to: [to],
+          subject: options.subject,
+          html: options.html,
+        };
+        if (options.attachments && options.attachments.length > 0) {
+          payload.attachments = options.attachments;
+        }
+
+        const resendRes = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${process.env.RESEND_API_KEY.trim()}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const resendData = await resendRes.json().catch(() => ({}));
+        if (!resendRes.ok) {
+          throw new Error(`Resend API HTTP ${resendRes.status}: ${resendData?.message || JSON.stringify(resendData)}`);
+        }
+      } else if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+        await this.transporter.sendMail({
+          from: fromEmail,
+          to,
+          subject: options.subject,
+          html: options.html,
+          attachments: options.attachments,
+        });
+      } else {
+        throw new Error('Chưa cấu hình thông tin gửi Email (Cần RESEND_API_KEY hoặc SMTP_USER/PASS)');
+      }
+
+      console.log(`[Delivery] Đã gửi email trực tiếp tới ${to}`);
+      return { success: true, message: `Đã gửi email tới ${to}` };
+    } catch (error: any) {
+      console.error('[Delivery] Lỗi gửi raw email:', error);
+      throw error;
+    }
+  }
+
   async getPublicInvoiceByToken(shareToken: string) {
     const invoice = await this.prisma.invoice.findUnique({
       where: { shareToken },

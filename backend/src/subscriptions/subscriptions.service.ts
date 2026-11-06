@@ -5,6 +5,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { QueueService } from '../queue/queue.service';
+import { QueueType } from '@prisma/client';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 import * as nodemailer from 'nodemailer';
@@ -14,7 +16,10 @@ export class SubscriptionsService {
   private readonly logger = new Logger(SubscriptionsService.name);
   private transporter: nodemailer.Transporter;
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly queueService: QueueService,
+  ) {
     this.transporter = this.getTransporter();
   }
 
@@ -88,7 +93,7 @@ export class SubscriptionsService {
     };
   }
 
-  async findAll(search?: string, status?: string) {
+  async findAll(search?: string, status?: string, serviceName?: string) {
     const where: any = {};
 
     if (search) {
@@ -99,6 +104,10 @@ export class SubscriptionsService {
         { serviceName: { contains: search } },
         { staffName: { contains: search } },
       ];
+    }
+
+    if (serviceName && serviceName !== 'ALL') {
+      where.serviceName = serviceName;
     }
 
     const rawList = await this.prisma.customerSubscription.findMany({
@@ -587,6 +596,166 @@ export class SubscriptionsService {
       sentCount: results.filter((r) => r.status === 'SENT').length,
       failedCount: results.filter((r) => r.status === 'FAILED').length,
       details: results,
+    };
+  }
+
+  /**
+   * Gửi tin nhắn / email thông báo cập nhật hoặc chăm sóc khách hàng hàng loạt qua Queue
+   */
+  async bulkSendMessage(body: {
+    ids: string[];
+    channels: ('EMAIL' | 'ZALO')[];
+    subject?: string;
+    message: string;
+    attachments?: Array<{ name: string; url: string; size?: number; type?: string }>;
+  }) {
+    const { ids, channels = ['EMAIL'], subject, message, attachments = [] } = body;
+    if (!ids || ids.length === 0) {
+      throw new BadRequestException('Vui lòng chọn ít nhất một khách hàng để gửi tin');
+    }
+    if (!message || !message.trim()) {
+      throw new BadRequestException('Nội dung tin nhắn không được để trống');
+    }
+
+    const subs = await this.prisma.customerSubscription.findMany({
+      where: { id: { in: ids } },
+    });
+
+    const settings = await this.prisma.setting.findUnique({ where: { id: 'default' } });
+    const companyName = settings?.companyName || 'Invoice-AIR';
+    const hotline = settings?.phone || '';
+
+    let queuedEmailCount = 0;
+    let queuedZaloCount = 0;
+    const skippedNoContact: string[] = [];
+
+    for (const sub of subs) {
+      const endDateStr = new Intl.DateTimeFormat('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      }).format(new Date(sub.endDate));
+
+      // Cá nhân hóa nội dung tin nhắn
+      const replaceVars = (text: string) =>
+        text
+          .replace(/{{customerName}}|{buyerName}|{customerName}/g, sub.customerName)
+          .replace(/{{serviceName}}|{packageName}|{{packageName}}/g, sub.serviceName)
+          .replace(/{{customerEmail}}/g, sub.customerEmail || '')
+          .replace(/{{customerPhone}}/g, sub.customerPhone || '')
+          .replace(/{{endDate}}|{expireDate}|{{expireDate}}/g, endDateStr)
+          .replace(/{{brandName}}/g, companyName)
+          .replace(/{{phone}}|{{hotline}}/g, hotline);
+
+      const personalizedMessage = replaceVars(message);
+      const personalizedSubject = replaceVars(
+        subject || `[${companyName}] Thông báo cập nhật dịch vụ ${sub.serviceName}`
+      );
+
+      // 1. Gửi Email qua Queue Worker
+      if (channels.includes('EMAIL') && sub.customerEmail) {
+        const isHtml = /<[a-z][\s\S]*>/i.test(personalizedMessage);
+        const htmlBody = isHtml
+          ? personalizedMessage
+          : `
+            <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div style="border-bottom: 2px solid #2563eb; padding-bottom: 12px; margin-bottom: 16px;">
+                  <h2 style="margin: 0; color: #0f172a; font-size: 18px;">${personalizedSubject}</h2>
+                  <p style="margin: 4px 0 0; color: #64748b; font-size: 12px;">Hệ thống ${companyName}</p>
+                </div>
+                <div style="white-space: pre-line; color: #334155;">
+                  ${personalizedMessage}
+                </div>
+                ${
+                  attachments.length > 0
+                    ? `
+                  <div style="margin-top: 20px; padding-top: 14px; border-top: 1px solid #f1f5f9;">
+                    <div style="font-weight: bold; font-size: 13px; color: #475569; margin-bottom: 8px;">Tài liệu / Tệp đính kèm:</div>
+                    ${attachments
+                      .map(
+                        (att) => `
+                      <div style="margin-bottom: 6px;">
+                        📎 <a href="${att.url}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 500;">${att.name}</a>
+                      </div>
+                    `
+                      )
+                      .join('')}
+                  </div>
+                `
+                    : ''
+                }
+                <div style="margin-top: 24px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8;">
+                  Trân trọng,<br/><strong>${companyName}</strong>${hotline ? ` | Hotline: ${hotline}` : ''}
+                </div>
+              </div>
+            </div>
+          `;
+
+        await this.queueService.enqueue(
+          QueueType.DELIVERY_EMAIL,
+          {
+            directEmail: true,
+            to: sub.customerEmail,
+            subject: personalizedSubject,
+            html: htmlBody,
+            attachments: attachments.map((a) => ({ filename: a.name, path: a.url })),
+          },
+          {
+            priority: 2,
+            title: `[Gửi Email] ${sub.serviceName} ➔ ${sub.customerName}`,
+            targetInfo: `${sub.customerEmail} (${sub.customerName})`,
+            apiName: 'Khách hàng & Dịch vụ',
+            endpoint: '/api/subscriptions/bulk-send-message',
+            source: 'Admin Broadcast',
+          }
+        );
+        queuedEmailCount++;
+      }
+
+      // 2. Gửi Zalo qua Queue Worker
+      if (channels.includes('ZALO') && sub.customerPhone) {
+        await this.queueService.enqueue(
+          QueueType.DELIVERY_ZALO,
+          {
+            directZalo: true,
+            phone: sub.customerPhone,
+            customerName: sub.customerName,
+            message: personalizedMessage,
+          },
+          {
+            priority: 2,
+            title: `[Gửi Zalo] ${sub.serviceName} ➔ ${sub.customerName}`,
+            targetInfo: `${sub.customerPhone} (${sub.customerName})`,
+            apiName: 'Khách hàng & Dịch vụ',
+            endpoint: '/api/subscriptions/bulk-send-message',
+            source: 'Admin Broadcast',
+          }
+        );
+        queuedZaloCount++;
+      }
+
+      if (!sub.customerEmail && !sub.customerPhone) {
+        skippedNoContact.push(sub.customerName);
+      }
+
+      // Cập nhật thống kê cảnh báo
+      await this.prisma.customerSubscription.update({
+        where: { id: sub.id },
+        data: {
+          lastAlertSentAt: new Date(),
+          alertCount: { increment: 1 },
+        },
+      });
+    }
+
+    return {
+      success: true,
+      totalRequested: ids.length,
+      queuedEmailCount,
+      queuedZaloCount,
+      skippedCount: skippedNoContact.length,
+      message: `Đã đưa vào hàng chờ xử lý: ${queuedEmailCount} email và ${queuedZaloCount} tin nhắn Zalo`,
     };
   }
 
