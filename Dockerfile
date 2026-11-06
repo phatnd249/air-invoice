@@ -19,7 +19,6 @@ RUN npm install -g pnpm@11.9.0
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY backend/package.json ./backend/
 COPY packages/types/package.json ./packages/types/
-COPY packages/validation/package.json ./packages/validation/
 COPY packages/config ./packages/config/
 
 # Install dependencies
