@@ -95,9 +95,59 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');
     }
 
+    // 🔒 Kiểm tra khóa tài khoản do nhập sai mật khẩu nhiều lần
+    if (user.lockoutUntil && user.lockoutUntil > new Date()) {
+      const remainingMs = user.lockoutUntil.getTime() - Date.now();
+      const remainingMinutes = Math.max(1, Math.ceil(remainingMs / 60000));
+      throw new UnauthorizedException(
+        `Tài khoản đã bị tạm khóa do nhập sai mật khẩu 5 lần liên tiếp. Vui lòng thử lại sau ${remainingMinutes} phút hoặc đặt lại mật khẩu.`,
+      );
+    }
+
     const isPasswordValid = await bcrypt.compare(dto.password, user.password);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');
+      const failedAttempts = (user.failedLoginAttempts || 0) + 1;
+      const MAX_ATTEMPTS = 5;
+      const LOCKOUT_MINUTES = 15;
+
+      if (failedAttempts >= MAX_ATTEMPTS) {
+        const lockoutUntil = new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000);
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            failedLoginAttempts: failedAttempts,
+            lockoutUntil,
+          },
+        });
+        this.logger.warn(
+          `Tài khoản ${user.email} đã bị tạm khóa ${LOCKOUT_MINUTES} phút do nhập sai mật khẩu ${failedAttempts} lần`,
+        );
+        throw new UnauthorizedException(
+          `Tài khoản đã bị tạm khóa ${LOCKOUT_MINUTES} phút do nhập sai mật khẩu ${MAX_ATTEMPTS} lần liên tiếp. Vui lòng thử lại sau hoặc đặt lại mật khẩu.`,
+        );
+      } else {
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            failedLoginAttempts: failedAttempts,
+          },
+        });
+        const remainingAttempts = MAX_ATTEMPTS - failedAttempts;
+        throw new UnauthorizedException(
+          `Email hoặc mật khẩu không chính xác. Bạn còn ${remainingAttempts} lần thử trước khi tài khoản bị tạm khóa 15 phút.`,
+        );
+      }
+    }
+
+    // Đăng nhập thành công: reset bộ đếm nếu trước đó có lỗi hoặc đã từng bị khóa
+    if (user.failedLoginAttempts > 0 || user.lockoutUntil) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: 0,
+          lockoutUntil: null,
+        },
+      });
     }
 
     const tokens = await this.generateTokens(user.id, user.email, user.role);
@@ -396,6 +446,8 @@ export class AuthService implements OnModuleInit {
         resetPasswordToken: null,
         resetPasswordExpires: null,
         hashedRefreshToken: null, // Thu hồi tất cả phiên đăng nhập cũ
+        failedLoginAttempts: 0,
+        lockoutUntil: null,
       },
     });
 

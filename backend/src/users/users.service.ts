@@ -34,6 +34,8 @@ export class UsersService {
         email: true,
         name: true,
         role: true,
+        failedLoginAttempts: true,
+        lockoutUntil: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -49,6 +51,8 @@ export class UsersService {
         email: true,
         name: true,
         role: true,
+        failedLoginAttempts: true,
+        lockoutUntil: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -84,6 +88,8 @@ export class UsersService {
         email: true,
         name: true,
         role: true,
+        failedLoginAttempts: true,
+        lockoutUntil: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -130,6 +136,8 @@ export class UsersService {
         email: true,
         name: true,
         role: true,
+        failedLoginAttempts: true,
+        lockoutUntil: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -156,5 +164,35 @@ export class UsersService {
 
     await this.prisma.user.delete({ where: { id } });
     return { message: 'Đã xóa người dùng thành công' };
+  }
+
+  async unlockUser(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id },
+      data: {
+        failedLoginAttempts: 0,
+        lockoutUntil: null,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        failedLoginAttempts: true,
+        lockoutUntil: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return {
+      message: `Đã mở khóa tài khoản ${user.email} thành công`,
+      user: updatedUser,
+    };
   }
 }

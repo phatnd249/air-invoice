@@ -54,4 +54,9 @@ export class UsersController {
   ) {
     return this.usersService.remove(id, currentUserId);
   }
+
+  @Post(':id/unlock')
+  async unlock(@Param('id') id: string) {
+    return this.usersService.unlockUser(id);
+  }
 }

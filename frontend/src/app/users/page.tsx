@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   Mail,
   Lock,
+  Unlock,
   CheckCircle2,
   AlertCircle,
 } from 'lucide-react';
@@ -26,6 +27,8 @@ interface UserItem {
   email: string;
   name: string | null;
   role: 'ADMIN' | 'USER';
+  failedLoginAttempts?: number;
+  lockoutUntil?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -116,6 +119,21 @@ export default function UsersPage() {
       const msg = err?.response?.data?.message || 'Không thể xóa người dùng';
       alert(Array.isArray(msg) ? msg.join(', ') : msg);
       setDeleteConfirmUser(null);
+    },
+  });
+
+  // Mutation: Mở khóa tài khoản bị khóa do nhập sai mật khẩu 5 lần
+  const unlockMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/users/${id}/unlock`),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setSuccessMessage(res?.data?.message || 'Đã mở khóa tài khoản thành công');
+      setTimeout(() => setSuccessMessage(null), 4000);
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || 'Không thể mở khóa tài khoản';
+      setErrorMessage(Array.isArray(msg) ? msg.join(', ') : msg);
+      setTimeout(() => setErrorMessage(null), 4000);
     },
   });
 
@@ -327,7 +345,7 @@ export default function UsersPage() {
                   <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 uppercase tracking-wider hidden sm:table-cell">
                     Ngày Tạo
                   </th>
-                  <th className="text-center px-5 py-3.5 text-xs font-bold text-slate-600 uppercase tracking-wider w-28">
+                  <th className="text-center px-5 py-3.5 text-xs font-bold text-slate-600 uppercase tracking-wider min-w-[120px]">
                     Thao Tác
                   </th>
                 </tr>
@@ -336,6 +354,10 @@ export default function UsersPage() {
                 {users.map((item) => {
                   const isSelf = currentUser?.id === item.id;
                   const initial = item.name ? item.name.charAt(0).toUpperCase() : 'U';
+                  const isLocked = !!(item.lockoutUntil && new Date(item.lockoutUntil) > new Date());
+                  const lockoutMinutesLeft = isLocked && item.lockoutUntil
+                    ? Math.max(1, Math.ceil((new Date(item.lockoutUntil).getTime() - Date.now()) / 60000))
+                    : 0;
 
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
@@ -367,20 +389,31 @@ export default function UsersPage() {
                         {item.email}
                       </td>
                       <td className="px-5 py-3.5 text-center">
-                        <span
-                          className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${
-                            item.role === 'ADMIN'
-                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                              : 'bg-slate-100 text-slate-700 border-slate-200'
-                          }`}
-                        >
-                          {item.role === 'ADMIN' ? (
-                            <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
-                          ) : (
-                            <UserIcon className="w-3.5 h-3.5 text-slate-500" />
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-1.5">
+                          <span
+                            className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${
+                              item.role === 'ADMIN'
+                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                : 'bg-slate-100 text-slate-700 border-slate-200'
+                            }`}
+                          >
+                            {item.role === 'ADMIN' ? (
+                              <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                            ) : (
+                              <UserIcon className="w-3.5 h-3.5 text-slate-500" />
+                            )}
+                            <span>{item.role === 'ADMIN' ? 'Quản trị viên' : 'Nhân viên'}</span>
+                          </span>
+                          {isLocked && (
+                            <span
+                              className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200"
+                              title={`Tài khoản bị tạm khóa đến ${new Date(item.lockoutUntil!).toLocaleTimeString('vi-VN')}`}
+                            >
+                              <Lock className="w-3 h-3 text-rose-600" />
+                              <span>Khóa ({lockoutMinutesLeft}p)</span>
+                            </span>
                           )}
-                          <span>{item.role === 'ADMIN' ? 'Quản trị viên' : 'Nhân viên'}</span>
-                        </span>
+                        </div>
                       </td>
                       <td className="px-5 py-3.5 text-slate-500 text-xs hidden sm:table-cell">
                         {new Date(item.createdAt).toLocaleDateString('vi-VN', {
@@ -391,6 +424,17 @@ export default function UsersPage() {
                       </td>
                       <td className="px-5 py-3.5 text-center">
                         <div className="flex items-center justify-center space-x-1">
+                          {isLocked && (
+                            <button
+                              onClick={() => unlockMutation.mutate(item.id)}
+                              disabled={unlockMutation.isPending}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-lg transition-colors cursor-pointer shadow-xs mr-1 disabled:opacity-50"
+                              title="Mở khóa tài khoản ngay lập tức"
+                            >
+                              <Unlock className="w-3.5 h-3.5" />
+                              <span>Mở khóa</span>
+                            </button>
+                          )}
                           <button
                             onClick={() => openEditModal(item)}
                             className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all cursor-pointer"

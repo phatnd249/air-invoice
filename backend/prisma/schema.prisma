@@ -43,6 +43,8 @@ model User {
   hashedRefreshToken   String?
   resetPasswordToken   String? // SHA-256 hash của token đặt lại mật khẩu (gửi qua email)
   resetPasswordExpires DateTime?
+  failedLoginAttempts  Int       @default(0)
+  lockoutUntil         DateTime?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 }
