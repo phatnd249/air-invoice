@@ -7,7 +7,6 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import AddSubscriptionFromInvoiceModal from '@/components/AddSubscriptionFromInvoiceModal';
 import { InvoiceHeader } from '@/components/invoices/InvoiceHeader';
-import { InvoiceStatsCards } from '@/components/invoices/InvoiceStatsCards';
 import { InvoiceFilterBar } from '@/components/invoices/InvoiceFilterBar';
 import { InvoiceTable } from '@/components/invoices/InvoiceTable';
 import { InvoiceBatchBar } from '@/components/invoices/InvoiceBatchBar';
@@ -349,38 +348,6 @@ export default function InvoicesPage() {
     }
   };
 
-  // Tính toán KPI số liệu
-  const metrics = useMemo(() => {
-    const totalCount = invoices.length;
-    let paidRevenue = 0;
-    let pendingRevenue = 0;
-    let paidCount = 0;
-    let pendingCount = 0;
-    let cancelledCount = 0;
-
-    invoices.forEach((inv) => {
-      const amount = Number(inv.grandTotal) || 0;
-      if (inv.status === 'PAID') {
-        paidRevenue += amount;
-        paidCount++;
-      } else if (inv.status === 'ISSUED' || inv.status === 'SENT') {
-        pendingRevenue += amount;
-        pendingCount++;
-      } else if (inv.status === 'CANCELLED') {
-        cancelledCount++;
-      }
-    });
-
-    return {
-      totalCount,
-      paidRevenue,
-      pendingRevenue,
-      paidCount,
-      pendingCount,
-      cancelledCount,
-    };
-  }, [invoices]);
-
   // Lọc dữ liệu theo tìm kiếm & status
   const filteredInvoices = useMemo(() => {
     return invoices.filter((inv) => {
@@ -506,10 +473,7 @@ export default function InvoicesPage() {
         isFetching={isFetching}
       />
 
-      {/* 2. KPI Cards */}
-      <InvoiceStatsCards metrics={metrics} />
-
-      {/* 3. Filter Toolbar & Segmented Status Bar */}
+      {/* 2. Filter Toolbar & Segmented Status Bar */}
       <InvoiceFilterBar
         selectedStatus={selectedStatus}
         onSelectStatus={(status) => {

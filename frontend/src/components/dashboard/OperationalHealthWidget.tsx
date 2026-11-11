@@ -108,3 +108,4 @@ export function OperationalHealthWidget({ queue }: OperationalHealthWidgetProps)
     </div>
   );
 }
+

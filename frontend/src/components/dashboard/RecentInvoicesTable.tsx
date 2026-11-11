@@ -182,3 +182,4 @@ export function RecentInvoicesTable({ invoices }: RecentInvoicesTableProps) {
     </div>
   );
 }
+

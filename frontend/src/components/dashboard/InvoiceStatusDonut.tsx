@@ -119,3 +119,4 @@ export function InvoiceStatusDonut({ data, totalInvoices }: InvoiceStatusDonutPr
     </div>
   );
 }
+

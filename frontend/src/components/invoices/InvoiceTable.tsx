@@ -1,7 +1,6 @@
 import React, { RefObject } from 'react';
 import Link from 'next/link';
 import { FileText, Plus, Eye, MoreVertical } from 'lucide-react';
-import { INVOICE_TYPE_CONFIG, INVOICE_FORM_CONFIG, InvoiceType, InvoiceForm } from '@invoice/types';
 import { formatVietnamDateTime } from '@/lib/date';
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
 import { InvoiceRowMenu } from './InvoiceRowMenu';
@@ -124,7 +123,6 @@ export function InvoiceTable({
               </th>
               <th className="py-3.5 px-4">Số Hóa Đơn</th>
               <th className="py-3.5 px-4">Khách Hàng / Đơn Vị</th>
-              <th className="py-3.5 px-4">Loại &amp; Hình Thức</th>
               <th className="py-3.5 px-4 text-right">Tổng Tiền</th>
               <th className="py-3.5 px-4 text-center">Trạng Thái</th>
               <th className="py-3.5 px-4">Ngày Lập</th>
@@ -135,16 +133,6 @@ export function InvoiceTable({
             {invoices.map((inv) => {
               const isChecked = selectedIds.includes(inv.id);
               const isMenuOpen = openMenuRow === inv.id;
-              const typeCfg =
-                (inv.invoiceType && (INVOICE_TYPE_CONFIG as any)[inv.invoiceType]) ||
-                (INVOICE_TYPE_CONFIG as any)[InvoiceType.BAN_HANG] || {
-                  label: inv.invoiceType || 'Bán hàng',
-                };
-              const formCfg =
-                (inv.invoiceForm && (INVOICE_FORM_CONFIG as any)[inv.invoiceForm]) ||
-                (INVOICE_FORM_CONFIG as any)[InvoiceForm.WITH_TAX_CODE] || {
-                  label: 'Có mã CQT',
-                };
 
               return (
                 <tr
@@ -198,18 +186,6 @@ export function InvoiceTable({
                         {inv.buyerEmail}
                       </div>
                     )}
-                  </td>
-
-                  {/* Loại & Hình Thức */}
-                  <td className="py-3.5 px-4">
-                    <div className="flex flex-col space-y-0.5">
-                      <span className="text-xs font-semibold text-slate-700">
-                        {typeCfg.label}
-                      </span>
-                      <span className="text-xs text-slate-400">
-                        {formCfg.label}
-                      </span>
-                    </div>
                   </td>
 
                   {/* Tổng Tiền */}

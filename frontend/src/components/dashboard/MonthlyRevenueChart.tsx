@@ -169,3 +169,4 @@ export function MonthlyRevenueChart({ data }: MonthlyRevenueChartProps) {
     </div>
   );
 }
+
