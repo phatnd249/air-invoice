@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   FileText,
+  LayoutDashboard,
   LayoutTemplate,
   Settings,
   Layers,
@@ -33,8 +34,9 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
-    groupName: 'Nghiệp Vụ Chính',
+    groupName: 'Tổng Quan & Nghiệp Vụ',
     items: [
+      { name: 'Dashboard Tổng Quan', href: '/dashboard', icon: LayoutDashboard },
       { name: 'Quản lý Hóa đơn', href: '/invoices', icon: Receipt },
       { name: 'Khách hàng & Dịch vụ', href: '/subscriptions', icon: CalendarClock },
       { name: 'Hàng Chờ Request', href: '/queue', icon: Clock },
@@ -71,7 +73,7 @@ export function Sidebar() {
     <aside className="w-64 h-screen bg-slate-900 text-slate-200 flex flex-col border-r border-slate-800 shrink-0 select-none">
       {/* Workspace / Brand Header (cố định) */}
       <div className="h-16 shrink-0 px-5 border-b border-slate-800 flex items-center justify-between">
-        <Link href="/invoices" className="flex items-center space-x-3 group">
+        <Link href="/dashboard" className="flex items-center space-x-3 group">
           <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs group-hover:bg-blue-500 transition-colors">
             <FileText className="w-5 h-5" />
           </div>
@@ -96,7 +98,9 @@ export function Sidebar() {
 
               {visibleItems.map((item) => {
                 const isActive =
-                  item.href === '/invoices'
+                  item.href === '/dashboard'
+                    ? pathname === '/dashboard'
+                    : item.href === '/invoices'
                     ? pathname === '/invoices' || (pathname.startsWith('/invoices/') && pathname !== '/invoices/new')
                     : pathname.startsWith(item.href);
 

@@ -16,6 +16,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { HealthModule } from './health/health.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
 import { QueueModule } from './queue/queue.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { RequestLoggerMiddleware } from './common/logger.middleware';
 import { RateLimitGuard } from './common/rate-limit.guard';
 
@@ -30,6 +31,7 @@ import { RateLimitGuard } from './common/rate-limit.guard';
     InvoicesModule,
     DeliveryModule,
     QueueModule,
+    DashboardModule,
     ServicesCatalogModule,
     MessageTemplatesModule,
     InvoiceTemplatesModule,
