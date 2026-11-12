@@ -14,13 +14,15 @@ echo "🔌 Port: ${PORT:-4000}"
 # Change to backend directory
 cd backend || exit 1
 
-# Run database migrations
+# Run database migrations / schema sync
 echo ""
-echo "🔄 Running database migrations..."
+echo "🔄 Running database migrations / schema sync..."
 if pnpm exec prisma migrate deploy; then
     echo "✅ Migrations completed successfully"
+elif pnpm exec prisma db push --skip-generate; then
+    echo "✅ Database schema synced with prisma db push"
 else
-    echo "⚠️  Migration failed or no migrations to run"
+    echo "⚠️  Migration & db push failed"
     echo "📝 Continuing with server startup..."
 fi
 
